@@ -1,0 +1,256 @@
+---
+title: "8N_Edit_Efficiency"
+author: "Troy McDiarmid"
+date: "2024-04-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings")
+```
+
+```{r}
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/raw/pBC_Data/Merged_Plasmid_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+pBC_Counts_Parsed <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "RC_pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "-Rep") %>% 
+  separate(Replicate, into = c("Replicate", "Metadata"), sep = "_S") %>% 
+  select(Library, Replicate, pBC_Read_Count, RC_pBC_Seq)
+
+##Reverse compliment the R2 to get the PBC seq
+
+pBC_Counts_Parsed$pBC_Seq <- sapply(pBC_Counts_Parsed$RC_pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+write_csv(pBC_Counts_Parsed, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/raw/pBC_Data/pBC_Counts_Parsed.csv")
+
+```
+
+```{r}
+##Calculate all occurances of the 8N BC
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed %>% 
+  type_convert() %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Total_pBC_Read_Count = sum(pBC_Read_Count)) %>% 
+  ungroup()
+
+##How many reads are there total
+
+sum(pBC_Counts_Parsed_Calc$pBC_Read_Count)
+
+##Calculate frequency 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  mutate(pBC_Freq = (Total_pBC_Read_Count/(sum(Total_pBC_Read_Count)))*100) 
+
+pBC_Counts_Parsed_Distinct <- pBC_Counts_Parsed_Calc %>% 
+  distinct(pBC_Seq, .keep_all = TRUE) %>% 
+  select(Library, pBC_Seq, RC_pBC_Seq, Total_pBC_Read_Count, pBC_Freq)
+
+##Plot
+
+ggplot(pBC_Counts_Parsed_Distinct, aes(x = pBC_Freq)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+
+ggplot(pBC_Counts_Parsed_Distinct, aes(x = Total_pBC_Read_Count)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+```
+
+```{r}
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/raw/iBC_Data/Merged_Plasmid_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+iBC_Counts_Parsed <- iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "RC_iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "-Rep") %>% 
+  separate(Replicate, into = c("Replicate", "Metadata"), sep = "_S") %>% 
+  select(Library, Replicate, iBC_Read_Count, RC_iBC_Seq)
+
+##Reverse compliment the R2 to get the PBC seq
+
+iBC_Counts_Parsed$iBC_Seq <- sapply(iBC_Counts_Parsed$RC_iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+write_csv(iBC_Counts_Parsed, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/raw/iBC_Data/iBC_Counts_Parsed.csv")
+
+```
+
+```{r}
+##Calculate all occurances of the 8N BC
+
+iBC_Counts_Parsed_Calc <- iBC_Counts_Parsed %>% 
+  type_convert() %>% 
+  group_by(iBC_Seq) %>% 
+  mutate(Total_iBC_Read_Count = sum(iBC_Read_Count)) %>% 
+  ungroup()
+
+##How many edited reads are there total
+
+sum(iBC_Counts_Parsed_Calc$iBC_Read_Count)
+
+##Calculate frequency 
+
+iBC_Counts_Parsed_Calc <- iBC_Counts_Parsed_Calc %>% 
+  mutate(iBC_Freq = (Total_iBC_Read_Count/(sum(Total_iBC_Read_Count)))*100) 
+
+iBC_Counts_Parsed_Distinct <- iBC_Counts_Parsed_Calc %>% 
+  distinct(iBC_Seq, .keep_all = TRUE) %>% 
+  select(Library, iBC_Seq, RC_iBC_Seq, Total_iBC_Read_Count, iBC_Freq)
+
+##Plot
+
+ggplot(iBC_Counts_Parsed_Distinct, aes(x = iBC_Freq)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+
+ggplot(iBC_Counts_Parsed_Distinct, aes(x = Total_iBC_Read_Count)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+
+```
+
+```{r}
+##Calculate grand edit scores pooling edited reads from all replicates
+
+pBC_Counts_Parsed_Distinct <- pBC_Counts_Parsed_Distinct %>% 
+  select(Library, pBC_Seq, iBC_Seq = RC_pBC_Seq, Total_pBC_Read_Count, pBC_Freq)
+
+iBC_Counts_Parsed_Distinct <- iBC_Counts_Parsed_Distinct %>% 
+  select(Library, pBC_Seq = RC_iBC_Seq, iBC_Seq, Total_iBC_Read_Count, iBC_Freq)
+
+Edit_Scores <- pBC_Counts_Parsed_Distinct %>% 
+  left_join(iBC_Counts_Parsed_Distinct, by = "pBC_Seq") %>% 
+  select(Libary = Library.x, pBC_Seq, iBC_Seq = iBC_Seq.x, Total_pBC_Read_Count, Total_iBC_Read_Count, pBC_Freq, iBC_Freq)
+
+Edit_Scores <- Edit_Scores %>% 
+  mutate(Edit_Score = (iBC_Freq/pBC_Freq))
+
+##Plot
+
+ggplot(Edit_Scores, aes(x = log2(Edit_Score))) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() 
+
+ggplot(Edit_Scores, aes(x = Edit_Score)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+```
+
+
+```{r}
+##Calculate BC_Freq and edit scores by rep
+
+iBC_Counts_Parsed_Calc_Rep <- iBC_Counts_Parsed %>% 
+  type_convert() %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Replicate_Edited_Read_Count = sum(iBC_Read_Count))
+  
+
+##How many edited reads are there total
+
+sum(iBC_Counts_Parsed_Calc_Rep$iBC_Read_Count)
+
+##Calculate frequency 
+
+iBC_Counts_Parsed_Calc_Rep <- iBC_Counts_Parsed_Calc_Rep %>% 
+  mutate(iBC_Freq = (iBC_Read_Count/(sum(Total_Replicate_Edited_Read_Count)))*100) 
+
+iBC_Counts_Parsed_Calc_Rep <- iBC_Counts_Parsed_Calc_Rep %>% 
+  select(Library, iBC_Seq, RC_iBC_Seq, Replicate, iBC_Read_Count, Total_Replicate_Edited_Read_Count, iBC_Freq)
+
+##Plot
+
+ggplot(iBC_Counts_Parsed_Calc_Rep, aes(x = iBC_Freq)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+
+ggplot(iBC_Counts_Parsed_Calc_Rep, aes(x = iBC_Read_Count)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+```
+
+```{r}
+##Calculate edit scores for each replicate
+
+iBC_Counts_Parsed_Calc_Rep <- iBC_Counts_Parsed_Calc_Rep %>% 
+  select(Library, pBC_Seq = RC_iBC_Seq, iBC_Seq, Replicate, iBC_Read_Count, Total_Replicate_Edited_Read_Count, iBC_Freq)
+
+Edit_Scores_By_Rep <- pBC_Counts_Parsed_Distinct %>% 
+  left_join(iBC_Counts_Parsed_Calc_Rep, by = "pBC_Seq") %>% 
+  select(Libary = Library.x, pBC_Seq, iBC_Seq = iBC_Seq.x, Total_pBC_Read_Count, Replicate, iBC_Read_Count, Total_Replicate_Edited_Read_Count, pBC_Freq, iBC_Freq)
+
+Edit_Scores_By_Rep <- Edit_Scores_By_Rep %>% 
+  mutate(Edit_Score = (iBC_Freq/pBC_Freq))
+
+##Plot
+
+ggplot(Edit_Scores_By_Rep, aes(x = log2(Edit_Score))) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() 
+
+ggplot(Edit_Scores_By_Rep, aes(x = Edit_Score)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+##Calculate mea edit scores for each barcode
+
+Edit_Scores_By_Rep <- Edit_Scores_By_Rep %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Edit_Score = mean(Edit_Score))
+
+
+```
+
+```{r}
+
+write_csv(Edit_Scores, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/Pooled_Edit_Scores.csv")
+write_csv(Edit_Scores_By_Rep, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/Edit_Scores_By_Rep.csv")
+
+Edit_Scores_Corr <- Edit_Scores_By_Rep %>% 
+  left_join(Edit_Scores, by = "pBC_Seq")
+
+ggplot(Edit_Scores_Corr, aes(x = Mean_Edit_Score, y = Edit_Score.y)) +
+  geom_point()
+
+
+Edit_Scores %>% 
+  filter(Edit_Score > 1)
+```
+

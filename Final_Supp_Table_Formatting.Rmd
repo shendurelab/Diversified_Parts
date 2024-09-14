@@ -1,0 +1,88 @@
+---
+title: "Final_Result_Table_Analysis"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+
+```{r}
+##Formatting Table S1
+
+Table_S1 <- read_csv("/Users/troymcdiarmid/Downloads/U6_Edit_Scores_Comparison_Table.csv") %>% 
+  select(!`...1`) %>% 
+  select(Promoter_Sequence_Name = Name, Promoter_Sequence = U6_Promoter_Seq, Full_U6p_pegRNA_iBC_Seq_With_Restriction_Sites = Full_Seq_With_Restriction_Sites, K562_iBC_Normalized_Edit_Score = K562, HEK293T_iBC_Normalized_Edit_Score = HEK293T, iPSC_iBC_Normalized_Edit_Score = iPSC, mESC_iBC_Normalized_Edit_Score = mESC, Promoter_Class = Promoter_Lib, Within_5x_Standard_Across_Contexts, Above_Standard_Across_Contexts)
+
+Table_S1 <- Table_S1 %>% 
+  mutate(Promoter_Class = str_replace_all(Promoter_Class, "Diverse", "Evolutionarily_Diversified")) %>% 
+  mutate(Promoter_Class = str_replace_all(Promoter_Class, "Synthetic", "Synthetically_Diversified")) %>% 
+  mutate(Promoter_Sequence_Name = str_replace_all(Promoter_Sequence_Name, "Human_Weissman", "Standard_Human")) %>% 
+  mutate(Promoter_Sequence_Name = str_replace_all(Promoter_Sequence_Name, "Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249", "Ornithorhynchus_anatinus_RNU6-2_ENSOANG00000045249")) %>% 
+  mutate(Promoter_Sequence_Name = str_replace_all(Promoter_Sequence_Name, "Manacus_vitellinus_RNu6-2_ENSMVIG00005019009", "Manacus_vitellinus_RNU6-2_ENSMVIG00005019009")) %>%
+  mutate(Promoter_Sequence_Name = str_replace_all(Promoter_Sequence_Name, "Weissman", "Adamson_et_al"))
+
+write_csv(Table_S1, "/Users/troymcdiarmid/Downloads/Table_S1.csv")
+  
+
+```
+
+```{r}
+##Formatting Table S2
+
+Table_S2 <- read_csv("/Users/troymcdiarmid/Downloads/BB_Edit_Scores_Comparison_Table.csv") %>% 
+  select(Variant_ID = Oligo_Number, Variant_Type:Full_Seq, Scaffold_Seq = Backbone_Seq, K562_iBC_Normalized_Edit_Score = K562, HEK293T_iBC_Normalized_Edit_Score = HEK293T, iPSC_iBC_Normalized_Edit_Score = iPSC, Within_5x_Standard_Across_iBCs_And_Contexts = Within_5x_Standard, Above_Standard_Across_iBCs_And_Contexts = Above_Standard)
+
+
+write_csv(Table_S2, "/Users/troymcdiarmid/Downloads/Table_S2.csv")
+  
+
+```
+
+
+
+```{r}
+##Formatting Table S3
+
+Table_S3 <- read_csv("/Users/troymcdiarmid/Downloads/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  select(Variant_ID = ID_Number, BC_Pool:Variant_Type, Full_U6p_Scaffold_iBC_Variant_Sequence_No_Restriction_Sites = No_PCR_Sequence, Full_U6p_Scaffold_iBC_Sequence_With_Restriction_Sites = Full_Sequence, K562_iBC_Normalized_Edit_Score = K562, HEK293T_iBC_Normalized_Edit_Score = HEK293T, iPSC_iBC_Normalized_Edit_Score = iPSC, Within_2x_Standard_Across_iBCs_And_Contexts = Within_2x_Standard, Within_10_Percent_Standard_Across_iBCs_And_Contexts = Within_10_Percent_Standard, Above_Standard_Across_iBCs_And_Contexts = Above_Standard)
+
+Table_S3 <- Table_S3 %>% 
+  mutate(Variant_Type = str_replace_all(Variant_Type, " -> ", ">")) 
+
+write_csv(Table_S3, "/Users/troymcdiarmid/Downloads/Table_S3.csv")
+  
+
+```
+
+
+```{r}
+
+##Formatting Table S4
+
+Table_S4 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/10unit_Assembly_TAPE_Insertion_Count_And_Proportion_Across_All_TAPE_Sites.csv")  %>% 
+  mutate(Predicted_Relative_Proportion_Edited_Reads = (Predicted_Multiplied_Edit_Score/(((sum(Predicted_Multiplied_Edit_Score))/4))*100)) 
+
+Table_S4 <- Table_S4 %>% 
+  select(Assembly_Position, Promoter_Sequence_Name = Promoter_Seq_Name, Scaffold_Sequence_Name = Backbone_Seq_Name, iBC_Seq:All_TAPE_Positions_Insertion_Proportion, U6_Promoter_Individual_Part_Median_Human_Edit_Score = U6_Median_Human_Edit_Score, Scaffold_BC2_Individual_Part_Median_Human_Edit_Score = BB_BC2_Median_Human_Edit_Score, DNA_Typewriter_3N_iBC_Normalized_Edit_Score = Normalized_Edit_Score_3N, Predicted_Relative_Proportion_Edited_Reads, Observed_Mean_All_TAPE_Position_Insertion_Proportion_Across_Reps = Mean_All_TAPE_Position_Insertion_Proportion_Accross_Reps)
+
+write_csv(Table_S4, "/Users/troymcdiarmid/Downloads/Table_S4.csv")
+
+```
+
+
+```{r}
+##Formatting Table S5
+
+Table_S5 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig6_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv") 
+
+Table_S5 <- Table_S5 %>% 
+  select(Promoter_Sequence_Name = Seq_Name, Promoter_Sequence = Pro_Seq, pBC_Seq:Log2_Fold_Change_Relative_To_hRNU61p)
+
+write_csv(Table_S5, "/Users/troymcdiarmid/Downloads/Table_S5.csv")
+
+```
+

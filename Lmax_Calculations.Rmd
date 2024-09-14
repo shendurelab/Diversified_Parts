@@ -1,0 +1,305 @@
+---
+title: "Lmax_Calculations"
+author: "Troy McDiarmid"
+date: "2024-02-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings") 
+library("PTXQC")
+
+
+```
+
+```{r}
+##calculating length of maximal homology 
+
+##Reading in toy data
+
+toy_lmax_data <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/Lmax_toy_data_0720_2021.csv")
+
+toy_lmax_data$RC_Seq <- sapply(toy_lmax_data$Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+##This will generate all possible combinations of rows/sequences
+
+toy_lmax_data_combos <- map_dfc(toy_lmax_data, combn, m = 2, FUN = str_c, collapse=" ") %>% 
+  separate(Seq, into = c("Seq_A", "Seq_B"), sep = " ") %>% 
+  separate(Seq_Name, into = c("Seq_Name_A", "Seq_Name_B"), sep = " ") %>% 
+  separate(RC_Seq, into = c("RC_Seq_A", "RC_Seq_B"), sep = " ") 
+
+
+##This will calculate the Lmax and corresponding sequence for both strands 
+
+toy_lmax_data_combos <- toy_lmax_data_combos %>% 
+  rowwise() %>% 
+  mutate(Lmax_Seq = LCSn(c(Seq_A, Seq_B))) %>% 
+  mutate(Lmax = length(BString(LCSn(c(Seq_A, Seq_B))))) %>% 
+  mutate(RC_Lmax_Seq = LCSn(c(RC_Seq_A, RC_Seq_B))) %>% 
+  mutate(RC_Lmax = length(BString(LCSn(c(RC_Seq_A, RC_Seq_B))))) %>% 
+  mutate(A_BRC_Lmax_Seq = LCSn(c(Seq_A, RC_Seq_B))) %>% 
+  mutate(A_BRC_Lmax = length(BString(LCSn(c(Seq_A, RC_Seq_B))))) %>% 
+  mutate(B_ARC_Lmax_Seq = LCSn(c(Seq_B, RC_Seq_A))) %>% 
+  mutate(B_ARC_Lmax = length(BString(LCSn(c(Seq_B, RC_Seq_A))))) 
+  
+
+##Reading in U6 promoter sequences
+
+U6_Pros <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/DivU6_SynU6_seperate_data/BC_plexity/U6_promoters_0507_2021.csv")
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Pros <- U6_Pros %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2")) 
+
+##Doing it for all U6 promoters
+
+##Selecting a subset of interest
+
+U6_Pros_Subset <- U6_Pros 
+
+U6_Pros_Subset$RC_Seq <- sapply(U6_Pros_Subset$U6_Pro_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+##This will generate all possible combinations of rows/sequences
+
+U6_Pro_combos <- map_dfc(U6_Pros_Subset, combn, m = 2, FUN = str_c, collapse=" ") %>% 
+  separate(U6_Pro_Seq, into = c("Pro_Seq_A", "Pro_Seq_B"), sep = " ") %>% 
+  separate(Name, into = c("Name_A", "Name_B"), sep = " ") %>% 
+  separate(RC_Seq, into = c("RC_Seq_A", "RC_Seq_B"), sep = " ") 
+
+##This will calculate the Lmax and corresponding sequence
+
+U6_Pro_combos <- U6_Pro_combos %>% 
+  rowwise() %>% 
+  mutate(Lmax_Seq = LCSn(c(Pro_Seq_A, Pro_Seq_B))) %>% 
+  mutate(Lmax = length(BString(LCSn(c(Pro_Seq_A, Pro_Seq_B))))) %>% 
+  mutate(A_BRC_Lmax_Seq = LCSn(c(Pro_Seq_A, RC_Seq_B))) %>% 
+  mutate(A_BRC_Lmax = length(BString(LCSn(c(Pro_Seq_A, RC_Seq_B)))))
+
+##Converting to dataframe to write 
+
+U6_Pro_combos <- U6_Pro_combos %>% 
+  type_convert()
+
+write_csv(U6_Pro_combos, "/Users/troymcdiarmid/Documents/U6_pro_series/Lmax_data/240208_U6_Pro_combos.csv")
+
+
+ggplot(U6_Pro_combos, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, alpha=.4, fill = "#56B4E9") +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks.y = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.25, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 24))
+ggsave("240208_209_U6_pros_lmax_dist.jpeg", width = 7, height = 5.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/")
+```
+
+```{r}
+##Doing it for pegRNA backbones
+
+
+##Reading in backbone sequences
+
+BB <- read_csv("/Users/troymcdiarmid/Downloads/BB_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1) %>% 
+  select(Variant_Type, Oligo_Number, Backbone_Seq)
+
+##Removing standard backbone replicate sequences
+
+BB <- BB %>% 
+  filter(!Oligo_Number %in% c("2", "3")) 
+
+
+##Creating reverse complement and testing on a subset
+
+BB_Subset <- BB 
+
+BB_Subset$RC_Seq <- sapply(BB_Subset$Backbone_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+##This will generate all possible combinations of rows/sequences
+
+BB_combos <- map_dfc(BB_Subset, combn, m = 2, FUN = str_c, collapse=" ") %>% 
+  separate(Backbone_Seq, into = c("BB_Seq_A", "BB_Seq_B"), sep = " ") %>% 
+  separate(Oligo_Number, into = c("Name_A", "Name_B"), sep = " ") %>% 
+  separate(RC_Seq, into = c("RC_Seq_A", "RC_Seq_B"), sep = " ") 
+
+##This will calculate the Lmax and corresponding sequence
+
+BB_combos <- BB_combos %>% 
+  rowwise() %>% 
+  mutate(Lmax_Seq = LCSn(c(BB_Seq_A, BB_Seq_B))) %>% 
+  mutate(Lmax = length(BString(LCSn(c(BB_Seq_A, BB_Seq_B))))) %>% 
+  mutate(A_BRC_Lmax_Seq = LCSn(c(BB_Seq_A, RC_Seq_B))) %>% 
+  mutate(A_BRC_Lmax = length(BString(LCSn(c(BB_Seq_A, RC_Seq_B)))))
+
+##Converting to dataframe to write 
+
+BB_combos <- BB_combos %>% 
+  type_convert()
+
+write_csv(BB_combos, "/Users/troymcdiarmid/Documents/U6_pro_series/Lmax_data/240305_DivpegRNA_combos.csv")
+
+##Plotting 
+
+ggplot(BB_combos, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, alpha=.4, fill = "#56B4E9") +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks.y = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.25, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 24))
+ggsave("240305_DivpegRNA_lmax_dist.jpeg", width = 7, height = 5.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/")
+
+
+
+```
+
+```{r}
+##Doing it for the pol III promoters that were better than hRNU6-1p 
+
+Pol_III_Pro_Edit_Scores_Class <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig6_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv") 
+
+##Isolate those above hRNU6-1p
+
+Human_RNU61_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(grepl("U6__Homo_sapiens", Seq_Name))
+
+Above_hRNU61p <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(Grand_Mean_BC_Normalized_Edit_Score > median(Human_RNU61_Pol_III_Pro_Edit_Scores$Grand_Mean_BC_Normalized_Edit_Score))
+
+length(unique(Above_hRNU61p$Pro_Seq))
+
+Above_hRNU61p <- Above_hRNU61p %>% 
+  group_by(Pro_Seq, Replicate) %>% 
+  mutate(N_Unique_iBCs_Above_hRNU61p = n_distinct(iBC_Seq)) %>% 
+  filter(N_Unique_iBCs_Above_hRNU61p > 2) %>% 
+  ungroup() %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Seq_Name, Pro_Seq)
+
+length(unique(Above_hRNU61p$Pro_Seq))
+
+length(unique(Above_hRNU61p$Pro_Seq))/3566
+
+##Creating reverse complement and testing on a subset
+
+#Above_hRNU61p <- Above_hRNU61p %>% 
+  #head(10)
+
+Above_hRNU61p$RC_Seq <- sapply(Above_hRNU61p$Pro_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+##This will generate all possible combinations of rows/sequences
+
+Above_hRNU61p_Combos <- map_dfc(Above_hRNU61p, combn, m = 2, FUN = str_c, collapse=" ") %>% 
+  separate(Pro_Seq, into = c("Pro_Seq_A", "Pro_Seq_B"), sep = " ") %>% 
+  separate(Seq_Name, into = c("Name_A", "Name_B"), sep = " ") %>% 
+  separate(RC_Seq, into = c("RC_Seq_A", "RC_Seq_B"), sep = " ") 
+
+##This will calculate the Lmax and corresponding sequence
+
+Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
+  rowwise() %>% 
+  mutate(Lmax_Seq = LCSn(c(Pro_Seq_A, Pro_Seq_B))) %>% 
+  mutate(Lmax = length(BString(LCSn(c(Pro_Seq_A, Pro_Seq_B))))) %>% 
+  mutate(A_BRC_Lmax_Seq = LCSn(c(Pro_Seq_A, RC_Seq_B))) %>% 
+  mutate(A_BRC_Lmax = length(BString(LCSn(c(Pro_Seq_A, RC_Seq_B)))))
+
+##Converting to dataframe to write 
+
+Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
+  type_convert()
+
+write_csv(Above_hRNU61p_Combos, "/Users/troymcdiarmid/Documents/U6_pro_series/Lmax_data/Twist_3k_Pol_III_Pro_Combos.csv")
+
+
+ggplot(Above_hRNU61p_Combos, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, alpha=.4, fill = "#56B4E9") +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks.y = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.25, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 24))
+ggsave("Twist_3k_Pol_III_pros_lmax_dist.jpeg", width = 7, height = 5.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/")
+
+
+##Read in data 
+
+Above_hRNU61p_Combos <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigSUndtermined_Above_U6_Lmax_Datasets/Twist_3k_Pol_III_Pro_Combos.csv")
+
+
+##Identifying promoters with edit scores above hRNU6-1p with problematic interactions (Lmax >= 40)
+
+Lmax_Above_40_Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
+  filter(Lmax > 39) 
+
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_A)) 
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_B)) 
+
+##Promoters with no problematic interactions 
+
+No_Problem_Promoters <- Above_hRNU61p_Combos %>% 
+  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B) %>% 
+  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B)
+
+length(unique(No_Problem_Promoters$Name_A)) 
+length(unique(No_Problem_Promoters$Name_B))
+
+
+##Then identify a maximal subset of promoters that can be used and satisfy Lmax < 40 
+
+Lmax_Above_40_Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
+  filter(Lmax > 39) %>% 
+  group_by(Name_A) %>% 
+  mutate(n_AB_problematic_interactions = n()) %>% 
+  ungroup() %>% 
+  group_by(Name_B) %>% 
+  mutate(n_BA_problematic_interactions = n()) %>% 
+  ungroup() %>% 
+  filter(n_AB_problematic_interactions > 1) %>% 
+  filter(n_BA_problematic_interactions > 1)
+
+Lmax_Under_40_Above_hRNU61p_Promoters <- Above_hRNU61p_Combos %>% 
+  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B) %>% 
+  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B)
+
+Lmax_Above_40_Above_hRNU61p_Combos <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  filter(Lmax > 39) 
+
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_A)) 
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_B))
+
+Lmax_Under_40_Above_hRNU61p_Promoters <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_A) %>% 
+  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_A)
+
+length(unique(Lmax_Under_40_Above_hRNU61p_Promoters$Name_A)) 
+length(unique(Lmax_Under_40_Above_hRNU61p_Promoters$Name_B))
+
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters_A <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  select(Name = Name_A)
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters_B <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  select(Name = Name_B)
+
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters <- rbind(List_of_Lmax_Under_40_Above_hRNU61p_Promoters_A, List_of_Lmax_Under_40_Above_hRNU61p_Promoters_B)
+
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters <- List_of_Lmax_Under_40_Above_hRNU61p_Promoters %>%
+  distinct(Name)
+
+
+```
+
+
+

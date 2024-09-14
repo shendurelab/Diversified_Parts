@@ -1,0 +1,113 @@
+---
+title: "Fig_S9_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(reshape)
+
+```
+
+```{r}
+##Read in edit efficiency data for barcode pool 1, plot. 
+
+Edit_Efficiency_MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS9_Final_Figure_Datasets/MW_Edit_Efficiency_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1)
+
+
+ggplot(Edit_Efficiency_MW, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 21)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_MW_BC_Pool_1.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Read in edit efficiency data for barcode pool 2, plot. 
+
+Edit_Efficiency_MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS9_Final_Figure_Datasets/MW_Edit_Efficiency_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 2)
+
+
+ggplot(Edit_Efficiency_MW, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =8) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 21)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_MW_BC_Pool_2.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+
+
+```{r}
+##Reading in table
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS9_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") 
+
+##Select the relevant columns
+
+MW_Matrix <- MW %>% 
+  select(K562:iPSC) 
+
+##Convert to matrix and correlate
+
+MW_Matrix <- as.matrix(MW_Matrix)
+
+MW_Corr_Matrix <- cor(MW_Matrix)
+
+
+##Pivoting data longer for plotting
+
+MW_Corr_DF <- melt(MW_Corr_Matrix) 
+
+MW_Corr_DF <- MW_Corr_DF %>% 
+  select(Cell_Type_X = X1, Cell_Type_Y = X2, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+MW_Corr_DF$Cell_Type_X <- ordered(MW_Corr_DF$Cell_Type_X, levels = c("K562", "HEK293T", "iPSC"))
+
+MW_Corr_DF$Cell_Type_Y <- ordered(MW_Corr_DF$Cell_Type_Y, levels = c("iPSC", "HEK293T", "K562"))
+
+##Making correlation heatmap 
+
+ggplot(MW_Corr_DF, aes(x = Cell_Type_X, y = Cell_Type_Y, fill = Corr)) +
+  geom_tile() 
+  ggsave("MW_Cell_Context_Corr_Heatmap_Legend.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(MW_Corr_DF, aes(x = Cell_Type_X, y = Cell_Type_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 10) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("MW_Cell_Context_Corr_Heatmap.jpeg", width = 5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+
+
+
+```
+
+
+
+

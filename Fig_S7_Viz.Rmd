@@ -1,0 +1,198 @@
+---
+title: "Fig_S7_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(reshape)
+
+```
+
+```{r}
+##Read in edit efficiency data for barcode pool 1, plot. 
+
+Edit_Efficiency_BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS7_Final_Figure_Datasets/BB_Edit_Efficiency_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1)
+
+
+ggplot(Edit_Efficiency_BB, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 10)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_BB_BC_Pool_1.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Read in edit efficiency data for barcode pool 2, plot. 
+
+Edit_Efficiency_BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS7_Final_Figure_Datasets/BB_Edit_Efficiency_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 2)
+
+
+ggplot(Edit_Efficiency_BB, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =8) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 10)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_BB_BC_Pool_2.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+
+
+
+
+```{r}
+##Read in replicate data for BC pool 1
+
+Replicate_Edit_Scores_BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS7_Final_Figure_Datasets/BB_BC1_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the two backbones that did not satisfy Lmax < 40
+
+Replicate_Edit_Scores_BB <- Replicate_Edit_Scores_BB %>% 
+  filter(!Oligo_Number %in% c("209", "17")) 
+
+##Convert NAs to zeros
+
+Replicate_Edit_Scores_BB  <- Replicate_Edit_Scores_BB  %>% replace(is.na(.), 0)
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_BB_Matrix <- Replicate_Edit_Scores_BB %>% 
+  select(-1) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_BB_Matrix <- as.matrix(Replicate_Edit_Scores_BB_Matrix)
+
+Replicate_Edit_Scores_BB_Corr_Matrix <- cor(Replicate_Edit_Scores_BB_Matrix)
+
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_BB_Corr_DF <- melt(Replicate_Edit_Scores_BB_Corr_Matrix) 
+
+Replicate_Edit_Scores_BB_Corr_DF <- Replicate_Edit_Scores_BB_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_BB_Corr_DF <- Replicate_Edit_Scores_BB_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Replicate_Edit_Scores_BB_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_BB_Corr_DF$Replicate_X, levels = c("K562_Rep_1", "K562_Rep_2", "K562_Rep_3","K562_Rep_4", "HEK293T_Rep_1", "HEK293T_Rep_2", "HEK293T_Rep_3", "HEK293T_Rep_4", "iPSC_Rep_1", "iPSC_Rep_2", "iPSC_Rep_3", "iPSC_Rep_4"))
+
+Replicate_Edit_Scores_BB_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_BB_Corr_DF$Replicate_Y, levels = c("iPSC_Rep_4", "iPSC_Rep_3", "iPSC_Rep_2", "iPSC_Rep_1", "HEK293T_Rep_4", "HEK293T_Rep_3", "HEK293T_Rep_2", "HEK293T_Rep_1", "K562_Rep_4", "K562_Rep_3", "K562_Rep_2", "K562_Rep_1"))
+
+##Making correlation heatmap 
+
+ggplot(Replicate_Edit_Scores_BB_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() 
+  ggsave("BB_BC1_Replicate_Heatmap_Legend.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(Replicate_Edit_Scores_BB_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 6) +
+  scale_fill_continuous(limits=c(0, 1), breaks = c(0.0, 0.5, 1.0)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("BB_BC1_Replicate_Heatmap.jpeg", width = 10, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Assess the correlation range
+
+Replicate_Edit_Scores_BB_Corr_Matrix[Replicate_Edit_Scores_BB_Corr_Matrix == 1] <- NA
+
+range(Replicate_Edit_Scores_BB_Corr_Matrix, na.rm = TRUE)
+
+```
+
+
+```{r}
+##Read in replicate data for BC pool 2
+
+Replicate_Edit_Scores_BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS7_Final_Figure_Datasets/BB_BC2_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the two backbones that did not satisfy Lmax < 40
+
+Replicate_Edit_Scores_BB <- Replicate_Edit_Scores_BB %>% 
+  filter(!Oligo_Number %in% c("209", "17"))  
+
+##Convert NAs to zeros
+
+Replicate_Edit_Scores_BB  <- Replicate_Edit_Scores_BB  %>% replace(is.na(.), 0)
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_BB_Matrix <- Replicate_Edit_Scores_BB %>% 
+  select(-1) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_BB_Matrix <- as.matrix(Replicate_Edit_Scores_BB_Matrix)
+
+Replicate_Edit_Scores_BB_Corr_Matrix <- cor(Replicate_Edit_Scores_BB_Matrix)
+
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_BB_Corr_DF <- melt(Replicate_Edit_Scores_BB_Corr_Matrix) 
+
+Replicate_Edit_Scores_BB_Corr_DF <- Replicate_Edit_Scores_BB_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_BB_Corr_DF <- Replicate_Edit_Scores_BB_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Replicate_Edit_Scores_BB_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_BB_Corr_DF$Replicate_X, levels = c("K562_Rep_1", "K562_Rep_2", "K562_Rep_3","K562_Rep_4", "HEK293T_Rep_1", "HEK293T_Rep_2", "HEK293T_Rep_3", "HEK293T_Rep_4", "iPSC_Rep_1", "iPSC_Rep_2", "iPSC_Rep_3", "iPSC_Rep_4"))
+
+Replicate_Edit_Scores_BB_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_BB_Corr_DF$Replicate_Y, levels = c("iPSC_Rep_4", "iPSC_Rep_3", "iPSC_Rep_2", "iPSC_Rep_1", "HEK293T_Rep_4", "HEK293T_Rep_3", "HEK293T_Rep_2", "HEK293T_Rep_1", "K562_Rep_4", "K562_Rep_3", "K562_Rep_2", "K562_Rep_1"))
+
+##Making correlation heatmap 
+
+ggplot(Replicate_Edit_Scores_BB_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() 
+  ggsave("BB_BC2_Replicate_Heatmap_Legend.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(Replicate_Edit_Scores_BB_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 6) +
+  scale_fill_continuous(limits=c(0, 1), breaks = c(0.0, 0.5, 1.0)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("BB_BC2_Replicate_Heatmap.jpeg", width = 10, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Assess the correlation range
+
+Replicate_Edit_Scores_BB_Corr_Matrix[Replicate_Edit_Scores_BB_Corr_Matrix == 1] <- NA
+
+range(Replicate_Edit_Scores_BB_Corr_Matrix, na.rm = TRUE)
+```
+
+
+
+

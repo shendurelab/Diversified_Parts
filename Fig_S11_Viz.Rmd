@@ -1,0 +1,255 @@
+---
+title: "Fig_S11_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(reshape)
+
+```
+
+```{r}
+##Read in edit efficiency data 
+
+Edit_Efficiency_U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/AllU6_Edit_Efficiency_Comparison_Table.csv") 
+
+
+ggplot(Edit_Efficiency_U6, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 45)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_U6_mESC.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+
+
+```{r}
+##Read in replicate data
+
+Replicate_Edit_Scores_U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/AllU6_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Convert NAs to zeros
+
+Replicate_Edit_Scores_U6  <- Replicate_Edit_Scores_U6  %>% replace(is.na(.), 0)
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Replicate_Edit_Scores_U6 %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix)
+
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("K562_Rep_1", "K562_Rep_2", "K562_Rep_3", "HEK293T_Rep_1", "HEK293T_Rep_2", "HEK293T_Rep_3", "HEK293T_Rep_4", "HEK293T_Rep_5", "HEK293T_Rep_6", "HEK293T_Rep_7", "HEK293T_Rep_8", "iPSC_Rep_1", "iPSC_Rep_2", "iPSC_Rep_3", "iPSC_Rep_4", "mESC_Rep_1", "mESC_Rep_2", "mESC_Rep_3", "mESC_Rep_4"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("mESC_Rep_4", "mESC_Rep_3", "mESC_Rep_2", "mESC_Rep_1", "iPSC_Rep_4", "iPSC_Rep_3", "iPSC_Rep_2", "iPSC_Rep_1", "HEK293T_Rep_8", "HEK293T_Rep_7", "HEK293T_Rep_6", "HEK293T_Rep_5", "HEK293T_Rep_4", "HEK293T_Rep_3", "HEK293T_Rep_2", "HEK293T_Rep_1", "K562_Rep_3", "K562_Rep_2", "K562_Rep_1"))
+
+##Making correlation heatmap 
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() 
+  ggsave("U6_Replicate_Heatmap_Legend_mESC.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 5) +
+  scale_fill_continuous(limits=c(0, 1), breaks = c(0.0, 0.5, 1.0)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_Replicate_Heatmap_mESC.jpeg", width = 10, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Assess the correlation range
+
+Replicate_Edit_Scores_U6_Corr_Matrix[Replicate_Edit_Scores_U6_Corr_Matrix == 1] <- NA
+
+range(Replicate_Edit_Scores_U6_Corr_Matrix, na.rm = TRUE)
+
+```
+
+
+```{r}
+##Adding scatter plots for mESC correlations
+
+##First add colour label 
+
+mESC_Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
+  select(Name, Promoter_Lib = Colour_Lib, mESC_Rep_1_Normalized_Edit_Score:mESC_Rep_3_Normalized_Edit_Score)
+
+##Set low edit scores to zero. 
+
+mESC_Replicate_Edit_Scores_U6 <- mESC_Replicate_Edit_Scores_U6 %>% mutate(across(where(is.numeric), function(x) ifelse(x < 0.005, 0, x)))
+
+##Add colour labels and reordering factor for plotting
+
+hRNU61_Promoter <- mESC_Replicate_Edit_Scores_U6 %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- mESC_Replicate_Edit_Scores_U6 %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- mESC_Replicate_Edit_Scores_U6 %>% 
+  filter(!grepl("Syn", Name)) %>% 
+  filter(!Name %in% c("Human_Weissman_RNU6-1", "Weissman_mU6"))
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+mU6_Promoter <- mESC_Replicate_Edit_Scores_U6 %>% 
+  filter(Name == "Weissman_mU6")
+mU6_Promoter$Promoter_Lib <- "Weissman_mU6"
+
+mESC_Replicate_Edit_Scores_U6 <- rbind(SynU6_Promoters, DivU6_Promoters, mU6_Promoter, hRNU61_Promoter)
+
+mESC_Replicate_Edit_Scores_U6$Promoter_Lib <- factor(mESC_Replicate_Edit_Scores_U6$Promoter_Lib, levels = c("Synthetic", "Diverse", "Weissman_mU6", "hRNU61"))
+
+ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_1_Normalized_Edit_Score), y = log2(mESC_Rep_2_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("mESC_Rep1_mESC_Rep2_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_1_Normalized_Edit_Score), y = log2(mESC_Rep_3_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("mESC_Rep1_mESC_Rep3_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_1_Normalized_Edit_Score), y = log2(mESC_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("mESC_Rep1_mESC_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_2_Normalized_Edit_Score), y = log2(mESC_Rep_3_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("mESC_Rep2_mESC_Rep3_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_2_Normalized_Edit_Score), y = log2(mESC_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("mESC_Rep2_mESC_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_3_Normalized_Edit_Score), y = log2(mESC_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("mESC_Rep3_mESC_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+
+cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_1_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_2_Normalized_Edit_Score)
+
+cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_1_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_3_Normalized_Edit_Score)
+
+cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_1_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_4_Normalized_Edit_Score)
+
+cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_2_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_3_Normalized_Edit_Score)
+
+cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_2_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_4_Normalized_Edit_Score)
+
+cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_3_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_4_Normalized_Edit_Score)
+
+  
+
+```
+
+
+
+

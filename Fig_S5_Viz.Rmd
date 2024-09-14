@@ -1,0 +1,114 @@
+---
+title: "Top_U6_Promoter_Validations"
+author: "Troy McDiarmid"
+date: "2024-03-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings")
+
+```
+
+
+```{r}
+##Reading in datasets 
+
+SubU6_Edit_Stats_To_Write <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/SubU6_Edit_Stats.csv")
+TopU6_Edit_Stats_To_Write <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/TopU6_Edit_Stats.csv")
+Edit_Efficiency_To_Write <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/TopU6_SubU6_Edit_Efficiency.csv")
+
+```
+
+
+
+```{r}
+##Making correlation between SubU6 and original iPSC edit scores. 
+
+##Add colour labels
+
+hRNU61_Promoter <- SubU6_Edit_Stats_To_Write %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- SubU6_Edit_Stats_To_Write %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- SubU6_Edit_Stats_To_Write %>% 
+  filter(!grepl("Syn", Name)) %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+
+U6_Promoters <- rbind(SynU6_Promoters, DivU6_Promoters, hRNU61_Promoter)
+
+U6_Promoters$Promoter_Lib <- factor(U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+
+
+
+##Correlation plot of edit scores 
+
+ggplot(U6_Promoters, aes(x = log2(Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score), y = log2(Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(6, 6, 8)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 27), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("Subset_U6_iPSC_Original_iPSC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+cor.test(U6_Promoters$Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score, y = U6_Promoters$Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score)
+cor.test(U6_Promoters$Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score, y = U6_Promoters$Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score, method = "spearman")
+
+
+
+##Making plot comparing edit efifciency between subset and top-performing U6 promoters 
+
+
+ggplot(Edit_Efficiency_To_Write, aes(x = Edit_Efficiency, y = fct_relevel(Library, "TopU6", "SubU6"))) +
+  geom_point(size = 7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 35)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 25)) 
+ggsave("Edit_Efficiency_SubU6_TopU6.jpeg", width = 8, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Making plot comparing TopU6 promoters 
+
+TopU6_Edit_Stats_To_Write <- TopU6_Edit_Stats_To_Write %>% 
+  group_by(Name) %>% 
+  mutate(Max_iPSC_BC_Normalized_Edit_Score = max(iPSC_BC_Normalized_Edit_Score))
+
+ggplot(TopU6_Edit_Stats_To_Write, aes(x = log2(iPSC_BC_Normalized_Edit_Score), y = fct_reorder(Name, Max_iPSC_BC_Normalized_Edit_Score), colour = Name)) +
+  geom_point(size = 5) +
+  scale_colour_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "black", "#56B4E9", "#56B4E9")) +
+  theme_classic() +
+  scale_x_continuous(position = "top", lim = c(0, 4), labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.text.y=element_blank()) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 25))
+ggsave("TopU6_Boxplot.jpeg", width = 6, height = 12, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+

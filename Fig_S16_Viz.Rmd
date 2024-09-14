@@ -1,0 +1,132 @@
+---
+title: "Final_Result_Table_Analysis"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(scales)
+```
+
+```{r}
+##Lmax visualizations
+
+Above_hRNU61p_Combos <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS16_Final_Figure_Datasets/Twist_3k_Pol_III_Pro_Combos.csv")
+
+ggplot(Above_hRNU61p_Combos, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, fill = "black", binwidth = 1) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,50000, 100000)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
+  ggsave("Above_hRNU61p_Combos_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(Above_hRNU61p_Combos, aes(x = A_BRC_Lmax)) +
+  geom_histogram(adjust=1.5, fill = "black", binwidth = 1) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,100000, 200000), labels=scientific_format(digits=1), limits = c(0,200000)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
+  ggsave("Above_hRNU61p_Combos_RC_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+##Identifying promoters with edit scores above hRNU6-1p with problematic interactions (Lmax >= 40)
+
+Lmax_Above_40_Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
+  filter(Lmax > 39) 
+
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_A)) 
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_B)) 
+
+##Promoters with no problematic interactions 
+
+No_Problem_Promoters <- Above_hRNU61p_Combos %>% 
+  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B) %>% 
+  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B)
+
+length(unique(No_Problem_Promoters$Name_A)) 
+length(unique(No_Problem_Promoters$Name_B))
+
+
+##Then identify a maximal subset of promoters that can be used and satisfy Lmax < 40 
+
+Lmax_Above_40_Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
+  filter(Lmax > 39) %>% 
+  group_by(Name_A) %>% 
+  mutate(n_AB_problematic_interactions = n()) %>% 
+  ungroup() %>% 
+  group_by(Name_B) %>% 
+  mutate(n_BA_problematic_interactions = n()) %>% 
+  ungroup() %>% 
+  filter(n_AB_problematic_interactions > 1) %>% 
+  filter(n_BA_problematic_interactions > 1)
+
+Lmax_Under_40_Above_hRNU61p_Promoters <- Above_hRNU61p_Combos %>% 
+  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B) %>% 
+  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B)
+
+Lmax_Above_40_Above_hRNU61p_Combos <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  filter(Lmax > 39) 
+
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_A)) 
+length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_B))
+
+Lmax_Under_40_Above_hRNU61p_Promoters <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_A) %>% 
+  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_A)
+
+length(unique(Lmax_Under_40_Above_hRNU61p_Promoters$Name_A)) 
+length(unique(Lmax_Under_40_Above_hRNU61p_Promoters$Name_B))
+
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters_A <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  select(Name = Name_A)
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters_B <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
+  select(Name = Name_B)
+
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters <- rbind(List_of_Lmax_Under_40_Above_hRNU61p_Promoters_A, List_of_Lmax_Under_40_Above_hRNU61p_Promoters_B)
+
+List_of_Lmax_Under_40_Above_hRNU61p_Promoters <- List_of_Lmax_Under_40_Above_hRNU61p_Promoters %>%
+  distinct(Name)
+
+##Plotting
+
+ggplot(Lmax_Under_40_Above_hRNU61p_Promoters, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, fill = "#56B4E9", binwidth = 1) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,2000,4000), labels=scientific_format(digits=1)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
+  ggsave("Lmax_Under_40_Above_hRNU61p_Promoters_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+ggplot(Lmax_Under_40_Above_hRNU61p_Promoters, aes(x = A_BRC_Lmax)) +
+  geom_histogram(adjust=1.5, fill = "#56B4E9", binwidth = 1) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,4000,8000), labels=scientific_format(digits=1)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
+  ggsave("Lmax_Under_40_Above_hRNU61p_Promoters_RC_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```

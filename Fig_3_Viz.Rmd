@@ -1,0 +1,312 @@
+---
+title: "Fig_3_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings") 
+library(ggridges)
+```
+
+```{r}
+
+##Making min hRNU6-1p deletion series graphs
+
+##First reading data with editing score for each barcode to control for iBC efficiency.   
+
+Normalized_Fivemer_insert_efficiency_REGEX <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig3_Final_Figure_Datasets/Normalized_Fivemer_insert_efficiency_REGEX.csv")
+
+##Reading in data on library barcode abundance 
+
+Raw_minU6_BC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig3_Final_Figure_Datasets/MinU6_bc_count.txt", col_names = c("BC_Counts")) %>% 
+  separate(BC_Counts, into = c("BC_Counts", "Plasmid_BC_Seq")) %>% 
+  type_convert()
+
+Raw_minU6_BC_Counts <- Raw_minU6_BC_Counts %>% 
+  mutate(BC_Freq = (BC_Counts/(sum(BC_Counts)))*100) %>% 
+  arrange(BC_Freq)
+
+##Filtering for only barcodes that are a perfect match to those in the libraries 
+
+minU6_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig3_Final_Figure_Datasets/MiniU6_by_element_0511_2021.csv") 
+
+minU6_BC_Counts <- minU6_BC %>%
+  left_join(Raw_minU6_BC_Counts, by = "Plasmid_BC_Seq") %>% 
+  type_convert() %>% 
+  filter(!Name == "Human_Weissman_RNU6-1p_3") %>% 
+  arrange(BC_Counts) 
+
+##Reading in MinU6 HEK3 edit counts
+
+MinU6_HEK3_Edit_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig3_Final_Figure_Datasets/Merged_MinU6_BC_Counts.txt", col_names = c("MinU6_Count")) 
+
+
+##Removing white space from concatenated count files 
+
+MinU6_HEK3_Edit_Counts$MinU6_Count <- gsub(':  ', ':', MinU6_HEK3_Edit_Counts$MinU6_Count)
+MinU6_HEK3_Edit_Counts$MinU6_Count <- gsub(': ', ':', MinU6_HEK3_Edit_Counts$MinU6_Count)
+
+
+MinU6_HEK3_Edit_Counts <- MinU6_HEK3_Edit_Counts %>% 
+  separate(MinU6_Count, into = c("Meta_Data", "Insertion_Read_Count"), sep = ":") %>% 
+  separate(Insertion_Read_Count, into = c("Insertion_Read_Count", "RC_Insertion_BC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Replicate"), sep = "6_") %>% 
+  separate(Replicate, into = c("Replicate", "Sequencer"), sep = "_HEK3_bc_count_") %>%
+  separate(Sequencer, into = c("Sequencer", "Garbage"), sep = ".b") %>% 
+  select(Replicate, Insertion_Read_Count, RC_Insertion_BC_Seq, Sequencer) %>% 
+  type_convert()
+
+##Generting the reverse compliment of the insertion barcode to match the plasmid BC
+
+MinU6_HEK3_Edit_Counts$Plasmid_BC_Seq <- sapply(MinU6_HEK3_Edit_Counts$RC_Insertion_BC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Calcuating insertion frequency and edit scores 
+
+MinU6_Edit_Stats <- MinU6_HEK3_Edit_Counts %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Replicate_Read_Count = sum(Insertion_Read_Count))
+
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>% 
+  group_by(Replicate, Plasmid_BC_Seq) %>% 
+  mutate(Total_Insertion_Read_Count = sum(Insertion_Read_Count))
+
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>% 
+  mutate(Insertion_Freq = ((Total_Insertion_Read_Count/Total_Replicate_Read_Count)*100)) %>% 
+  arrange(Insertion_Freq)
+
+##Filtering for only insertion BCs that are a perfect match to those in the plasmid pool
+
+MinU6_Edit_Stats <- minU6_BC_Counts %>%
+  left_join(MinU6_Edit_Stats, by = "Plasmid_BC_Seq") %>% 
+  filter(!Insertion_Read_Count == "Na") %>% 
+  filter(!BC_Counts == "Na") %>% 
+  type_convert() 
+
+length(unique(MinU6_Edit_Stats$Plasmid_BC_Seq))
+
+##Calculating edit scores
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>%
+  mutate(U6_pegRNA_BC_Edit_Score = Insertion_Freq/BC_Freq) %>% 
+  mutate(R2_U6_pegRNA_BC_Edit_Score = round(U6_pegRNA_BC_Edit_Score, digits = 2))
+
+##Adding the column on normalized editing efficiency of each barcode
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>%
+  left_join(Normalized_Fivemer_insert_efficiency_REGEX, by = "Plasmid_BC_Seq") 
+
+##Normalizing for barcode sequence
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>%
+  mutate(BC_Normalized_U6_pegRNA_Edit_Score = U6_pegRNA_BC_Edit_Score/Normalized_5N_Edit_Score) %>% 
+  mutate(R2_BC_Normalized_U6_pegRNA_Edit_Score = round(BC_Normalized_U6_pegRNA_Edit_Score, digits = 2))
+
+##Calculate the mean edit score of each promoter in each replicate and the grand mean edit score
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>%
+  group_by(U6_Pro, Replicate) %>% 
+  mutate(Mean_Replicate_Edit_Score = mean(U6_pegRNA_BC_Edit_Score)) %>% 
+  ungroup()
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>%
+  group_by(U6_Pro) %>% 
+  mutate(Grand_Mean_Replicate_Edit_Score = mean(Mean_Replicate_Edit_Score)) %>% 
+  ungroup()
+
+MinU6_Edit_Stats <- MinU6_Edit_Stats %>%
+  mutate(Fold_Change_Relative_To_Standard = 12.204066799/Grand_Mean_Replicate_Edit_Score)
+
+##Plotting average per construct
+
+ggplot(MinU6_Edit_Stats, aes(x = log2(Mean_Replicate_Edit_Score), y = fct_relevel(Pro_Name, "MinH1", "TATA_alone_RNU6-1p", "SPH_OCT_TATA_RNU6-1p", "PSE_TATA_RNU6-1p", "MinRNU6-1p", "Human_Weissman_RNU6-1p"))) +
+  geom_point(size =7) +
+  theme_classic() +
+  scale_x_continuous(position = "top", limits = c(-10,5)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) 
+ggsave("MinU6_Deletion_Series.jpeg", width = 18, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+
+```{r}
+
+##Making the heatmaps
+
+Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig3_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(Variant_Type == "Standard")
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig3_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  group_by(ID_Number) %>% 
+  mutate(Median_K562 = median(K562)) %>% 
+  mutate(Median_HEK293T = median(HEK293T)) %>% 
+  mutate(Median_iPSC = median(iPSC)) %>% 
+  ungroup()
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
+  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
+  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
+  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC)))
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = K562_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_Heatmap_Diverging.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = HEK293T_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_Heatmap_Diverging.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = iPSC_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-4.5, 4.5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_iPSC_Heatmap_Diverging.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Top variant heatmap
+
+MW <- MW %>% 
+  rowwise() %>% 
+  mutate(Median_Edit_Score_Across_Contexts = median(K562:iPSC))
+
+TwoX_MW <- MW %>% 
+  filter(Within_2x_Standard == TRUE & Above_Standard == FALSE)
+TwoX_MW$Functional_Variant_Class <- "TwoX"
+
+TenP_MW <- MW %>% 
+  filter(Within_10_Percent_Standard == TRUE & Above_Standard == FALSE)
+TenP_MW$Functional_Variant_Class <- "TenP"
+
+Above_Standard <- MW %>% 
+  filter(Above_Standard == TRUE)
+Above_Standard$Functional_Variant_Class <- "Above_Standard"
+
+
+Top_MW <- rbind(TwoX_MW, TenP_MW, Above_Standard)
+
+ggplot(Top_MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = Functional_Variant_Class)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_manual(values=c("#EF7A5B", "black", "black")) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_Top_Variant_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+```{r}
+##Now making the heatmaps
+
+##Reading in data
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig3_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(!Variant_Type == "Standard") 
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) 
+
+##Edit score heatmaps for each cell context 
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(K562))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(HEK293T))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(iPSC))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "")
+ggsave("MW_iPSC_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Top variant heatmap
+
+MW <- MW %>% 
+  rowwise() %>% 
+  mutate(Median_Edit_Score_Across_Contexts = median(K562:iPSC))
+
+TwoX_MW <- MW %>% 
+  filter(Within_2x_Standard == TRUE & Above_Standard == FALSE)
+TwoX_MW$Functional_Variant_Class <- "TwoX"
+
+TenP_MW <- MW %>% 
+  filter(Within_10_Percent_Standard == TRUE & Above_Standard == FALSE)
+TenP_MW$Functional_Variant_Class <- "TenP"
+
+Above_Standard <- MW %>% 
+  filter(Above_Standard == TRUE)
+Above_Standard$Functional_Variant_Class <- "Above_Standard"
+
+
+Top_MW <- rbind(TwoX_MW, TenP_MW, Above_Standard)
+
+ggplot(Top_MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = Functional_Variant_Class)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_manual(values=c("#55AFF4", "black", "black")) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_Top_Variant_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+

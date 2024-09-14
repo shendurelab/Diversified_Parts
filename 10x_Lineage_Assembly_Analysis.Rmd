@@ -1,0 +1,1319 @@
+---
+title: "10x_Lineage_Assembly_Analysis"
+author: "Troy McDiarmid"
+date: "2024-07-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings")
+
+
+```
+
+```{r}
+
+##Calculating abundance for R1 first. 
+
+BC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240705_10_Unit_Lineage_Assembly/Merged_Plasmid_BC_Counts.txt", col_names = c("BC_Counts")) 
+
+BC_Counts$BC_Counts <- gsub(':     ', ':', BC_Counts$BC_Counts)
+BC_Counts$BC_Counts <- gsub(':    ', ':', BC_Counts$BC_Counts)
+BC_Counts$BC_Counts <- gsub(':   ', ':', BC_Counts$BC_Counts)
+BC_Counts$BC_Counts <- gsub(':  ', ':', BC_Counts$BC_Counts)
+BC_Counts$BC_Counts <- gsub(': ', ':', BC_Counts$BC_Counts)
+
+BC_Counts_Parsed <- BC_Counts %>% 
+  separate(BC_Counts, into = c("Meta_Data", "BC_Read_Count"), sep = ":") %>% 
+  separate(BC_Read_Count, into = c("BC_Read_Count", "BC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Metadata"), sep = "/") %>% 
+  separate(Metadata, into = c("Cell_Line_Source", "TAPE_Construct", "Cell_Line", "Extra_PEmax", "Replicate", "Sample", "Read", "Metadata"), sep = "_", extra = "merge") %>% 
+  select(!Garbage, Metadata) %>% 
+  unite("Condition",  c("TAPE_Construct", "Cell_Line", "Extra_PEmax"), remove = FALSE) %>% 
+  unite("Sample_Read",  c("Sample", "Read"), remove = FALSE) %>% 
+  type_convert()
+
+##Rename BC_Seq and BC_Counts to appropriate iBC or pBC
+
+BC_Counts_Parsed <- BC_Counts_Parsed %>% 
+  dplyr::rename(iBC_Seq = BC_Seq, iBC_Read_Count = BC_Read_Count)
+
+##Reverse compliment the R2 to get the PBC seq (not necessary here because BC is on R1)
+
+#pBC_Counts_Parsed$pBC_Seq <- sapply(pBC_Counts_Parsed$RC_pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Reading in total FASTQ Counts
+
+FASTQ_Total_Read_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240705_10_Unit_Lineage_Assembly/FASTQ_Counts.txt", col_names = c("Total_FASTQ_Read_Count"))
+
+FASTQ_Total_Read_Counts <- FASTQ_Total_Read_Counts %>% 
+  separate(Total_FASTQ_Read_Count, into = c("Meta_Data", "Total_FASTQ_Read_Count"), sep = ":") %>% 
+  separate(Meta_Data, c(into = c("Cell_Line_Source", "TAPE_Construct", "Cell_Line", "Extra_PEmax", "Replicate", "Sample", "Read"), sep = "_", extra = "merge")) %>%
+  unite("Condition",  c("TAPE_Construct", "Cell_Line", "Extra_PEmax"), remove = FALSE) %>% 
+  unite("Sample_Read",  c("Sample", "Read"), remove = FALSE) %>% 
+  select(Sample_Read, Total_FASTQ_Read_Count) %>% 
+  type_convert()
+  
+#Left join with edit reads based on sample read
+
+BC_Counts_Parsed_FASTQ_Counts <- BC_Counts_Parsed %>% 
+  left_join(FASTQ_Total_Read_Counts, by = "Sample_Read")
+
+```
+
+
+
+```{r}
+##Calculate total edited reads (how many edits across all tape reads)
+
+iBC_Counts_Calc <- BC_Counts_Parsed_FASTQ_Counts %>% 
+  group_by(Condition, Replicate) %>% 
+  mutate(Total_Replicate_Insertion_Edit_Count = sum(iBC_Read_Count)) %>% 
+  mutate(iBC_Freq = (iBC_Read_Count/ Total_Replicate_Insertion_Edit_Count)*100)
+
+##Calculate total edited reads only for the 10 insertions we programmed (how many edits across all tape reads)
+
+Perfect_Match_iBC_Counts_Calc <- BC_Counts_Parsed_FASTQ_Counts %>% 
+  filter(iBC_Seq %in% c("GTCGGA", "TCCGGA", "ACGGGA", "GTTGGA", "CCAGGA", "ATAGGA", "AATGGA", "ATTGGA", "ACAGGA", "CACGGA")) %>% 
+  group_by(Condition, Replicate) %>% 
+  mutate(Total_Replicate_Insertion_Edit_Count = sum(iBC_Read_Count)) %>% 
+  mutate(iBC_Freq = (iBC_Read_Count / Total_Replicate_Insertion_Edit_Count)*100) 
+
+
+##Seeing how many of the 10 barcodes were observed in each replicate
+
+Perfect_Match_iBC_Counts_Calc <- Perfect_Match_iBC_Counts_Calc %>% 
+  group_by(Condition, Replicate) %>% 
+  mutate(N_Unique_iBCs_Per_Rep = n_distinct(iBC_Seq)) 
+
+N_Unique_iBCs_Per_Rep <- Perfect_Match_iBC_Counts_Calc %>% 
+  distinct(Sample_Read, .keep_all = TRUE) %>% 
+  select(Condition, Replicate, N_Unique_iBCs_Per_Rep)
+
+##What is the fold range of insertion counts across the 10 units?
+
+Perfect_Match_iBC_Counts_Calc <- Perfect_Match_iBC_Counts_Calc %>% 
+  group_by(Condition, Replicate) %>% 
+  mutate(iBC_Count_Fold_Range = max(iBC_Read_Count) / min(iBC_Read_Count)) 
+
+
+##Correct for barcode insertion efficiency 
+
+N3_Insertion_Efficiency <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Choi_data/TAPE-3N3-editScore.csv")
+
+DNA_TAPE1_3N_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Choi_data/TAPE-3N3-editScore.csv") %>% 
+  arrange(-EditScore) 
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  mutate(Edit_Score_3N = 2^EditScore)
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  mutate(Normalized_Edit_Score_3N = (Edit_Score_3N-min(Edit_Score_3N))/(max(Edit_Score_3N)-min(Edit_Score_3N))) 
+
+
+DNA_TAPE1_3N_BC$BC_3N_Seq <- sapply(DNA_TAPE1_3N_BC$Insert, function(x) as.character(reverseComplement(DNAString(x)))) 
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  dplyr::rename(iBC_Seq_3N = Insert) %>% 
+  select(iBC_Seq_3N, Normalized_Edit_Score_3N, BC_3N_Seq)
+
+BC_Corrected_Perfect_Match_iBC_Counts_Calc <- Perfect_Match_iBC_Counts_Calc %>% 
+  separate(iBC_Seq, into = c("iBC_Seq_3N", "GGA"), sep = 3, remove = FALSE)
+
+BC_Corrected_Perfect_Match_iBC_Counts_Calc <- BC_Corrected_Perfect_Match_iBC_Counts_Calc %>% 
+  left_join(DNA_TAPE1_3N_BC, by = "iBC_Seq_3N")
+
+BC_Corrected_Perfect_Match_iBC_Counts_Calc <- BC_Corrected_Perfect_Match_iBC_Counts_Calc %>% 
+  mutate(BC_Insertion_Efficiency_Corrected_iBC_Freq = iBC_Freq/Normalized_Edit_Score_3N)
+
+
+BC_Corrected_Perfect_Match_iBC_Counts_Calc <- BC_Corrected_Perfect_Match_iBC_Counts_Calc %>% 
+  group_by(Condition, Replicate) %>% 
+  mutate(BC_Insertion_Efficiency_Corrected_Fold_Range = max(BC_Insertion_Efficiency_Corrected_iBC_Freq) / min(BC_Insertion_Efficiency_Corrected_iBC_Freq)) 
+
+ggplot(BC_Corrected_Perfect_Match_iBC_Counts_Calc, aes(x = iBC_Freq, y = Normalized_Edit_Score_3N)) +
+  geom_point() +
+  xlim(0,100) +
+  ylim(0,1)
+
+cor.test(BC_Corrected_Perfect_Match_iBC_Counts_Calc$iBC_Freq, BC_Corrected_Perfect_Match_iBC_Counts_Calc$Normalized_Edit_Score_3N)
+
+##Look at assembly position by insertion freq 
+
+Lineage_Assemblies <- read_csv("/Users/troymcdiarmid/Downloads/10x_Lineage_Top_Part_Assembly_Pairings.csv") %>% 
+  type_convert()
+
+Lineage_Assemblies$Assembly_Position <- 1:nrow(Lineage_Assemblies) 
+
+Lineage_Assemblies <- Lineage_Assemblies %>% 
+  dplyr::rename(BC_3N_Seq = DNA_TAPE1_3N_BC)
+
+BC_Corrected_Perfect_Match_iBC_Counts_Calc_Position <- BC_Corrected_Perfect_Match_iBC_Counts_Calc %>% 
+  left_join(Lineage_Assemblies, by = "BC_3N_Seq")
+
+ggplot(BC_Corrected_Perfect_Match_iBC_Counts_Calc_Position, aes(x = as.factor(Assembly_Position), y = iBC_Freq)) +
+  geom_boxplot() +
+  geom_point() 
+
+ggplot(BC_Corrected_Perfect_Match_iBC_Counts_Calc_Position, aes(x = as.factor(Assembly_Position), y = BC_Insertion_Efficiency_Corrected_iBC_Freq)) +
+  geom_boxplot() +
+  geom_point() 
+
+##Look at mean edit score for each position and range
+
+BC_Corrected_Perfect_Match_iBC_Counts_Calc_Position_Mean <- BC_Corrected_Perfect_Match_iBC_Counts_Calc_Position %>% 
+  group_by(Condition, Assembly_Position) %>% 
+  mutate(Mean_Position_iBC_Freq = mean(BC_Insertion_Efficiency_Corrected_iBC_Freq))
+  
+
+##Now filtering for just the HEK293T + Extra PEmax 
+
+HEK293T_6X_PEmax_Perfect_Match_iBC_Counts_Calc_Position <- BC_Corrected_Perfect_Match_iBC_Counts_Calc_Position_Mean %>% 
+  filter(Condition == "6XTAPE_HEK293T_ExtraPEmax") %>% 
+  select(Condition, Replicate, Total_FASTQ_Read_Count, Total_Replicate_Insertion_Edit_Count, iBC_Seq, iBC_Read_Count, iBC_Freq, Mean_Position_iBC_Freq, N_Unique_iBCs_Per_Rep:Oligo_Number, U6_Promoter_Seq, pegRNA, U6_Median_Human_Edit_Score:Assembly_Position)
+
+##Plotting assembly position
+
+ggplot(HEK293T_6X_PEmax_Perfect_Match_iBC_Counts_Calc_Position, aes(x = as.factor(Assembly_Position), y = iBC_Freq)) +
+  geom_boxplot() +
+  geom_point() 
+
+ggplot(HEK293T_6X_PEmax_Perfect_Match_iBC_Counts_Calc_Position, aes(x = as.factor(Assembly_Position), y = BC_Insertion_Efficiency_Corrected_iBC_Freq)) +
+  geom_boxplot() +
+  geom_point() 
+
+##Correlate edit score with predicted edit score
+
+ggplot(HEK293T_6X_PEmax_Perfect_Match_iBC_Counts_Calc_Position, aes(x = Predicted_Additive_Edit_Score, y = BC_Insertion_Efficiency_Corrected_iBC_Freq)) +
+  geom_point() 
+
+ggplot(HEK293T_6X_PEmax_Perfect_Match_iBC_Counts_Calc_Position, aes(x = Predicted_Additive_Edit_Score, y = iBC_Freq)) +
+  geom_point() 
+
+cor.test(HEK293T_6X_PEmax_Perfect_Match_iBC_Counts_Calc_Position$Predicted_Additive_Edit_Score, HEK293T_6X_PEmax_Perfect_Match_iBC_Counts_Calc_Position$iBC_Freq)
+
+```
+
+
+
+
+```{r}
+
+##Rep 1 sequential editing
+
+##First define programmed barcodes
+
+Programmed_BCs <- c("GTCGGA", "TCCGGA", "ACGGGA", "GTTGGA", "CCAGGA", "ATAGGA", "AATGGA", "ATTGGA", "ACAGGA", "CACGGA")
+
+##Look at sequential editing using greps
+
+
+Raw_Fastq <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240705_10_Unit_Lineage_Assembly/Sequential_Editing_Analysis/Haedong_6XTAPE_HEK293T_ExtraPEmax_1_S9_R1_001.fastq.gz.fastq.txt", col_names = FALSE, skip = 1) %>% 
+ dplyr::slice(which(row_number() %% 4 == 1)) %>% 
+  dplyr::rename(Full_R1_Seq = X1)
+
+Raw_Fastq_Parsed <- Raw_Fastq %>% 
+  separate(Full_R1_Seq, into = c("UMI", "TAPE"), sep = 10) %>% 
+  separate(TAPE, into = c("START", "TAPE_1", "TAPE_2", "TAPE_3", "TAPE_4", "TAPE_5", "TAPE_6"), sep = "GCACG") %>% 
+  group_by(UMI) %>% 
+  mutate(UMI_Count = n()) %>% 
+  ungroup() %>% 
+  mutate(TAPE_1_Length = str_length(TAPE_1)) %>% 
+  mutate(TAPE_2_Length = str_length(TAPE_2)) %>%
+  mutate(TAPE_3_Length = str_length(TAPE_3)) %>%
+  mutate(TAPE_4_Length = str_length(TAPE_4)) %>%
+  mutate(TAPE_5_Length = str_length(TAPE_5)) %>%
+  mutate(TAPE_6_Length = str_length(TAPE_6)) 
+  
+##Calculate TAPE 1 insertion efficiency 
+  
+TAPE_1_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 15) 
+TAPE_1_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 9) %>% 
+  filter(TAPE_1 == "TGATGGTGA")
+
+TAPE_1_Insertion_Efficiency <- (length(TAPE_1_Insertion_Count$TAPE_1_Length)/(length(TAPE_1_Total_Count$TAPE_1_Length))*100)
+
+TAPE_1_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_1, into = c("TAPE_1_Insert", "TAPE_1"), sep = 6) %>%
+  filter(TAPE_1_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_1_Insert) %>% 
+  mutate(TAPE_1_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_1_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_1_Insertion_Proportion = TAPE_1_Insert_Count/sum(TAPE_1_Insert_Count)*100) %>% select(TAPE_1_Insert, TAPE_1_Insert_Count, TAPE_1_Insertion_Proportion)
+
+sum(TAPE_1_Insertion_Proportion$TAPE_1_Insertion_Proportion)
+
+
+##Calculate TAPE 2 insertion efficiency 
+  
+TAPE_2_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 15) 
+TAPE_2_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 9) %>% 
+  filter(TAPE_2 == "TGATGGTGA")
+
+TAPE_2_Insertion_Efficiency <- (length(TAPE_2_Insertion_Count$TAPE_2_Length)/(length(TAPE_2_Total_Count$TAPE_2_Length))*100)
+
+TAPE_2_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_2, into = c("TAPE_2_Insert", "TAPE_2"), sep = 6) %>%
+  filter(TAPE_2_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_2_Insert) %>% 
+  mutate(TAPE_2_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_2_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_2_Insertion_Proportion = TAPE_2_Insert_Count/sum(TAPE_2_Insert_Count)*100) %>% select(TAPE_2_Insert, TAPE_2_Insert_Count, TAPE_2_Insertion_Proportion)
+
+sum(TAPE_2_Insertion_Proportion$TAPE_2_Insertion_Proportion)
+
+
+##Calculate TAPE 3 insertion efficiency 
+  
+TAPE_3_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 15) 
+TAPE_3_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 9) %>% 
+  filter(TAPE_3 == "TGATGGTGA")
+
+TAPE_3_Insertion_Efficiency <- (length(TAPE_3_Insertion_Count$TAPE_3_Length)/(length(TAPE_3_Total_Count$TAPE_3_Length))*100)
+
+TAPE_3_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_3, into = c("TAPE_3_Insert", "TAPE_3"), sep = 6) %>%
+  filter(TAPE_3_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_3_Insert) %>% 
+  mutate(TAPE_3_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_3_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_3_Insertion_Proportion = TAPE_3_Insert_Count/sum(TAPE_3_Insert_Count)*100) %>% select(TAPE_3_Insert, TAPE_3_Insert_Count, TAPE_3_Insertion_Proportion)
+
+sum(TAPE_3_Insertion_Proportion$TAPE_3_Insertion_Proportion)
+
+
+##Calculate TAPE 4 insertion efficiency 
+  
+TAPE_4_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 15) 
+TAPE_4_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 9) %>% 
+  filter(TAPE_4 == "TGATGGTGA")
+
+TAPE_4_Insertion_Efficiency <- (length(TAPE_4_Insertion_Count$TAPE_4_Length)/(length(TAPE_4_Total_Count$TAPE_4_Length))*100)
+
+TAPE_4_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_4, into = c("TAPE_4_Insert", "TAPE_4"), sep = 6) %>%
+  filter(TAPE_4_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_4_Insert) %>% 
+  mutate(TAPE_4_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_4_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_4_Insertion_Proportion = TAPE_4_Insert_Count/sum(TAPE_4_Insert_Count)*100) %>% select(TAPE_4_Insert, TAPE_4_Insert_Count, TAPE_4_Insertion_Proportion)
+
+sum(TAPE_4_Insertion_Proportion$TAPE_4_Insertion_Proportion)
+
+
+##Calculate TAPE 5 insertion efficiency 
+  
+TAPE_5_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 15) 
+TAPE_5_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 9) %>% 
+  filter(TAPE_5 == "TGATGGTGA")
+
+TAPE_5_Insertion_Efficiency <- (length(TAPE_5_Insertion_Count$TAPE_5_Length)/(length(TAPE_5_Total_Count$TAPE_5_Length))*100)
+
+TAPE_5_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_5, into = c("TAPE_5_Insert", "TAPE_5"), sep = 6) %>%
+  filter(TAPE_5_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_5_Insert) %>% 
+  mutate(TAPE_5_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_5_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_5_Insertion_Proportion = TAPE_5_Insert_Count/sum(TAPE_5_Insert_Count)*100) %>% select(TAPE_5_Insert, TAPE_5_Insert_Count, TAPE_5_Insertion_Proportion)
+
+sum(TAPE_5_Insertion_Proportion$TAPE_5_Insertion_Proportion)
+
+
+##Calculate TAPE 6 insertion efficiency 
+  
+TAPE_6_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length == 15) 
+TAPE_6_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length > 9) %>% 
+  filter(grepl("TGATGGTGA", TAPE_6))
+
+TAPE_6_Insertion_Efficiency <- (length(TAPE_6_Insertion_Count$TAPE_6_Length)/(length(TAPE_6_Total_Count$TAPE_6_Length))*100)
+
+TAPE_6_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_6, into = c("TAPE_6_Insert", "TAPE_6"), sep = 6) %>%
+  filter(TAPE_6_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_6_Insert) %>% 
+  mutate(TAPE_6_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_6_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_6_Insertion_Proportion = TAPE_6_Insert_Count/sum(TAPE_6_Insert_Count)*100) %>% select(TAPE_6_Insert, TAPE_6_Insert_Count, TAPE_6_Insertion_Proportion)
+
+sum(TAPE_6_Insertion_Proportion$TAPE_6_Insertion_Proportion)
+
+
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position <- as.data.frame(rbind(TAPE_1_Insertion_Efficiency, TAPE_2_Insertion_Efficiency, TAPE_3_Insertion_Efficiency, TAPE_4_Insertion_Efficiency, TAPE_5_Insertion_Efficiency, TAPE_6_Insertion_Efficiency)) %>% 
+  select(Insertion_Efficiency = V1)
+
+
+##Tape insertion counts and proportions by position
+
+#TAPE_1
+
+TAPE_1_Insertion_Proportion_F <- TAPE_1_Insertion_Proportion %>% 
+  select(Insert = TAPE_1_Insert, Insert_Count = TAPE_1_Insert_Count, Insertion_Proportion = TAPE_1_Insertion_Proportion)
+
+TAPE_1_Insertion_Proportion_F$TAPE_Position <- 1
+
+#TAPE_2
+
+TAPE_2_Insertion_Proportion_F <- TAPE_2_Insertion_Proportion %>% 
+  select(Insert = TAPE_2_Insert, Insert_Count = TAPE_2_Insert_Count, Insertion_Proportion = TAPE_2_Insertion_Proportion)
+
+TAPE_2_Insertion_Proportion_F$TAPE_Position <- 2
+
+#TAPE_3
+
+TAPE_3_Insertion_Proportion_F <- TAPE_3_Insertion_Proportion %>% 
+  select(Insert = TAPE_3_Insert, Insert_Count = TAPE_3_Insert_Count, Insertion_Proportion = TAPE_3_Insertion_Proportion)
+
+TAPE_3_Insertion_Proportion_F$TAPE_Position <- 3
+
+#TAPE_4
+
+TAPE_4_Insertion_Proportion_F <- TAPE_4_Insertion_Proportion %>% 
+  select(Insert = TAPE_4_Insert, Insert_Count = TAPE_4_Insert_Count, Insertion_Proportion = TAPE_4_Insertion_Proportion)
+
+TAPE_4_Insertion_Proportion_F$TAPE_Position <- 4
+
+#TAPE_5
+
+TAPE_5_Insertion_Proportion_F <- TAPE_5_Insertion_Proportion %>% 
+  select(Insert = TAPE_5_Insert, Insert_Count = TAPE_5_Insert_Count, Insertion_Proportion = TAPE_5_Insertion_Proportion)
+
+TAPE_5_Insertion_Proportion_F$TAPE_Position <- 5
+
+#TAPE_6
+
+TAPE_6_Insertion_Proportion_F <- TAPE_6_Insertion_Proportion %>% 
+  select(Insert = TAPE_6_Insert, Insert_Count = TAPE_6_Insert_Count, Insertion_Proportion = TAPE_6_Insertion_Proportion)
+
+TAPE_6_Insertion_Proportion_F$TAPE_Position <- 6
+
+
+TAPE_Insertion_Count_Proportion_By_Position <-  rbind(TAPE_1_Insertion_Proportion_F, TAPE_2_Insertion_Proportion_F, TAPE_3_Insertion_Proportion_F, TAPE_4_Insertion_Proportion_F, TAPE_5_Insertion_Proportion_F, TAPE_6_Insertion_Proportion_F)
+
+
+##Define final tables
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position$TAPE_Position <- seq.int(nrow(Editing_Effciency_By_Position))
+Editing_Effciency_By_Position$Transfection_Replicate <- 1 
+
+Rep_1_Editing_Effciency_By_Position <- Editing_Effciency_By_Position
+
+##Tape insertion count & proportion by position
+
+Rep_1_TAPE_Insertion_Count_Proportion_By_Position <- TAPE_Insertion_Count_Proportion_By_Position 
+
+Rep_1_TAPE_Insertion_Count_Proportion_By_Position$Transfection_Replicate <- 1
+
+```
+
+
+```{r}
+##Rep 2 sequential editing
+
+##First define programmed barcodes
+
+Programmed_BCs <- c("GTCGGA", "TCCGGA", "ACGGGA", "GTTGGA", "CCAGGA", "ATAGGA", "AATGGA", "ATTGGA", "ACAGGA", "CACGGA")
+
+##Look at sequential editing using greps
+
+
+Raw_Fastq <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240705_10_Unit_Lineage_Assembly/Sequential_Editing_Analysis/Haedong_6XTAPE_HEK293T_ExtraPEmax_2_S10_R1_001.fastq.gz.fastq.txt", col_names = FALSE, skip = 1) %>% 
+ dplyr::slice(which(row_number() %% 4 == 1)) %>% 
+  dplyr::rename(Full_R1_Seq = X1)
+
+Raw_Fastq_Parsed <- Raw_Fastq %>% 
+  separate(Full_R1_Seq, into = c("UMI", "TAPE"), sep = 10) %>% 
+  separate(TAPE, into = c("START", "TAPE_1", "TAPE_2", "TAPE_3", "TAPE_4", "TAPE_5", "TAPE_6"), sep = "GCACG") %>% 
+  group_by(UMI) %>% 
+  mutate(UMI_Count = n()) %>% 
+  ungroup() %>% 
+  mutate(TAPE_1_Length = str_length(TAPE_1)) %>% 
+  mutate(TAPE_2_Length = str_length(TAPE_2)) %>%
+  mutate(TAPE_3_Length = str_length(TAPE_3)) %>%
+  mutate(TAPE_4_Length = str_length(TAPE_4)) %>%
+  mutate(TAPE_5_Length = str_length(TAPE_5)) %>%
+  mutate(TAPE_6_Length = str_length(TAPE_6)) 
+  
+##Calculate TAPE 1 insertion efficiency 
+  
+TAPE_1_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 15) 
+TAPE_1_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 9) %>% 
+  filter(TAPE_1 == "TGATGGTGA")
+
+TAPE_1_Insertion_Efficiency <- (length(TAPE_1_Insertion_Count$TAPE_1_Length)/(length(TAPE_1_Total_Count$TAPE_1_Length))*100)
+
+TAPE_1_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_1, into = c("TAPE_1_Insert", "TAPE_1"), sep = 6) %>%
+  filter(TAPE_1_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_1_Insert) %>% 
+  mutate(TAPE_1_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_1_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_1_Insertion_Proportion = TAPE_1_Insert_Count/sum(TAPE_1_Insert_Count)*100) %>% select(TAPE_1_Insert, TAPE_1_Insert_Count, TAPE_1_Insertion_Proportion)
+
+sum(TAPE_1_Insertion_Proportion$TAPE_1_Insertion_Proportion)
+
+
+##Calculate TAPE 2 insertion efficiency 
+  
+TAPE_2_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 15) 
+TAPE_2_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 9) %>% 
+  filter(TAPE_2 == "TGATGGTGA")
+
+TAPE_2_Insertion_Efficiency <- (length(TAPE_2_Insertion_Count$TAPE_2_Length)/(length(TAPE_2_Total_Count$TAPE_2_Length))*100)
+
+TAPE_2_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_2, into = c("TAPE_2_Insert", "TAPE_2"), sep = 6) %>%
+  filter(TAPE_2_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_2_Insert) %>% 
+  mutate(TAPE_2_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_2_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_2_Insertion_Proportion = TAPE_2_Insert_Count/sum(TAPE_2_Insert_Count)*100) %>% select(TAPE_2_Insert, TAPE_2_Insert_Count, TAPE_2_Insertion_Proportion)
+
+sum(TAPE_2_Insertion_Proportion$TAPE_2_Insertion_Proportion)
+
+
+##Calculate TAPE 3 insertion efficiency 
+  
+TAPE_3_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 15) 
+TAPE_3_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 9) %>% 
+  filter(TAPE_3 == "TGATGGTGA")
+
+TAPE_3_Insertion_Efficiency <- (length(TAPE_3_Insertion_Count$TAPE_3_Length)/(length(TAPE_3_Total_Count$TAPE_3_Length))*100)
+
+TAPE_3_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_3, into = c("TAPE_3_Insert", "TAPE_3"), sep = 6) %>%
+  filter(TAPE_3_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_3_Insert) %>% 
+  mutate(TAPE_3_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_3_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_3_Insertion_Proportion = TAPE_3_Insert_Count/sum(TAPE_3_Insert_Count)*100) %>% select(TAPE_3_Insert, TAPE_3_Insert_Count, TAPE_3_Insertion_Proportion)
+
+sum(TAPE_3_Insertion_Proportion$TAPE_3_Insertion_Proportion)
+
+
+##Calculate TAPE 4 insertion efficiency 
+  
+TAPE_4_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 15) 
+TAPE_4_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 9) %>% 
+  filter(TAPE_4 == "TGATGGTGA")
+
+TAPE_4_Insertion_Efficiency <- (length(TAPE_4_Insertion_Count$TAPE_4_Length)/(length(TAPE_4_Total_Count$TAPE_4_Length))*100)
+
+TAPE_4_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_4, into = c("TAPE_4_Insert", "TAPE_4"), sep = 6) %>%
+  filter(TAPE_4_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_4_Insert) %>% 
+  mutate(TAPE_4_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_4_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_4_Insertion_Proportion = TAPE_4_Insert_Count/sum(TAPE_4_Insert_Count)*100) %>% select(TAPE_4_Insert, TAPE_4_Insert_Count, TAPE_4_Insertion_Proportion)
+
+sum(TAPE_4_Insertion_Proportion$TAPE_4_Insertion_Proportion)
+
+
+##Calculate TAPE 5 insertion efficiency 
+  
+TAPE_5_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 15) 
+TAPE_5_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 9) %>% 
+  filter(TAPE_5 == "TGATGGTGA")
+
+TAPE_5_Insertion_Efficiency <- (length(TAPE_5_Insertion_Count$TAPE_5_Length)/(length(TAPE_5_Total_Count$TAPE_5_Length))*100)
+
+TAPE_5_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_5, into = c("TAPE_5_Insert", "TAPE_5"), sep = 6) %>%
+  filter(TAPE_5_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_5_Insert) %>% 
+  mutate(TAPE_5_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_5_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_5_Insertion_Proportion = TAPE_5_Insert_Count/sum(TAPE_5_Insert_Count)*100) %>% select(TAPE_5_Insert, TAPE_5_Insert_Count, TAPE_5_Insertion_Proportion)
+
+sum(TAPE_5_Insertion_Proportion$TAPE_5_Insertion_Proportion)
+
+
+##Calculate TAPE 6 insertion efficiency 
+  
+TAPE_6_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length == 15) 
+TAPE_6_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length > 9) %>% 
+  filter(grepl("TGATGGTGA", TAPE_6))
+
+TAPE_6_Insertion_Efficiency <- (length(TAPE_6_Insertion_Count$TAPE_6_Length)/(length(TAPE_6_Total_Count$TAPE_6_Length))*100)
+
+TAPE_6_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_6, into = c("TAPE_6_Insert", "TAPE_6"), sep = 6) %>%
+  filter(TAPE_6_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_6_Insert) %>% 
+  mutate(TAPE_6_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_6_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_6_Insertion_Proportion = TAPE_6_Insert_Count/sum(TAPE_6_Insert_Count)*100) %>% select(TAPE_6_Insert, TAPE_6_Insert_Count, TAPE_6_Insertion_Proportion)
+
+sum(TAPE_6_Insertion_Proportion$TAPE_6_Insertion_Proportion)
+
+
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position <- as.data.frame(rbind(TAPE_1_Insertion_Efficiency, TAPE_2_Insertion_Efficiency, TAPE_3_Insertion_Efficiency, TAPE_4_Insertion_Efficiency, TAPE_5_Insertion_Efficiency, TAPE_6_Insertion_Efficiency)) %>% 
+  select(Insertion_Efficiency = V1)
+
+
+##Tape insertion counts and proportions by position
+
+#TAPE_1
+
+TAPE_1_Insertion_Proportion_F <- TAPE_1_Insertion_Proportion %>% 
+  select(Insert = TAPE_1_Insert, Insert_Count = TAPE_1_Insert_Count, Insertion_Proportion = TAPE_1_Insertion_Proportion)
+
+TAPE_1_Insertion_Proportion_F$TAPE_Position <- 1
+
+#TAPE_2
+
+TAPE_2_Insertion_Proportion_F <- TAPE_2_Insertion_Proportion %>% 
+  select(Insert = TAPE_2_Insert, Insert_Count = TAPE_2_Insert_Count, Insertion_Proportion = TAPE_2_Insertion_Proportion)
+
+TAPE_2_Insertion_Proportion_F$TAPE_Position <- 2
+
+#TAPE_3
+
+TAPE_3_Insertion_Proportion_F <- TAPE_3_Insertion_Proportion %>% 
+  select(Insert = TAPE_3_Insert, Insert_Count = TAPE_3_Insert_Count, Insertion_Proportion = TAPE_3_Insertion_Proportion)
+
+TAPE_3_Insertion_Proportion_F$TAPE_Position <- 3
+
+#TAPE_4
+
+TAPE_4_Insertion_Proportion_F <- TAPE_4_Insertion_Proportion %>% 
+  select(Insert = TAPE_4_Insert, Insert_Count = TAPE_4_Insert_Count, Insertion_Proportion = TAPE_4_Insertion_Proportion)
+
+TAPE_4_Insertion_Proportion_F$TAPE_Position <- 4
+
+#TAPE_5
+
+TAPE_5_Insertion_Proportion_F <- TAPE_5_Insertion_Proportion %>% 
+  select(Insert = TAPE_5_Insert, Insert_Count = TAPE_5_Insert_Count, Insertion_Proportion = TAPE_5_Insertion_Proportion)
+
+TAPE_5_Insertion_Proportion_F$TAPE_Position <- 5
+
+#TAPE_6
+
+TAPE_6_Insertion_Proportion_F <- TAPE_6_Insertion_Proportion %>% 
+  select(Insert = TAPE_6_Insert, Insert_Count = TAPE_6_Insert_Count, Insertion_Proportion = TAPE_6_Insertion_Proportion)
+
+TAPE_6_Insertion_Proportion_F$TAPE_Position <- 6
+
+
+TAPE_Insertion_Count_Proportion_By_Position <-  rbind(TAPE_1_Insertion_Proportion_F, TAPE_2_Insertion_Proportion_F, TAPE_3_Insertion_Proportion_F, TAPE_4_Insertion_Proportion_F, TAPE_5_Insertion_Proportion_F, TAPE_6_Insertion_Proportion_F)
+
+
+##Define final tables
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position$TAPE_Position <- seq.int(nrow(Editing_Effciency_By_Position))
+Editing_Effciency_By_Position$Transfection_Replicate <- 2 
+
+Rep_2_Editing_Effciency_By_Position <- Editing_Effciency_By_Position
+
+##Tape insertion count & proportion by position
+
+Rep_2_TAPE_Insertion_Count_Proportion_By_Position <- TAPE_Insertion_Count_Proportion_By_Position 
+
+Rep_2_TAPE_Insertion_Count_Proportion_By_Position$Transfection_Replicate <- 2
+```
+
+
+```{r}
+##Rep 3 sequential editing
+
+
+
+##First define programmed barcodes
+
+Programmed_BCs <- c("GTCGGA", "TCCGGA", "ACGGGA", "GTTGGA", "CCAGGA", "ATAGGA", "AATGGA", "ATTGGA", "ACAGGA", "CACGGA")
+
+##Look at sequential editing using greps
+
+
+Raw_Fastq <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240705_10_Unit_Lineage_Assembly/Sequential_Editing_Analysis/Haedong_6XTAPE_HEK293T_ExtraPEmax_3_S11_R1_001.fastq.gz.fastq.txt", col_names = FALSE, skip = 1) %>% 
+ dplyr::slice(which(row_number() %% 4 == 1)) %>% 
+  dplyr::rename(Full_R1_Seq = X1)
+
+Raw_Fastq_Parsed <- Raw_Fastq %>% 
+  separate(Full_R1_Seq, into = c("UMI", "TAPE"), sep = 10) %>% 
+  separate(TAPE, into = c("START", "TAPE_1", "TAPE_2", "TAPE_3", "TAPE_4", "TAPE_5", "TAPE_6"), sep = "GCACG") %>% 
+  group_by(UMI) %>% 
+  mutate(UMI_Count = n()) %>% 
+  ungroup() %>% 
+  mutate(TAPE_1_Length = str_length(TAPE_1)) %>% 
+  mutate(TAPE_2_Length = str_length(TAPE_2)) %>%
+  mutate(TAPE_3_Length = str_length(TAPE_3)) %>%
+  mutate(TAPE_4_Length = str_length(TAPE_4)) %>%
+  mutate(TAPE_5_Length = str_length(TAPE_5)) %>%
+  mutate(TAPE_6_Length = str_length(TAPE_6)) 
+  
+##Calculate TAPE 1 insertion efficiency 
+  
+TAPE_1_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 15) 
+TAPE_1_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 9) %>% 
+  filter(TAPE_1 == "TGATGGTGA")
+
+TAPE_1_Insertion_Efficiency <- (length(TAPE_1_Insertion_Count$TAPE_1_Length)/(length(TAPE_1_Total_Count$TAPE_1_Length))*100)
+
+TAPE_1_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_1, into = c("TAPE_1_Insert", "TAPE_1"), sep = 6) %>%
+  filter(TAPE_1_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_1_Insert) %>% 
+  mutate(TAPE_1_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_1_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_1_Insertion_Proportion = TAPE_1_Insert_Count/sum(TAPE_1_Insert_Count)*100) %>% select(TAPE_1_Insert, TAPE_1_Insert_Count, TAPE_1_Insertion_Proportion)
+
+sum(TAPE_1_Insertion_Proportion$TAPE_1_Insertion_Proportion)
+
+
+##Calculate TAPE 2 insertion efficiency 
+  
+TAPE_2_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 15) 
+TAPE_2_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 9) %>% 
+  filter(TAPE_2 == "TGATGGTGA")
+
+TAPE_2_Insertion_Efficiency <- (length(TAPE_2_Insertion_Count$TAPE_2_Length)/(length(TAPE_2_Total_Count$TAPE_2_Length))*100)
+
+TAPE_2_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_2, into = c("TAPE_2_Insert", "TAPE_2"), sep = 6) %>%
+  filter(TAPE_2_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_2_Insert) %>% 
+  mutate(TAPE_2_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_2_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_2_Insertion_Proportion = TAPE_2_Insert_Count/sum(TAPE_2_Insert_Count)*100) %>% select(TAPE_2_Insert, TAPE_2_Insert_Count, TAPE_2_Insertion_Proportion)
+
+sum(TAPE_2_Insertion_Proportion$TAPE_2_Insertion_Proportion)
+
+
+##Calculate TAPE 3 insertion efficiency 
+  
+TAPE_3_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 15) 
+TAPE_3_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 9) %>% 
+  filter(TAPE_3 == "TGATGGTGA")
+
+TAPE_3_Insertion_Efficiency <- (length(TAPE_3_Insertion_Count$TAPE_3_Length)/(length(TAPE_3_Total_Count$TAPE_3_Length))*100)
+
+TAPE_3_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_3, into = c("TAPE_3_Insert", "TAPE_3"), sep = 6) %>%
+  filter(TAPE_3_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_3_Insert) %>% 
+  mutate(TAPE_3_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_3_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_3_Insertion_Proportion = TAPE_3_Insert_Count/sum(TAPE_3_Insert_Count)*100) %>% select(TAPE_3_Insert, TAPE_3_Insert_Count, TAPE_3_Insertion_Proportion)
+
+sum(TAPE_3_Insertion_Proportion$TAPE_3_Insertion_Proportion)
+
+
+##Calculate TAPE 4 insertion efficiency 
+  
+TAPE_4_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 15) 
+TAPE_4_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 9) %>% 
+  filter(TAPE_4 == "TGATGGTGA")
+
+TAPE_4_Insertion_Efficiency <- (length(TAPE_4_Insertion_Count$TAPE_4_Length)/(length(TAPE_4_Total_Count$TAPE_4_Length))*100)
+
+TAPE_4_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_4, into = c("TAPE_4_Insert", "TAPE_4"), sep = 6) %>%
+  filter(TAPE_4_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_4_Insert) %>% 
+  mutate(TAPE_4_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_4_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_4_Insertion_Proportion = TAPE_4_Insert_Count/sum(TAPE_4_Insert_Count)*100) %>% select(TAPE_4_Insert, TAPE_4_Insert_Count, TAPE_4_Insertion_Proportion)
+
+sum(TAPE_4_Insertion_Proportion$TAPE_4_Insertion_Proportion)
+
+
+##Calculate TAPE 5 insertion efficiency 
+  
+TAPE_5_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 15) 
+TAPE_5_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 9) %>% 
+  filter(TAPE_5 == "TGATGGTGA")
+
+TAPE_5_Insertion_Efficiency <- (length(TAPE_5_Insertion_Count$TAPE_5_Length)/(length(TAPE_5_Total_Count$TAPE_5_Length))*100)
+
+TAPE_5_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_5, into = c("TAPE_5_Insert", "TAPE_5"), sep = 6) %>%
+  filter(TAPE_5_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_5_Insert) %>% 
+  mutate(TAPE_5_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_5_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_5_Insertion_Proportion = TAPE_5_Insert_Count/sum(TAPE_5_Insert_Count)*100) %>% select(TAPE_5_Insert, TAPE_5_Insert_Count, TAPE_5_Insertion_Proportion)
+
+sum(TAPE_5_Insertion_Proportion$TAPE_5_Insertion_Proportion)
+
+
+##Calculate TAPE 6 insertion efficiency 
+  
+TAPE_6_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length == 15) 
+TAPE_6_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length > 9) %>% 
+  filter(grepl("TGATGGTGA", TAPE_6))
+
+TAPE_6_Insertion_Efficiency <- (length(TAPE_6_Insertion_Count$TAPE_6_Length)/(length(TAPE_6_Total_Count$TAPE_6_Length))*100)
+
+TAPE_6_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_6, into = c("TAPE_6_Insert", "TAPE_6"), sep = 6) %>%
+  filter(TAPE_6_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_6_Insert) %>% 
+  mutate(TAPE_6_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_6_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_6_Insertion_Proportion = TAPE_6_Insert_Count/sum(TAPE_6_Insert_Count)*100) %>% select(TAPE_6_Insert, TAPE_6_Insert_Count, TAPE_6_Insertion_Proportion)
+
+sum(TAPE_6_Insertion_Proportion$TAPE_6_Insertion_Proportion)
+
+
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position <- as.data.frame(rbind(TAPE_1_Insertion_Efficiency, TAPE_2_Insertion_Efficiency, TAPE_3_Insertion_Efficiency, TAPE_4_Insertion_Efficiency, TAPE_5_Insertion_Efficiency, TAPE_6_Insertion_Efficiency)) %>% 
+  select(Insertion_Efficiency = V1)
+
+
+##Tape insertion counts and proportions by position
+
+#TAPE_1
+
+TAPE_1_Insertion_Proportion_F <- TAPE_1_Insertion_Proportion %>% 
+  select(Insert = TAPE_1_Insert, Insert_Count = TAPE_1_Insert_Count, Insertion_Proportion = TAPE_1_Insertion_Proportion)
+
+TAPE_1_Insertion_Proportion_F$TAPE_Position <- 1
+
+#TAPE_2
+
+TAPE_2_Insertion_Proportion_F <- TAPE_2_Insertion_Proportion %>% 
+  select(Insert = TAPE_2_Insert, Insert_Count = TAPE_2_Insert_Count, Insertion_Proportion = TAPE_2_Insertion_Proportion)
+
+TAPE_2_Insertion_Proportion_F$TAPE_Position <- 2
+
+#TAPE_3
+
+TAPE_3_Insertion_Proportion_F <- TAPE_3_Insertion_Proportion %>% 
+  select(Insert = TAPE_3_Insert, Insert_Count = TAPE_3_Insert_Count, Insertion_Proportion = TAPE_3_Insertion_Proportion)
+
+TAPE_3_Insertion_Proportion_F$TAPE_Position <- 3
+
+#TAPE_4
+
+TAPE_4_Insertion_Proportion_F <- TAPE_4_Insertion_Proportion %>% 
+  select(Insert = TAPE_4_Insert, Insert_Count = TAPE_4_Insert_Count, Insertion_Proportion = TAPE_4_Insertion_Proportion)
+
+TAPE_4_Insertion_Proportion_F$TAPE_Position <- 4
+
+#TAPE_5
+
+TAPE_5_Insertion_Proportion_F <- TAPE_5_Insertion_Proportion %>% 
+  select(Insert = TAPE_5_Insert, Insert_Count = TAPE_5_Insert_Count, Insertion_Proportion = TAPE_5_Insertion_Proportion)
+
+TAPE_5_Insertion_Proportion_F$TAPE_Position <- 5
+
+#TAPE_6
+
+TAPE_6_Insertion_Proportion_F <- TAPE_6_Insertion_Proportion %>% 
+  select(Insert = TAPE_6_Insert, Insert_Count = TAPE_6_Insert_Count, Insertion_Proportion = TAPE_6_Insertion_Proportion)
+
+TAPE_6_Insertion_Proportion_F$TAPE_Position <- 6
+
+
+TAPE_Insertion_Count_Proportion_By_Position <-  rbind(TAPE_1_Insertion_Proportion_F, TAPE_2_Insertion_Proportion_F, TAPE_3_Insertion_Proportion_F, TAPE_4_Insertion_Proportion_F, TAPE_5_Insertion_Proportion_F, TAPE_6_Insertion_Proportion_F)
+
+
+##Define final tables
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position$TAPE_Position <- seq.int(nrow(Editing_Effciency_By_Position))
+Editing_Effciency_By_Position$Transfection_Replicate <- 3 
+
+Rep_3_Editing_Effciency_By_Position <- Editing_Effciency_By_Position
+
+##Tape insertion count & proportion by position
+
+Rep_3_TAPE_Insertion_Count_Proportion_By_Position <- TAPE_Insertion_Count_Proportion_By_Position 
+
+Rep_3_TAPE_Insertion_Count_Proportion_By_Position$Transfection_Replicate <- 3
+```
+
+
+```{r}
+##Rep 4 sequential editing
+
+
+
+##First define programmed barcodes
+
+Programmed_BCs <- c("GTCGGA", "TCCGGA", "ACGGGA", "GTTGGA", "CCAGGA", "ATAGGA", "AATGGA", "ATTGGA", "ACAGGA", "CACGGA")
+
+##Look at sequential editing using greps
+
+
+Raw_Fastq <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240705_10_Unit_Lineage_Assembly/Sequential_Editing_Analysis/Haedong_6XTAPE_HEK293T_ExtraPEmax_4_S12_R1_001.fastq.gz.fastq.txt", col_names = FALSE, skip = 1) %>% 
+ dplyr::slice(which(row_number() %% 4 == 1)) %>% 
+  dplyr::rename(Full_R1_Seq = X1)
+
+Raw_Fastq_Parsed <- Raw_Fastq %>% 
+  separate(Full_R1_Seq, into = c("UMI", "TAPE"), sep = 10) %>% 
+  separate(TAPE, into = c("START", "TAPE_1", "TAPE_2", "TAPE_3", "TAPE_4", "TAPE_5", "TAPE_6"), sep = "GCACG") %>% 
+  group_by(UMI) %>% 
+  mutate(UMI_Count = n()) %>% 
+  ungroup() %>% 
+  mutate(TAPE_1_Length = str_length(TAPE_1)) %>% 
+  mutate(TAPE_2_Length = str_length(TAPE_2)) %>%
+  mutate(TAPE_3_Length = str_length(TAPE_3)) %>%
+  mutate(TAPE_4_Length = str_length(TAPE_4)) %>%
+  mutate(TAPE_5_Length = str_length(TAPE_5)) %>%
+  mutate(TAPE_6_Length = str_length(TAPE_6)) 
+  
+##Calculate TAPE 1 insertion efficiency 
+  
+TAPE_1_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 15) 
+TAPE_1_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_1_Length == 9) %>% 
+  filter(TAPE_1 == "TGATGGTGA")
+
+TAPE_1_Insertion_Efficiency <- (length(TAPE_1_Insertion_Count$TAPE_1_Length)/(length(TAPE_1_Total_Count$TAPE_1_Length))*100)
+
+TAPE_1_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_1, into = c("TAPE_1_Insert", "TAPE_1"), sep = 6) %>%
+  filter(TAPE_1_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_1_Insert) %>% 
+  mutate(TAPE_1_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_1_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_1_Insertion_Proportion = TAPE_1_Insert_Count/sum(TAPE_1_Insert_Count)*100) %>% select(TAPE_1_Insert, TAPE_1_Insert_Count, TAPE_1_Insertion_Proportion)
+
+sum(TAPE_1_Insertion_Proportion$TAPE_1_Insertion_Proportion)
+
+
+##Calculate TAPE 2 insertion efficiency 
+  
+TAPE_2_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 15) 
+TAPE_2_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_2_Length == 9) %>% 
+  filter(TAPE_2 == "TGATGGTGA")
+
+TAPE_2_Insertion_Efficiency <- (length(TAPE_2_Insertion_Count$TAPE_2_Length)/(length(TAPE_2_Total_Count$TAPE_2_Length))*100)
+
+TAPE_2_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_2, into = c("TAPE_2_Insert", "TAPE_2"), sep = 6) %>%
+  filter(TAPE_2_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_2_Insert) %>% 
+  mutate(TAPE_2_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_2_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_2_Insertion_Proportion = TAPE_2_Insert_Count/sum(TAPE_2_Insert_Count)*100) %>% select(TAPE_2_Insert, TAPE_2_Insert_Count, TAPE_2_Insertion_Proportion)
+
+sum(TAPE_2_Insertion_Proportion$TAPE_2_Insertion_Proportion)
+
+
+##Calculate TAPE 3 insertion efficiency 
+  
+TAPE_3_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 15) 
+TAPE_3_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_3_Length == 9) %>% 
+  filter(TAPE_3 == "TGATGGTGA")
+
+TAPE_3_Insertion_Efficiency <- (length(TAPE_3_Insertion_Count$TAPE_3_Length)/(length(TAPE_3_Total_Count$TAPE_3_Length))*100)
+
+TAPE_3_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_3, into = c("TAPE_3_Insert", "TAPE_3"), sep = 6) %>%
+  filter(TAPE_3_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_3_Insert) %>% 
+  mutate(TAPE_3_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_3_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_3_Insertion_Proportion = TAPE_3_Insert_Count/sum(TAPE_3_Insert_Count)*100) %>% select(TAPE_3_Insert, TAPE_3_Insert_Count, TAPE_3_Insertion_Proportion)
+
+sum(TAPE_3_Insertion_Proportion$TAPE_3_Insertion_Proportion)
+
+
+##Calculate TAPE 4 insertion efficiency 
+  
+TAPE_4_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 15) 
+TAPE_4_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_4_Length == 9) %>% 
+  filter(TAPE_4 == "TGATGGTGA")
+
+TAPE_4_Insertion_Efficiency <- (length(TAPE_4_Insertion_Count$TAPE_4_Length)/(length(TAPE_4_Total_Count$TAPE_4_Length))*100)
+
+TAPE_4_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_4, into = c("TAPE_4_Insert", "TAPE_4"), sep = 6) %>%
+  filter(TAPE_4_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_4_Insert) %>% 
+  mutate(TAPE_4_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_4_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_4_Insertion_Proportion = TAPE_4_Insert_Count/sum(TAPE_4_Insert_Count)*100) %>% select(TAPE_4_Insert, TAPE_4_Insert_Count, TAPE_4_Insertion_Proportion)
+
+sum(TAPE_4_Insertion_Proportion$TAPE_4_Insertion_Proportion)
+
+
+##Calculate TAPE 5 insertion efficiency 
+  
+TAPE_5_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 15) 
+TAPE_5_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_5_Length == 9) %>% 
+  filter(TAPE_5 == "TGATGGTGA")
+
+TAPE_5_Insertion_Efficiency <- (length(TAPE_5_Insertion_Count$TAPE_5_Length)/(length(TAPE_5_Total_Count$TAPE_5_Length))*100)
+
+TAPE_5_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_5, into = c("TAPE_5_Insert", "TAPE_5"), sep = 6) %>%
+  filter(TAPE_5_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_5_Insert) %>% 
+  mutate(TAPE_5_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_5_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_5_Insertion_Proportion = TAPE_5_Insert_Count/sum(TAPE_5_Insert_Count)*100) %>% select(TAPE_5_Insert, TAPE_5_Insert_Count, TAPE_5_Insertion_Proportion)
+
+sum(TAPE_5_Insertion_Proportion$TAPE_5_Insertion_Proportion)
+
+
+##Calculate TAPE 6 insertion efficiency 
+  
+TAPE_6_Insertion_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length == 15) 
+TAPE_6_Total_Count <- Raw_Fastq_Parsed %>% 
+  filter(TAPE_6_Length > 9) %>% 
+  filter(grepl("TGATGGTGA", TAPE_6))
+
+TAPE_6_Insertion_Efficiency <- (length(TAPE_6_Insertion_Count$TAPE_6_Length)/(length(TAPE_6_Total_Count$TAPE_6_Length))*100)
+
+TAPE_6_Insertion_Proportion <- Raw_Fastq_Parsed %>% 
+  separate(TAPE_6, into = c("TAPE_6_Insert", "TAPE_6"), sep = 6) %>%
+  filter(TAPE_6_Insert %in% Programmed_BCs) %>% 
+  group_by(TAPE_6_Insert) %>% 
+  mutate(TAPE_6_Insert_Count = n()) %>% 
+  ungroup() %>% 
+  distinct(TAPE_6_Insert, .keep_all = TRUE) %>% 
+  mutate(TAPE_6_Insertion_Proportion = TAPE_6_Insert_Count/sum(TAPE_6_Insert_Count)*100) %>% select(TAPE_6_Insert, TAPE_6_Insert_Count, TAPE_6_Insertion_Proportion)
+
+sum(TAPE_6_Insertion_Proportion$TAPE_6_Insertion_Proportion)
+
+
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position <- as.data.frame(rbind(TAPE_1_Insertion_Efficiency, TAPE_2_Insertion_Efficiency, TAPE_3_Insertion_Efficiency, TAPE_4_Insertion_Efficiency, TAPE_5_Insertion_Efficiency, TAPE_6_Insertion_Efficiency)) %>% 
+  select(Insertion_Efficiency = V1)
+
+
+##Tape insertion counts and proportions by position
+
+#TAPE_1
+
+TAPE_1_Insertion_Proportion_F <- TAPE_1_Insertion_Proportion %>% 
+  select(Insert = TAPE_1_Insert, Insert_Count = TAPE_1_Insert_Count, Insertion_Proportion = TAPE_1_Insertion_Proportion)
+
+TAPE_1_Insertion_Proportion_F$TAPE_Position <- 1
+
+#TAPE_2
+
+TAPE_2_Insertion_Proportion_F <- TAPE_2_Insertion_Proportion %>% 
+  select(Insert = TAPE_2_Insert, Insert_Count = TAPE_2_Insert_Count, Insertion_Proportion = TAPE_2_Insertion_Proportion)
+
+TAPE_2_Insertion_Proportion_F$TAPE_Position <- 2
+
+#TAPE_3
+
+TAPE_3_Insertion_Proportion_F <- TAPE_3_Insertion_Proportion %>% 
+  select(Insert = TAPE_3_Insert, Insert_Count = TAPE_3_Insert_Count, Insertion_Proportion = TAPE_3_Insertion_Proportion)
+
+TAPE_3_Insertion_Proportion_F$TAPE_Position <- 3
+
+#TAPE_4
+
+TAPE_4_Insertion_Proportion_F <- TAPE_4_Insertion_Proportion %>% 
+  select(Insert = TAPE_4_Insert, Insert_Count = TAPE_4_Insert_Count, Insertion_Proportion = TAPE_4_Insertion_Proportion)
+
+TAPE_4_Insertion_Proportion_F$TAPE_Position <- 4
+
+#TAPE_5
+
+TAPE_5_Insertion_Proportion_F <- TAPE_5_Insertion_Proportion %>% 
+  select(Insert = TAPE_5_Insert, Insert_Count = TAPE_5_Insert_Count, Insertion_Proportion = TAPE_5_Insertion_Proportion)
+
+TAPE_5_Insertion_Proportion_F$TAPE_Position <- 5
+
+#TAPE_6
+
+TAPE_6_Insertion_Proportion_F <- TAPE_6_Insertion_Proportion %>% 
+  select(Insert = TAPE_6_Insert, Insert_Count = TAPE_6_Insert_Count, Insertion_Proportion = TAPE_6_Insertion_Proportion)
+
+TAPE_6_Insertion_Proportion_F$TAPE_Position <- 6
+
+
+TAPE_Insertion_Count_Proportion_By_Position <-  rbind(TAPE_1_Insertion_Proportion_F, TAPE_2_Insertion_Proportion_F, TAPE_3_Insertion_Proportion_F, TAPE_4_Insertion_Proportion_F, TAPE_5_Insertion_Proportion_F, TAPE_6_Insertion_Proportion_F)
+
+
+##Define final tables
+
+##Editing efficiency by position
+
+Editing_Effciency_By_Position$TAPE_Position <- seq.int(nrow(Editing_Effciency_By_Position))
+Editing_Effciency_By_Position$Transfection_Replicate <- 4 
+
+Rep_4_Editing_Effciency_By_Position <- Editing_Effciency_By_Position
+
+##Tape insertion count & proportion by position
+
+Rep_4_TAPE_Insertion_Count_Proportion_By_Position <- TAPE_Insertion_Count_Proportion_By_Position 
+
+Rep_4_TAPE_Insertion_Count_Proportion_By_Position$Transfection_Replicate <- 4
+
+```
+
+```{r}
+##Combine everything into the four final datasets 
+
+#1. Editing efficiency by position
+
+Editing_Efficiency_By_Position <- rbind(Rep_1_Editing_Effciency_By_Position, Rep_2_Editing_Effciency_By_Position, Rep_3_Editing_Effciency_By_Position, Rep_4_Editing_Effciency_By_Position) %>% 
+  type_convert() %>% 
+  group_by(TAPE_Position) %>% 
+  mutate(Mean_Insertion_Efficiency_By_Postion = mean(Insertion_Efficiency)) %>% 
+  ungroup()  
+  
+
+#2. TAPE insertion count and proportion by position
+
+
+TAPE_Insertion_Count_Proportion_By_Position <- rbind(Rep_1_TAPE_Insertion_Count_Proportion_By_Position, Rep_2_TAPE_Insertion_Count_Proportion_By_Position, Rep_3_TAPE_Insertion_Count_Proportion_By_Position, Rep_4_TAPE_Insertion_Count_Proportion_By_Position) %>% 
+  as.data.frame() %>% 
+  format(scientific = FALSE) %>% 
+  type_convert() %>% 
+  group_by(TAPE_Position, Transfection_Replicate) %>% 
+  mutate(Unique_iBCs_Recovered = n()) %>% 
+  ungroup() %>% 
+  select(iBC_Seq = Insert, Insert_Count:Unique_iBCs_Recovered)
+
+
+Unit_Position_Seq_Component_Edit_Scores <- read_csv("/Users/troymcdiarmid/Downloads/10x_Lineage_Top_Part_Assembly_Pairings.csv") %>% 
+  type_convert() %>% 
+  unite(pBC_Seq, c("DNA_TAPE1_Key", "DNA_TAPE1_3N_BC"), sep = "", remove = FALSE)
+
+Unit_Position_Seq_Component_Edit_Scores$iBC_Seq <- sapply(Unit_Position_Seq_Component_Edit_Scores$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x)))) 
+
+Unit_Position_Seq_Component_Edit_Scores$Assembly_Position <- 1:nrow(Unit_Position_Seq_Component_Edit_Scores) 
+  
+DNA_TAPE1_3N_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Choi_data/TAPE-3N3-editScore.csv") %>% 
+  arrange(-EditScore) 
+
+DNA_TAPE1_3N_BC$Key <- "GGA"
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  unite(iBC_Seq, c("Insert", "Key"), sep = "")
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  mutate(Edit_Score_3N = 2^EditScore)
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  mutate(Normalized_Edit_Score_3N = (Edit_Score_3N-min(Edit_Score_3N))/(max(Edit_Score_3N)-min(Edit_Score_3N))) %>% 
+  select(iBC_Seq, Edit_Score_3N, Normalized_Edit_Score_3N)
+
+
+TAPE_Insertion_Count_Proportion_By_Position <- TAPE_Insertion_Count_Proportion_By_Position %>% 
+  left_join(Unit_Position_Seq_Component_Edit_Scores, by = "iBC_Seq") %>% 
+  left_join(DNA_TAPE1_3N_BC, by = "iBC_Seq") %>% 
+  mutate(Assembly_Position = as.factor(Assembly_Position)) %>% 
+  select(Assembly_Position, Promoter_Seq_Name = Name, Backbone_Seq_Name = Oligo_Number, iBC_Seq:Unique_iBCs_Recovered, U6_Median_Human_Edit_Score, BB_BC2_Median_Human_Edit_Score, Edit_Score_3N, Normalized_Edit_Score_3N) %>% 
+  mutate(Predicted_Multiplied_Edit_Score = U6_Median_Human_Edit_Score*BB_BC2_Median_Human_Edit_Score*Edit_Score_3N) 
+
+##3. All site insertion proportion
+
+All_Site_TAPE_Insertion_Proportion <- TAPE_Insertion_Count_Proportion_By_Position %>% 
+  group_by(iBC_Seq, Transfection_Replicate) %>% 
+  mutate(All_TAPE_Positions_iBC_Seq_Read_Count = sum(Insert_Count)) %>% 
+  ungroup() %>% 
+  distinct(iBC_Seq, Transfection_Replicate, .keep_all = TRUE) %>% 
+  group_by(Transfection_Replicate) %>% 
+  mutate(All_TAPE_Positions_Insertion_Proportion = All_TAPE_Positions_iBC_Seq_Read_Count/sum(All_TAPE_Positions_iBC_Seq_Read_Count)*100) %>% 
+  ungroup() %>% 
+  group_by(iBC_Seq) %>% 
+  mutate(Mean_All_TAPE_Position_Insertion_Proportion_Accross_Reps = mean(All_TAPE_Positions_Insertion_Proportion)) %>% 
+  mutate(Median_All_TAPE_Position_Insertion_Proportion_Accross_Reps = median(All_TAPE_Positions_Insertion_Proportion)) %>% 
+  ungroup() %>% 
+  select(Assembly_Position:iBC_Seq, Transfection_Replicate, All_TAPE_Positions_iBC_Seq_Read_Count, All_TAPE_Positions_Insertion_Proportion, Mean_All_TAPE_Position_Insertion_Proportion_Accross_Reps, Median_All_TAPE_Position_Insertion_Proportion_Accross_Reps, U6_Median_Human_Edit_Score:Predicted_Multiplied_Edit_Score)
+
+
+
+##4. Unique insertions recovered for each TAPE position accross all replicates 
+
+All_Rep_TAPE_Insertions_Recovered_Per_Position <- TAPE_Insertion_Count_Proportion_By_Position %>% 
+  group_by(TAPE_Position) %>% 
+  mutate(Unique_iBC_Recovered = length(unique(iBC_Seq))) %>% 
+  select(TAPE_Position, Unique_iBC_Recovered) %>% 
+  distinct(TAPE_Position, .keep_all = TRUE) %>% 
+  ungroup()
+
+
+##Write the data sets to disk
+
+write_csv(Editing_Effciency_By_Position, "/Users/troymcdiarmid/Downloads/10unit_Assembly_Editing_Efficiency_By_Position.csv")
+write_csv(TAPE_Insertion_Count_Proportion_By_Position, "/Users/troymcdiarmid/Downloads/10unit_Assembly_TAPE_Insertion_Count_And_Proportion_By_Position.csv")
+write_csv(All_Site_TAPE_Insertion_Proportion, "/Users/troymcdiarmid/Downloads/10unit_Assembly_TAPE_Insertion_Count_And_Proportion_Across_All_TAPE_Sites.csv")
+write_csv(All_Rep_TAPE_Insertions_Recovered_Per_Position, "/Users/troymcdiarmid/Downloads/10unit_Assembly_Insertions_Recovered_Accross_All_Reps_By_Position.csv")
+
+##Reading data for plotting
+
+Editing_Efficiency_By_Position <- read_csv("/Users/troymcdiarmid/Downloads/10unit_Assembly_Editing_Efficiency_By_Position.csv")
+TAPE_Insertion_Count_Proportion_By_Position <- read_csv("/Users/troymcdiarmid/Downloads/10unit_Assembly_TAPE_Insertion_Count_And_Proportion_By_Position.csv")
+write_csv(All_Site_TAPE_Insertion_Proportion, "/Users/troymcdiarmid/Downloads/10unit_Assembly_TAPE_Insertion_Count_And_Proportion_Across_All_TAPE_Sites.csv")
+All_Rep_TAPE_Insertions_Recovered_Per_Position <- read_csv("/Users/troymcdiarmid/Downloads/10unit_Assembly_Insertions_Recovered_Accross_All_Reps_By_Position.csv")
+
+##Most important plots
+
+##Edit efficiency by position
+
+ggplot(Editing_Efficiency_By_Position, aes(x = TAPE_Position, y = Insertion_Efficiency, group = as.factor(Transfection_Replicate))) +
+  geom_point() +
+  geom_line() +
+  scale_x_discrete(limits=c("1","2", "3", "4", "5","6")) +
+  theme_classic()
+
+##Number unique iBCs recovered by position
+
+ggplot(All_Rep_TAPE_Insertions_Recovered_Per_Position, aes(x = TAPE_Position, y = Unique_iBC_Recovered)) +
+  geom_point() +
+  geom_line() +
+  theme_classic() +
+  scale_x_discrete(limits=c("1","2", "3", "4", "5","6")) +
+  ylim(0,10) 
+
+##All TAPE site editing for each assembly position 
+
+ggplot(All_Site_TAPE_Insertion_Proportion, aes(x = Assembly_Position, y = All_TAPE_Positions_Insertion_Proportion)) +
+  geom_boxplot() +
+  geom_point() 
+
+##Correlation of predicted multiplicative and observed edit scores
+
+ggplot(All_Site_TAPE_Insertion_Proportion, aes(x = Median_All_TAPE_Position_Insertion_Proportion_Accross_Reps, y = Predicted_Multiplied_Edit_Score)) +
+  geom_point() 
+
+cor.test(All_Site_TAPE_Insertion_Proportion$Mean_All_TAPE_Position_Insertion_Proportion_Accross_Reps, All_Site_TAPE_Insertion_Proportion$Predicted_Multiplied_Edit_Score)
+
+##Editing for each unit at each position
+
+##TAPE position 1 
+
+TAPE_1_Editing_By_Unit <- TAPE_Insertion_Count_Proportion_By_Position %>% filter(TAPE_Position == 1)
+
+ggplot(TAPE_1_Editing_By_Unit, aes(x = as.factor(Assembly_Position), y = Insertion_Proportion)) +
+  geom_boxplot() +
+  geom_point() 
+
+##TAPE position 2 
+
+TAPE_2_Editing_By_Unit <- TAPE_Insertion_Count_Proportion_By_Position %>% filter(TAPE_Position == 2)
+
+ggplot(TAPE_2_Editing_By_Unit, aes(x = as.factor(Assembly_Position), y = Insertion_Proportion)) +
+  geom_boxplot() +
+  geom_point()
+
+##TAPE position 3 
+
+TAPE_3_Editing_By_Unit <- TAPE_Insertion_Count_Proportion_By_Position %>% filter(TAPE_Position == 3)
+
+ggplot(TAPE_3_Editing_By_Unit, aes(x = as.factor(Assembly_Position), y = Insertion_Proportion)) +
+  geom_boxplot() +
+  geom_point()
+
+##TAPE position 4 
+
+TAPE_4_Editing_By_Unit <- TAPE_Insertion_Count_Proportion_By_Position %>% filter(TAPE_Position == 4)
+
+ggplot(TAPE_4_Editing_By_Unit, aes(x = as.factor(Assembly_Position), y = Insertion_Proportion)) +
+  geom_boxplot() +
+  geom_point()
+
+##TAPE position 5 
+
+TAPE_5_Editing_By_Unit <- TAPE_Insertion_Count_Proportion_By_Position %>% filter(TAPE_Position == 5)
+
+ggplot(TAPE_5_Editing_By_Unit, aes(x = as.factor(Assembly_Position), y = Insertion_Proportion)) +
+  geom_boxplot() +
+  geom_point()
+
+##TAPE position 6 
+
+TAPE_6_Editing_By_Unit <- TAPE_Insertion_Count_Proportion_By_Position %>% filter(TAPE_Position == 6)
+
+ggplot(TAPE_6_Editing_By_Unit, aes(x = as.factor(Assembly_Position), y = Insertion_Proportion)) +
+  geom_boxplot() +
+  geom_point()
+
+
+
+
+```
+

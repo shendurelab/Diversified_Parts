@@ -1,0 +1,227 @@
+---
+title: "Fig_S10_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings") 
+library(ggridges)
+```
+
+```{r}
+##Making heatmaps for BC1
+
+Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1) %>% 
+  filter(Variant_Type == "Standard")
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  group_by(ID_Number) %>% 
+  mutate(Median_K562 = median(K562)) %>% 
+  mutate(Median_HEK293T = median(HEK293T)) %>% 
+  mutate(Median_iPSC = median(iPSC)) %>% 
+  ungroup()
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
+  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
+  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
+  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC))) 
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = K562_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,-1,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = HEK293T_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = iPSC_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-4.5, 4.5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_iPSC_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+```
+
+
+
+```{r}
+##Making heatmaps for BC2
+
+Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 2) %>% 
+  filter(Variant_Type == "Standard")
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 2) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  group_by(ID_Number) %>% 
+  mutate(Median_K562 = median(K562)) %>% 
+  mutate(Median_HEK293T = median(HEK293T)) %>% 
+  mutate(Median_iPSC = median(iPSC)) %>% 
+  ungroup()
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
+  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
+  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
+  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC))) 
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = K562_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,3.25,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = HEK293T_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,1,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = iPSC_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-4.5, 4.5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_iPSC_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+```
+
+```{r}
+##Making the heatmaps for BC1
+
+##Reading in data
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 1)
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) 
+
+##Edit score heatmaps for each cell context 
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(K562))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(HEK293T))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(iPSC))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "")
+ggsave("MW_iPSC_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+
+```{r}
+
+##Making the heatmaps for BC2
+
+##Reading in data
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 2)
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) 
+
+##Edit score heatmaps for each cell context 
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(K562))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(HEK293T))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(iPSC))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "")
+ggsave("MW_iPSC_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+

@@ -1,0 +1,304 @@
+---
+title: "Fig_S2_Viz"
+author: "Troy McDiarmid"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(reshape)
+
+```
+
+```{r}
+Normalized_Fivemer_insert_efficiency_REGEX <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS2_Final_Figure_Datasets/Normalized_Fivemer_insert_efficiency_REGEX.csv") 
+
+##How many within 3-fold
+
+Within3fold <- Normalized_Fivemer_insert_efficiency_REGEX %>% 
+  filter(Edit_Score_5N > (median(Normalized_Fivemer_insert_efficiency_REGEX$Edit_Score_5N)/3)) %>% 
+  filter(Edit_Score_5N < (median(Normalized_Fivemer_insert_efficiency_REGEX$Edit_Score_5N)*3))
+
+length(Within3fold$Insert)/length(Normalized_Fivemer_insert_efficiency_REGEX$Insert)
+
+##Plotting
+
+ggplot(Normalized_Fivemer_insert_efficiency_REGEX, aes(x = log2(Edit_Score_5N))) +
+  geom_histogram(fill = "black", colour = "black") +
+  scale_y_continuous() +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 31), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("5N_Insertion_Histo.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/") 
+  
+  
+```
+
+
+```{r}
+##Correlating barcode and not barcode normalized U6 edit scores
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS2_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Reading in raw data 
+
+Raw_U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS2_Final_Figure_Datasets/AllU6_Not_iBC_Normalized_Mean_Edit_Scores_Comparison_Table.csv") 
+
+##Convert NAs to zeros 
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>% replace(is.na(.), 0)
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+##Rename columns
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>%
+  dplyr::rename(Raw_K562 = K562, Raw_HEK293T = HEK293T, Raw_iPSC = iPSC, Raw_mESC = mESC) 
+
+##Join dfs
+
+U6_Promoters <- U6_Promoters %>% 
+  left_join(Raw_U6_Promoters, by = "Name")
+
+##Calculating correlation between normalized and non-normalized edit scores 
+
+cor.test(U6_Promoters$K562, U6_Promoters$Raw_K562)
+cor.test(U6_Promoters$HEK293T, U6_Promoters$Raw_HEK293T)
+cor.test(U6_Promoters$iPSC, U6_Promoters$Raw_iPSC)
+cor.test(U6_Promoters$mESC, U6_Promoters$Raw_mESC)
+
+##Select relevant columns for matrix 
+
+U6_Promoters_Matrix <- U6_Promoters %>% 
+  select(K562:mESC, Raw_K562:Raw_mESC)
+
+U6_Promoters_Matrix <- as.matrix(U6_Promoters_Matrix)
+
+U6_Promoters_Corr_Matrix <- cor(U6_Promoters_Matrix)
+
+##Pivoting data longer for plotting
+
+U6_Promoters_Corr_DF <- melt(U6_Promoters_Corr_Matrix) 
+
+##Select only comparisons between raw and normalized edit scores
+
+U6_Promoters_Corr_DF <- U6_Promoters_Corr_DF %>% 
+  filter(grepl("Raw", X1)) %>% 
+  filter(!grepl("Raw", X2))
+
+K562 <- U6_Promoters_Corr_DF %>% 
+  filter(X1 == "Raw_K562" & X2 == "K562")
+HEK293T <- U6_Promoters_Corr_DF %>% 
+  filter(X1 == "Raw_HEK293T" & X2 == "HEK293T")
+iPSC <- U6_Promoters_Corr_DF %>% 
+  filter(X1 == "Raw_iPSC" & X2 == "iPSC")
+mESC <- U6_Promoters_Corr_DF %>% 
+  filter(X1 == "Raw_mESC" & X2 == "mESC")
+
+U6_Promoters_Corr_DF <- rbind(K562, HEK293T, iPSC, mESC)
+
+##Rename and reorder variables for plotting
+
+U6_Promoters_Corr_DF <- U6_Promoters_Corr_DF %>% 
+  select(1:2, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+U6_Promoters_Corr_DF$X1 <- ordered(U6_Promoters_Corr_DF$X1, levels = c("Raw_mESC", "Raw_iPSC", "Raw_HEK293T", "Raw_K562"))
+
+##Plot
+
+ggplot(U6_Promoters_Corr_DF, aes(y = X1, x = 1, fill = Corr)) +
+  geom_tile(color = "white",
+            lwd = 12,
+            linetype = 1) +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 50) +
+  scale_fill_continuous(limits=c(0, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_Raw_vs_Normalized_Edit_Score_Heatmap.jpeg", width = 8, height = 19, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+
+```{r}
+##Correlating 5N edit scores and raw edit scores 
+
+##First recreating the U6 promoter Df with raw edit scores
+
+##Correlating barcode and not barcode normalized U6 edit scores
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS2_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Reading in raw data 
+
+Raw_U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS2_Final_Figure_Datasets/AllU6_Not_iBC_Normalized_Mean_Edit_Scores_Comparison_Table.csv") 
+
+##Convert NAs to zeros 
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>% replace(is.na(.), 0)
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+##Rename columns
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>%
+  dplyr::rename(Raw_K562 = K562, Raw_HEK293T = HEK293T, Raw_iPSC = iPSC, Raw_mESC = mESC) 
+
+##Join dfs
+
+U6_Promoters <- U6_Promoters %>% 
+  left_join(Raw_U6_Promoters, by = "Name")
+
+##Selecting the relevant columns
+
+U6_Promoters <- U6_Promoters %>% 
+  select(Name, K562:mESC, Raw_K562:Raw_mESC)
+
+##Get the barcodes for each promoter
+
+AllU6_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS2_Final_Figure_Datasets/AllU6_BC_0629_2021.csv") %>% 
+  select(Name, Plasmid_BC_Seq)
+
+U6_Promoters <- U6_Promoters %>% 
+  left_join(AllU6_BC, by = "Name")
+
+##Add in the normalized 5N insertion efficiencies
+
+U6_Promoters <- U6_Promoters %>%
+  left_join(Normalized_Fivemer_insert_efficiency_REGEX, by = "Plasmid_BC_Seq")
+
+##Correlate
+
+cor.test(U6_Promoters$Raw_K562, U6_Promoters$Edit_Score_5N)
+cor.test(U6_Promoters$Raw_HEK293T, U6_Promoters$Edit_Score_5N)
+cor.test(U6_Promoters$Raw_iPSC, U6_Promoters$Edit_Score_5N)
+cor.test(U6_Promoters$Raw_mESC, U6_Promoters$Edit_Score_5N)
+
+
+##Correlate BC normalized 
+
+cor.test(U6_Promoters$K562, U6_Promoters$Edit_Score_5N)
+cor.test(U6_Promoters$HEK293T, U6_Promoters$Edit_Score_5N)
+cor.test(U6_Promoters$iPSC, U6_Promoters$Edit_Score_5N)
+cor.test(U6_Promoters$mESC, U6_Promoters$Edit_Score_5N)
+
+##Select relevant columns for matrix 
+
+U6_Promoters_Matrix <- U6_Promoters %>% 
+  select(Raw_K562:Raw_mESC, Edit_Score_5N)
+
+U6_Promoters_Matrix <- as.matrix(U6_Promoters_Matrix)
+
+U6_Promoters_Corr_Matrix <- cor(U6_Promoters_Matrix)
+
+##Pivoting data longer for plotting
+
+U6_Promoters_Corr_DF <- melt(U6_Promoters_Corr_Matrix) 
+
+##Select only comparisons between raw and normalized edit scores
+
+U6_Promoters_Corr_DF <- U6_Promoters_Corr_DF %>% 
+  filter(grepl("5N", X2)) %>% 
+  filter(!grepl("5N", X1))
+
+##Rename and reorder variables for plotting
+
+U6_Promoters_Corr_DF <- U6_Promoters_Corr_DF %>% 
+  select(1:2, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+U6_Promoters_Corr_DF$X1 <- ordered(U6_Promoters_Corr_DF$X1, levels = c("Raw_mESC", "Raw_iPSC", "Raw_HEK293T", "Raw_K562"))
+
+##Plot
+
+ggplot(U6_Promoters_Corr_DF, aes(y = X1, x = 1, fill = Corr)) +
+  geom_tile(color = "white",
+            lwd = 12,
+            linetype = 1) +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 50) +
+  scale_fill_continuous(limits=c(0, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_Raw_vs_5N_Edit_Score_Heatmap.jpeg", width = 8, height = 19, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+```{r}
+##Doing same thing for iBC normalized 
+
+##Select relevant columns for matrix 
+
+U6_Promoters_Matrix <- U6_Promoters %>% 
+  select(K562:mESC, Edit_Score_5N)
+
+U6_Promoters_Matrix <- as.matrix(U6_Promoters_Matrix)
+
+U6_Promoters_Corr_Matrix <- cor(U6_Promoters_Matrix)
+
+##Pivoting data longer for plotting
+
+U6_Promoters_Corr_DF <- melt(U6_Promoters_Corr_Matrix) 
+
+##Select only comparisons between raw and normalized edit scores
+
+U6_Promoters_Corr_DF <- U6_Promoters_Corr_DF %>% 
+  filter(grepl("5N", X2)) %>% 
+  filter(!grepl("5N", X1))
+
+##Rename and reorder variables for plotting
+
+U6_Promoters_Corr_DF <- U6_Promoters_Corr_DF %>% 
+  select(1:2, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+U6_Promoters_Corr_DF$X1 <- ordered(U6_Promoters_Corr_DF$X1, levels = c("mESC", "iPSC", "HEK293T", "K562"))
+
+##Plot
+
+ggplot(U6_Promoters_Corr_DF, aes(y = X1, x = 1, fill = Corr)) +
+  geom_tile(color = "white",
+            lwd = 12,
+            linetype = 1) +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 50) +
+  scale_fill_continuous(limits=c(0, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("iPSC_Normalized_vs_5N_Edit_Score_Heatmap.jpeg", width = 8, height = 19, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+```
+

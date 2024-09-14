@@ -1,0 +1,396 @@
+---
+title: "ggtree_plot"
+author: "Troy McDiarmid"
+date: "2024-08-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+library(cowplot)
+library(ggrastr)
+library(castor)
+library(ape)
+library(phytools)
+library(reshape2)
+library(ggtree)
+library(readxl)
+library(tidytree)
+library(patchwork)
+
+```
+
+
+
+```{r}
+##First read in all pol III promoter sequences including duplicates 
+
+Ortholog_Pol3_Pro <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig7_Final_Figure_Datasets/all_Pol3_promoters_cactus_2020v2_20240406.fa", col_names = FALSE)
+
+n_seqs <- length(Ortholog_Pol3_Pro$X1)/2
+
+Ortholog_Pol3_Pro$ID <- rep(1:n_seqs, each = 2)
+
+Names <- Ortholog_Pol3_Pro %>% 
+  filter(grepl(">", X1))
+Seqs <- Ortholog_Pol3_Pro %>% 
+  filter(!grepl(">", X1))
+
+Ortholog_Pol3_Pro <- Names %>% 
+  left_join(Seqs, by = "ID") %>% 
+  select(ID, Seq_Name = X1.x, Pro_Seq = X1.y) 
+
+Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  select(Seq_Name, Pro_Seq)
+
+Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>%
+  separate(Pro_Seq, into = c("Five_Prime_Cutoff", "Pro_Seq"), sep = -259) %>% 
+  mutate(Seq_Length = str_length(Pro_Seq)) %>% 
+  select(!Five_Prime_Cutoff) %>% 
+  select(Seq_Name_2 = Seq_Name, Pro_Seq) %>% 
+  mutate(Pro_Seq = str_replace_all(Pro_Seq, "AATATTTGCATGTCGCTATGTGTTCTGGGAAATCACCATAAACGTGAAATGTCTTTGGATTTGGGAATCTTATAAGTTCTGTATGAGACCACTTTTTCCC", "AATATTTGCATGTCGCTATGTGTTCTGGGAAATCACCATAAACGTGAAATGTCTTTGGATTTGGGAATCTTATAAGTTCTGTATGAGGCCACTTTTTCCC")) %>% 
+  mutate(Pro_Seq = str_replace_all(Pro_Seq, "GGTCTC", "GGTTTC")) %>% 
+  mutate(Pro_Seq = str_replace_all(Pro_Seq, "GAGACC", "GAGGCC"))
+
+
+
+```
+
+```{r}
+##Then read in Zoonomia Tree and annotation datasets and pol III edit scores 
+
+tree <- read.newick("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig7_Final_Figure_Datasets/241-mammalian-2020v2.phast-242.nh")
+cactus_annotation <- read_xlsx('/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig7_Final_Figure_Datasets/cactus_ucsc_species_list.xlsx')
+PolIII_Pro_Edit_Scores_Class <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig7_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv")
+
+##Convert the tree to a df
+
+Tibble_Tree <- as_tibble(tree)
+DF_Tree <- as.data.frame(Tibble_Tree) 
+
+
+##Bind the edit scores with the promoters to have all species represented 
+
+PolIII_Pro_Edit_Scores_Class_2 <- PolIII_Pro_Edit_Scores_Class %>% 
+  separate(Seq_Name, into = c(">", "Seq_Name"), ">", extra = "merge") %>% 
+  filter(!grepl(">", Seq_Name)) %>% 
+  left_join(Ortholog_Pol3_Pro, by = "Pro_Seq") %>% 
+  separate(Seq_Name_2, into = c("Human_Ortholog_Promoter", "Species", "Rest"), sep = "__") %>% 
+  separate(Species, into = c("Species", "Rest"), sep = "_2024") 
+
+##Add the cactus species annotations
+
+cactus_annotation_2 <- cactus_annotation %>% 
+  mutate(Species = str_replace_all(Species, " ", "_"))
+
+PolIII_Pro_Edit_Scores_Class_2 <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  left_join(cactus_annotation_2, by = "Species")
+
+
+```
+
+```{r}
+##Plot the trees
+
+##Starting with U6
+
+##Isolate just the relevant CRE
+
+U6_1_DF <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">U6") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq)
+
+##Convert the tree to a tibble and add edit score data, convert back to a tree
+
+Tibble_Tree <- as_tibble(tree)
+
+Tibble_Tree  <- Tibble_Tree %>% 
+  left_join(U6_1_DF, by = "label")
+
+Tree <- as.treedata(Tibble_Tree)
+
+ggtree(Tree, layout="circular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score)) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro') 
+   ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_circ_tree.png")
+
+
+ggtree(Tree, layout="rectangular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score), lwd = 3) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro')
+  ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_rect_tree.png", width = 12, height = 26) 
+  
+
+  
+##U6_2
+
+##Isolate just the relevant CRE
+
+U6_2_DF <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">RNU6_2") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq)
+
+##Convert the tree to a tibble and add edit score data, convert back to a tree
+
+Tibble_Tree <- as_tibble(tree)
+
+Tibble_Tree  <- Tibble_Tree %>% 
+  left_join(U6_2_DF, by = "label")
+
+Tree <- as.treedata(Tibble_Tree)
+
+ggtree(Tree, layout="circular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score)) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro') 
+   ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_2_circ_tree.png")
+
+
+ggtree(Tree, layout="rectangular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score), lwd = 2) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro')
+  ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_2_rect_tree.png", width = 12, height = 26) 
+  
+  
+##U6_7
+
+##Isolate just the relevant CRE
+
+U6_7_DF <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">RNU6_7") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq)
+
+##Convert the tree to a tibble and add edit score data, convert back to a tree
+
+Tibble_Tree <- as_tibble(tree)
+
+Tibble_Tree  <- Tibble_Tree %>% 
+  left_join(U6_7_DF, by = "label")
+
+Tree <- as.treedata(Tibble_Tree)
+
+ggtree(Tree, layout="circular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score)) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro') 
+   ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_7_circ_tree.png")
+
+
+ggtree(Tree, layout="rectangular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score), lwd = 2) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro')
+  ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_7_rect_tree.png", width = 12, height = 26) 
+
+  
+##U6_8
+
+##Isolate just the relevant CRE
+
+U6_8_DF <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">RNU6_8") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq)
+
+##Convert the tree to a tibble and add edit score data, convert back to a tree
+
+Tibble_Tree <- as_tibble(tree)
+
+Tibble_Tree  <- Tibble_Tree %>% 
+  left_join(U6_8_DF, by = "label")
+
+Tree <- as.treedata(Tibble_Tree)
+
+ggtree(Tree, layout="circular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score)) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro') 
+   ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_8_circ_tree.png")
+
+
+ggtree(Tree, layout="rectangular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score), lwd = 2) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro')
+  ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_8_rect_tree.png", width = 12, height = 26) 
+  
+  
+##U6_9
+
+##Isolate just the relevant CRE
+
+U6_9_DF <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">RNU6_9") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq)
+
+##Convert the tree to a tibble and add edit score data, convert back to a tree
+
+Tibble_Tree <- as_tibble(tree)
+
+Tibble_Tree  <- Tibble_Tree %>% 
+  left_join(U6_9_DF, by = "label")
+
+Tree <- as.treedata(Tibble_Tree)
+
+ggtree(Tree, layout="circular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score)) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro') 
+   ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_9_circ_tree.png")
+
+
+ggtree(Tree, layout="rectangular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score), lwd = 2) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro')
+  ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/U6_9_rect_tree.png", width = 12, height = 26) 
+  
+  
+##H1
+
+##Isolate just the relevant CRE
+
+H1_DF <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">H1") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq)
+
+##Convert the tree to a tibble and add edit score data, convert back to a tree
+
+Tibble_Tree <- as_tibble(tree)
+
+Tibble_Tree  <- Tibble_Tree %>% 
+  left_join(H1_DF, by = "label")
+
+Tree <- as.treedata(Tibble_Tree)
+
+ggtree(Tree, layout="circular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score)) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro') 
+   ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/H1_circ_tree.png")
+
+
+ggtree(Tree, layout="rectangular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score), lwd = 2) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro')
+  ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/H1_rect_tree.png", width = 12, height = 26) 
+  
+
+##H1
+
+##Isolate just the relevant CRE
+
+SevenSK_DF <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">7SK") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq)
+
+##Convert the tree to a tibble and add edit score data, convert back to a tree
+
+Tibble_Tree <- as_tibble(tree)
+
+Tibble_Tree  <- Tibble_Tree %>% 
+  left_join(SevenSK_DF, by = "label")
+
+Tree <- as.treedata(Tibble_Tree)
+
+ggtree(Tree, layout="circular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score)) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro') 
+   ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/7SK_circ_tree.png")
+
+
+ggtree(Tree, layout="rectangular", aes(colour = Grand_Mean_BC_Normalized_Edit_Score), lwd = 2) +
+  scale_color_gradient(limits = c(0,25), low = 'black', high = 'red', na.value = 'gainsboro')
+  ggsave("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/7SK_rect_tree.png", width = 12, height = 26)
+
+
+```
+
+```{r}
+#Plotting different promoters 
+
+PolIII_Pro_Edit_Scores_Class_3 <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  group_by(Human_Ortholog_Promoter) %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  type_convert()
+
+
+ggplot(PolIII_Pro_Edit_Scores_Class_3, aes(x =  Grand_Mean_BC_Normalized_Edit_Score, y = fct_reorder(Human_Ortholog_Promoter, Grand_Mean_BC_Normalized_Edit_Score))) +
+  geom_boxplot(colour = "black", width = 0.7, lwd = 0.6, outlier.shape = NA, fill = "#E0E0E0") +
+  scale_shape_manual(values = c(16, 16)) +
+  geom_jitter(size = 1, height = 0.1) +
+  #scale_fill_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "white")) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 35))
+ggsave("PolIII_All_Ortholog_Boxplot.jpeg", width = 15, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+#Plotting different promoters just for humans
+
+Human_Pol_III_Promoters <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Species == "Homo_sapiens")
+
+ggplot(Human_Pol_III_Promoters, aes(y = fct_reorder(Human_Ortholog_Promoter, Grand_Mean_BC_Normalized_Edit_Score), x =  BC_Normalized_Replicate_Edit_Score)) +
+         geom_boxplot() +
+  geom_point() +
+  xlim(0,25)
+
+
+##Plotting different orders edit scores 
+
+##Isolate just the relevant CREs and plot
+
+U6_1 <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">U6") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq, Species:Clade)
+
+ggplot(U6_1, aes(y = fct_reorder(Order, Grand_Mean_BC_Normalized_Edit_Score), x =  Grand_Mean_BC_Normalized_Edit_Score)) +
+         geom_boxplot() +
+  geom_point() +
+  xlim(0,25)
+  
+
+##Filter for relevant orders
+
+U6_1_Filt <- U6_1 %>% 
+  filter(Order %in% c("PRIMATES", "RODENTIA", "EULIPOTYPHLA", "CARNIVORA", "CETARTIODACTYLA", "CHIROPTERA", "PERISSODACTYLA"))
+
+ggplot(U6_1_Filt, aes(y = fct_reorder(Order, Grand_Mean_BC_Normalized_Edit_Score), x =  Grand_Mean_BC_Normalized_Edit_Score)) +
+         geom_boxplot(colour = "black", width = 0.7, lwd = 0.6, outlier.shape = NA, fill = "#E0E0E0") +
+  scale_shape_manual(values = c(16, 16)) +
+  geom_jitter(size = 2.5, height = 0.1) +
+  #scale_fill_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "white")) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 35))
+ggsave("U61_Ortholog_Boxplot.jpeg", width = 15, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Isolate just the relevant CREs and plot
+
+U6_9 <- PolIII_Pro_Edit_Scores_Class_2 %>% 
+  filter(Human_Ortholog_Promoter == ">RNU6_9") %>% 
+  distinct(Species, .keep_all = TRUE) %>% 
+  select(label = Species, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq, Species:Clade)
+
+ggplot(U6_9, aes(y = fct_reorder(Order, Grand_Mean_BC_Normalized_Edit_Score), x =  Grand_Mean_BC_Normalized_Edit_Score)) +
+         geom_boxplot() +
+  geom_point() +
+  xlim(0,25)
+
+##Filter for relevant orders
+
+U6_9_Filt <- U6_9 %>% 
+  filter(Order %in% c("PRIMATES", "RODENTIA", "EULIPOTYPHLA", "CARNIVORA", "CETARTIODACTYLA", "CHIROPTERA", "PERISSODACTYLA"))
+
+ggplot(U6_9_Filt, aes(y = fct_reorder(Order, Grand_Mean_BC_Normalized_Edit_Score), x =  Grand_Mean_BC_Normalized_Edit_Score)) +
+         geom_boxplot(colour = "black", width = 0.7, lwd = 0.6, outlier.shape = NA, fill = "#E0E0E0") +
+  scale_shape_manual(values = c(16, 16)) +
+  geom_jitter(size = 2.5, height = 0.1) +
+  #scale_fill_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "white")) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 35))
+ggsave("U69_Ortholog_Boxplot.jpeg", width = 15, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```

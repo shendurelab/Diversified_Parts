@@ -1,0 +1,120 @@
+---
+title: "Fig_S8_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(reshape)
+
+```
+
+
+```{r}
+##Correlating independent barcodes 
+
+BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS8_Final_Figure_Datasets/BB_Edit_Scores_Comparison_Table.csv")
+
+##Removing the two backbones that did not satisfy Lmax < 40
+
+BB <- BB %>% 
+  filter(!Oligo_Number %in% c("209", "17")) 
+
+##Calculate the median of the standard backbone in each pool and reordering groups for plotting
+
+Standard <- BB %>% 
+  filter(Variant_Type == "Standard") %>% 
+  group_by(BC_Pool) %>% 
+  mutate(K562 = median(K562)) %>% 
+  mutate(HEK293T = median(HEK293T)) %>% 
+  mutate(iPSC = median(iPSC)) %>% 
+  filter(Oligo_Number == 1)
+
+Replacement <- BB %>% 
+  filter(Variant_Type == "Replacement") 
+
+Extension <- BB %>% 
+  filter(Variant_Type == "Extension")
+
+BB <- rbind(Extension, Replacement, Standard)
+
+##Isolate data for specific BC pools
+
+BB_1 <- BB %>% 
+  filter(BC_Pool == 1)
+BB_2 <- BB %>% 
+  filter(BC_Pool == 2)
+
+BB <- BB_1 %>% 
+  left_join(BB_2, by = "Oligo_Number")
+
+##Make dataframe for individual cell types with non zero edit scores for both barcodes in a given cell type
+
+K562_BB <- BB %>% 
+  filter(K562.x > 0) %>% 
+  filter(K562.y > 0)
+HEK293T_BB <- BB %>% 
+  filter(HEK293T.x > 0) %>% 
+  filter(HEK293T.y > 0)
+iPSC_BB <- BB %>% 
+  filter(iPSC.x > 0) %>% 
+  filter(iPSC.y > 0)
+
+
+##Plotting correlations of specific barcodes 
+
+##Correlation plot of edit scores 
+
+ggplot(K562_BB, aes(x = log2(K562.x), y = log2(K562.y), colour = Variant_Type.x, size = Variant_Type.x)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("BB_K562_BC1_K562_BC2_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+ggplot(HEK293T_BB, aes(x = log2(HEK293T.x), y = log2(HEK293T.y), colour = Variant_Type.x, size = Variant_Type.x)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("BB_HEK293T_BC1_HEK293T_BC2_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(iPSC_BB, aes(x = log2(iPSC.x), y = log2(iPSC.y), colour = Variant_Type.x, size = Variant_Type.x)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("BB_iPSC_BC1_iPSC_BC2_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+

@@ -1,0 +1,292 @@
+---
+title: "Fig_1_Viz"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+```{r}
+##Lmax visualizations
+
+U6_Pro_combos <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig1_Final_Figure_Datasets/240208_U6_Pro_combos.csv")
+
+ggplot(U6_Pro_combos, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, fill = "black", binwidth = 1) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,2500,5000)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  xlim(0,50) +
+  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
+  ggsave("All_Lmax_Dist.jpeg", width = 16, height = 3.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Filtering for just evo-evo interactions
+
+DivU6_Prom_Lmax <- U6_Pro_combos %>% 
+  filter(!grepl("Syn", Name_A)) %>% 
+  filter(!grepl("Syn", Name_B))  
+
+ggplot(DivU6_Prom_Lmax, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, fill = "#56B4E9", binwidth = 1) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,750,1500)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  xlim(0,50) +
+  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
+  ggsave("Div_Lmax_Dist.jpeg", width = 16, height = 3.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Filtering for just synthetic-synthetic interactions
+
+SynU6_Pro_Lmax <- U6_Pro_combos %>% 
+  filter(grepl("Syn", Name_A)) %>% 
+  filter(grepl("Syn", Name_B))  
+
+ggplot(SynU6_Pro_Lmax, aes(x = Lmax)) +
+  geom_histogram(adjust=1.5, fill = "#999999", binwidth = 1) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,600,1200)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  xlim(0,50) +
+  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
+  ggsave("Syn_Lmax_Dist.jpeg", width = 16, height = 3.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+
+
+
+```{r}
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig1_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Add colour labels
+
+hRNU61_Promoter <- U6_Promoters %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- U6_Promoters %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- U6_Promoters %>% 
+  filter(!grepl("Syn", Name)) %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+U6_Promoters <- rbind(hRNU61_Promoter, SynU6_Promoters, DivU6_Promoters)
+
+##Making promoters FASTA for sequence identity calculation
+
+U6_Pro_ID <- U6_Promoters %>% 
+  select(Name) %>%
+  dplyr::rename(id = Name) %>% 
+  mutate(number = row_number())
+
+U6_Pro_ID$symbol <-">"
+
+U6_Pro_ID <- U6_Pro_ID %>% 
+  unite("id", symbol, id, sep = "")
+
+U6_Pro_ID_2 <- U6_Promoters %>% 
+  select(U6_Promoter_Seq) %>%
+  dplyr::rename(id = U6_Promoter_Seq) %>% 
+  mutate(number = row_number())
+
+U6_Pro_ID_3 <- rbind(U6_Pro_ID, U6_Pro_ID_2)
+
+U6_Pro_ID_3 <- U6_Pro_ID_3 %>% 
+  arrange(number) %>% 
+  dplyr::select(id) 
+
+write_csv(U6_Pro_ID_3, "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig1_Final_Figure_Datasets/U6_Promoters_Fasta.fa", col_names = FALSE)
+
+
+##Calculating median edit score across contexts
+
+U6_Promoters <- U6_Promoters %>% 
+  rowwise() %>% 
+  mutate(Median_Edit_Score_Across_Contexts = median(K562:iPSC))
+
+##Reading in percent sequence identity to hRNU6-1p
+
+hRNU6p_PID <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig1_Final_Figure_Datasets/hRNU61p_Percent_Seq_Identity.csv") %>% 
+  type_convert()
+
+U6_Promoters <- cbind(U6_Promoters, hRNU6p_PID)
+
+
+##Reordering binding and ordering factors for plotting
+
+##Add colour labels
+
+hRNU61_Promoter <- U6_Promoters %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61" 
+
+SynU6_Promoters <- U6_Promoters %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- U6_Promoters %>% 
+  filter(!grepl("Syn", Name)) %>% 
+  filter(!Name %in% c("Human_Weissman_RNU6-1"))
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+
+U6_Promoters <- rbind(SynU6_Promoters, DivU6_Promoters, hRNU61_Promoter)
+
+U6_Promoters$Promoter_Lib <- factor(U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+
+
+
+##Correlation plot of edit scores 
+
+ggplot(U6_Promoters, aes(x = log2(K562), y = log2(HEK293T), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("K562_HEK293T_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(U6_Promoters, aes(x = log2(K562), y = log2(iPSC), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("K562_iPSC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(U6_Promoters, aes(x = log2(HEK293T), y = log2(iPSC), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("HEK293T_iPSC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+##Calculating correlation between different cell contexts
+
+
+cor.test(U6_Promoters$K562, U6_Promoters$HEK293T)
+cor.test(U6_Promoters$K562, U6_Promoters$iPSC)
+cor.test(U6_Promoters$iPSC, U6_Promoters$HEK293T)
+
+##Plotting sequence identity by median edit score across contexts
+
+ggplot(U6_Promoters, aes(x = hRNU61p_Percent_Seq_Identity, y = log2(Median_Edit_Score_Across_Contexts), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 1.0)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  xlim(0,100) +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("hRNU61_PID_v_Median_Edit_Score.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+##Calculating correlation between hRNU61p and sequence identity, with and without hRNU61p included
+
+cor.test(U6_Promoters$hRNU61p_Percent_Seq_Identity, U6_Promoters$Median_Edit_Score_Across_Contexts, method = "spearman")
+
+U6_Promoters_No_hRNU61 <- U6_Promoters %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+
+cor.test(U6_Promoters_No_hRNU61$hRNU61p_Percent_Seq_Identity, U6_Promoters_No_hRNU61$Median_Edit_Score_Across_Contexts, method = "spearman")
+
+
+```
+
+
+
+```{r}
+##Edit score Heatmap
+
+U6_Promoters_Heatmap <- U6_Promoters %>% 
+  filter(K562 > 0 & HEK293T > 0 & iPSC > 0) %>% 
+  pivot_longer(cols = K562:iPSC, names_to = "Cell_Type", values_to = "Edit_Score")
+
+
+ggplot(U6_Promoters_Heatmap, aes(x = reorder(Name, Median_Edit_Score_Across_Contexts), y = Cell_Type, fill = log2(Edit_Score))) +
+  geom_tile() 
+  ggsave("U6_Heatmap_legend.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(U6_Promoters_Heatmap, aes(x = reorder(Name, Median_Edit_Score_Across_Contexts), y = Cell_Type, fill = log2(Edit_Score))) +
+  theme_void() +
+  geom_tile() +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") 
+ggsave("U6_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Categorical promoter class heatmap 
+
+ggplot(U6_Promoters_Heatmap, aes(reorder(Name, Median_Edit_Score_Across_Contexts), y = 1, fill= Promoter_Lib)) + 
+  geom_tile(color = "white",
+            lwd = 4,
+            linetype = 1) +
+  scale_fill_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  theme_void() +
+  theme(legend.position="none") +
+  labs(title = "", x = "", y = "") 
+ggsave("U6_Promoter_Lib_Heatmap.jpeg", width = 38, height = 0.7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+

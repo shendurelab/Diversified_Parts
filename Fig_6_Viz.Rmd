@@ -1,0 +1,270 @@
+---
+title: "Fig_2_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+```
+
+
+
+```{r}
+##Read in data
+
+Pol_III_Pro_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig6_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores.csv")
+
+##Histogram of different promoter classes  
+
+Human_RNU61_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6__Homo_sapiens", Seq_Name))
+
+U6_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6", Seq_Name)) %>% 
+  filter(!grepl("U6__Homo_sapiens", Seq_Name))
+
+SevenSK_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("7SK", Seq_Name)) 
+
+H1_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("H1", Seq_Name)) 
+
+Human_RNU61_Pol_III_Pro_Edit_Scores$Promoter_Class <- "Human_RNU61p"
+U6_Pol_III_Pro_Edit_Scores$Promoter_Class <- "U6"
+SevenSK_Pol_III_Pro_Edit_Scores$Promoter_Class <- "7SK"
+H1_Pol_III_Pro_Edit_Scores$Promoter_Class <- "H1"
+
+Pol_III_Pro_Edit_Scores_Class <- rbind(U6_Pol_III_Pro_Edit_Scores, SevenSK_Pol_III_Pro_Edit_Scores, H1_Pol_III_Pro_Edit_Scores, Human_RNU61_Pol_III_Pro_Edit_Scores)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_Class, aes(x = Mean_BC_Normalized_Edit_Score_Per_iBC, y = Promoter_Class, fill = Promoter_Class)) +
+  geom_density_ridges(stat="binline") +  
+  scale_fill_manual(values = c("#999999", "orange", "black", "#56B4E9")) +
+  theme_classic() 
+
+ggplot(Pol_III_Pro_Edit_Scores_Class, aes(x = Grand_Mean_BC_Normalized_Edit_Score, y = Promoter_Class, fill = Promoter_Class)) +
+  geom_density_ridges(stat="binline") +  
+  scale_fill_manual(values = c("#999999", "orange", "black", "#56B4E9")) +
+  theme_classic() 
+
+
+##Correlation of replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(Replicate == 1) %>% 
+  select(Promoter_Class, Seq_Name, Pro_Seq, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(Pro_Seq, pBC_Seq, Replicate_2_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(Pro_Seq, pBC_Seq, Replicate_3_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(Pro_Seq, pBC_Seq, Replicate_4_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Promoter_Class, Seq_Name, Pro_Seq.x, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score, Replicate_2_BC_Normalized_Edit_Score, Replicate_3_BC_Normalized_Edit_Score, Replicate_4_BC_Normalized_Edit_Score)
+
+
+Pol_III_Pro_Edit_Scores_By_Replicate$Promoter_Class <- factor(Pol_III_Pro_Edit_Scores_By_Replicate$Promoter_Class, levels = c("U6", "7SK", "H1", "Human_RNU61p"))
+
+##Rep1 vs. Rep2 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_2_BC_Normalized_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(1,1,1,4)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_Rep_1_Rep_2_black.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+##Rep 1 v 3
+  
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_3_BC_Normalized_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(1,1,1,4)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_Rep_1_Rep_3_black.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Rep 1 v 4
+  
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(1,1,1,4)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_Rep_1_Rep_4_black.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+##Rep 2 v 3
+  
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_BC_Normalized_Edit_Score), y = log2(Replicate_3_BC_Normalized_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(1,1,1,4)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_Rep_2_Rep_3_black.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+##Rep 2 v 4
+  
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(1,1,1,4)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_Rep_2_Rep_4_black.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+##Rep 3 v 4
+  
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(1,1,1,4)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_Rep_3_Rep_4_black.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+
+```
+
+
+```{r}
+##Histograms of edit scores for distinct classes
+
+Distinct_Human_RNU61_Pol_III_Pro_Edit_Scores <- Human_RNU61_Pol_III_Pro_Edit_Scores %>% distinct(iBC_Seq, .keep_all = TRUE)
+Distinct_U6_Pol_III_Pro_Edit_Scores <- U6_Pol_III_Pro_Edit_Scores %>% 
+  distinct(iBC_Seq, .keep_all = TRUE)
+Distinct_H1_Pol_III_Pro_Edit_Scores <- H1_Pol_III_Pro_Edit_Scores %>% 
+  distinct(iBC_Seq, .keep_all = TRUE)
+Distinct_SevenSK_Pol_III_Pro_Edit_Scores <- SevenSK_Pol_III_Pro_Edit_Scores %>% 
+  distinct(iBC_Seq, .keep_all = TRUE)
+
+Mean_Human_RNU61_Pol_III_Pro_Edit_Score <- mean(Distinct_Human_RNU61_Pol_III_Pro_Edit_Scores$Mean_BC_Normalized_Edit_Score_Per_iBC)
+
+ggplot(Distinct_Human_RNU61_Pol_III_Pro_Edit_Scores, aes(x = log2(Mean_BC_Normalized_Edit_Score_Per_iBC))) +
+  geom_histogram(adjust=1.5, fill = "black", binwidth = 0.15) + 
+  geom_vline(xintercept=log2(Mean_Human_RNU61_Pol_III_Pro_Edit_Score), linetype='dashed', col = 'black') +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,2), labels = scales::number_format(accuracy = 0.01)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(-5,-2.5,0,2.5,5), limits = c(-7,7)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 36)) 
+  ggsave("hRNU61_PolIII_Promoter_Class_Histo.jpeg", width = 24, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(Distinct_U6_Pol_III_Pro_Edit_Scores, aes(x = log2(Mean_BC_Normalized_Edit_Score_Per_iBC))) +
+  geom_histogram(adjust=1.5, fill = "#56B4E9", binwidth = 0.15) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,200)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(-5,-2.5,0,2.5,5), limits = c(-7,7)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 36)) 
+  ggsave("U6_PolIII_Promoter_Class_Histo.jpeg", width = 24, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(Distinct_H1_Pol_III_Pro_Edit_Scores, aes(x = log2(Mean_BC_Normalized_Edit_Score_Per_iBC))) +
+  geom_histogram(adjust=1.5, fill = "#CCA24C", binwidth = 0.15) +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,100)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(-5,-2.5,0,2.5,5), limits = c(-7,7)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 36)) 
+  ggsave("H1_PolIII_Promoter_Histo.jpeg", width = 24, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(Distinct_SevenSK_Pol_III_Pro_Edit_Scores, aes(x = log2(Mean_BC_Normalized_Edit_Score_Per_iBC))) +
+  geom_histogram(adjust=1.5, colour = "#999999", fill = "#999999", binwidth = 0.2) + 
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  scale_y_continuous(breaks = c(0,600)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(-5,-2.5,0,2.5,5), limits = c(-7,7)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 36)) 
+  ggsave("7SK_PolIII_Promoter_Histo.jpeg", width = 24, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+

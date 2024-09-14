@@ -1,0 +1,214 @@
+---
+title: "Fig_2_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+```
+
+```{r}
+
+BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig2_Final_Figure_Datasets/BB_Edit_Scores_Comparison_Table.csv") 
+
+##Calculating correlation between different cell contexts
+
+cor.test(BB$K562, BB$HEK293T)
+cor.test(BB$K562, BB$iPSC)
+cor.test(BB$iPSC, BB$HEK293T)
+
+##Calculate the median of the standard backbone in each pool and reordering groups for plotting
+
+Standard <- BB %>% 
+  filter(Variant_Type == "Standard") %>% 
+  group_by(BC_Pool) %>% 
+  mutate(K562 = median(K562)) %>% 
+  mutate(HEK293T = median(HEK293T)) %>% 
+  mutate(iPSC = median(iPSC)) %>% 
+  filter(Oligo_Number == 1)
+
+Replacement <- BB %>% 
+  filter(Variant_Type == "Replacement") 
+
+Extension <- BB %>% 
+  filter(Variant_Type == "Extension")
+
+BB <- rbind(Extension, Replacement, Standard)
+
+
+##Correlation plot of edit scores 
+
+ggplot(BB, aes(x = log2(K562), y = log2(HEK293T), colour = Variant_Type, size = Variant_Type)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("BB_K562_HEK293T_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+ggplot(BB, aes(x = log2(K562), y = log2(iPSC), colour = Variant_Type, size = Variant_Type)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("BB_K562_iPSC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(BB, aes(x = log2(HEK293T), y = log2(iPSC), colour = Variant_Type, size = Variant_Type)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("BB_HEK293T_iPSC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+
+```{r}
+
+##Plotting the edit scores by variant class
+
+ggplot(BB, aes(x = log2(K562))) +
+  geom_histogram(aes(fill = fct_relevel(Variant_Type, "Replacement", "Extension", "Standard")), binwidth = 0.2) +
+  scale_fill_manual(values=c("#56B4E9", "#CCA24C", "black")) +
+  scale_y_continuous(breaks = c(0,15,30)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 41)) 
+  ggsave("BB_K562_Histo.jpeg", width = 18, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(BB, aes(x = log2(HEK293T))) +
+  geom_histogram(aes(fill = fct_relevel(Variant_Type, "Replacement", "Extension", "Standard")), binwidth = 0.2) +
+  scale_fill_manual(values=c("#56B4E9", "#CCA24C", "black")) +
+  scale_y_continuous(breaks = c(0,10,20)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 41)) 
+  ggsave("BB_HEK293T_Histo.jpeg", width = 18, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(BB, aes(x = log2(iPSC))) +
+  geom_histogram(aes(fill = fct_relevel(Variant_Type, "Replacement", "Extension", "Standard")), binwidth = 0.2) +
+  scale_fill_manual(values=c("#56B4E9", "#CCA24C", "black")) +
+  scale_y_continuous(breaks = c(0,10,20)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 41)) 
+  ggsave("BB_iPSC_Histo.jpeg", width = 18, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+
+
+```{r}
+##Isolating the best pegRNAs for plotting
+
+Above_Standard <- BB %>% 
+  filter(Above_Standard == TRUE)
+
+Standard <- BB %>% 
+  filter(Variant_Type == "Standard")
+
+BB_Above_Standard <- rbind(Standard, Above_Standard)
+
+##Converting oligo number to factor for plotting
+
+BB_Above_Standard <- BB_Above_Standard %>% 
+  mutate(Oligo_Number = as.factor(Oligo_Number)) 
+
+##Calculating fold increase above standard  
+
+Standard_BC1 <- Standard %>%
+  filter(BC_Pool == 1)
+
+BB_Above_Standard_BC1 <- BB_Above_Standard %>%
+  filter(BC_Pool == 1) %>% 
+  mutate(K562_Fold_Change_Over_Standard = K562/(Standard_BC1$K562)) %>% 
+  mutate(HEK293T_Fold_Change_Over_Standard = HEK293T/(Standard_BC1$HEK293T)) %>% 
+  mutate(iPSC_Fold_Change_Over_Standard = iPSC/(Standard_BC1$iPSC))
+
+Standard_BC2 <- Standard %>%
+  filter(BC_Pool == 2)
+
+BB_Above_Standard_BC2 <- BB_Above_Standard %>%
+  filter(BC_Pool == 2) %>% 
+  mutate(K562_Fold_Change_Over_Standard = K562/(Standard_BC2$K562)) %>% 
+  mutate(HEK293T_Fold_Change_Over_Standard = HEK293T/(Standard_BC2$HEK293T)) %>% 
+  mutate(iPSC_Fold_Change_Over_Standard = iPSC/(Standard_BC2$iPSC))
+
+BB_Above_Standard <- rbind(BB_Above_Standard_BC1, BB_Above_Standard_BC2)
+
+
+##Pivot columns longer for plotting
+
+BB_Above_Standard <- BB_Above_Standard %>%
+  pivot_longer(K562_Fold_Change_Over_Standard:iPSC_Fold_Change_Over_Standard, names_to = "Cell_Type", values_to = "Fold_Change_Over_Standard") 
+
+##Add mean
+
+BB_Above_Standard <- BB_Above_Standard %>%
+  group_by(Oligo_Number) %>% 
+  mutate(Grand_Mean_Fold_Change = mean(Fold_Change_Over_Standard))
+
+
+##Plotting
+
+
+ggplot(BB_Above_Standard, aes(x = log2(Fold_Change_Over_Standard), y = fct_reorder(Oligo_Number, Fold_Change_Over_Standard), fill = Oligo_Number)) +
+  geom_boxplot(colour = "black", width = 0.35, lwd = 0.6, outlier.shape = NA) +
+  scale_shape_manual(values = c(16, 16)) +
+  geom_jitter(position = position_jitterdodge(jitter.width = 0, jitter.height = 0), colour = "black", size = 2.5) +
+  scale_fill_manual(values=c("black", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  theme_classic() +
+  scale_x_continuous(position = "top") +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 33))
+ggsave("BB_Top_Part_Boxplot.jpeg", width = 6, height = 12, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+

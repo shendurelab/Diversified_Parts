@@ -1,0 +1,899 @@
+---
+title: "Final_Result_Table_Analysis"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+```{r}
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Downloads/AllU6_Filtered_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+##Correlation plot of edit scores 
+
+ggplot(U6_Promoters, aes(x = K562, y = mESC)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(U6_Promoters, aes(x = K562, y = HEK293T)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(U6_Promoters, aes(x = K562, y = iPSC)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(U6_Promoters, aes(x = iPSC, y = mESC)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(U6_Promoters, aes(x = iPSC, y = HEK293T)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(U6_Promoters, aes(x = mESC, y = HEK293T)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+
+
+##Calculating correlation between different cell contexts
+
+
+cor.test(U6_Promoters$K562, U6_Promoters$mESC)
+cor.test(U6_Promoters$K562, U6_Promoters$HEK293T)
+cor.test(U6_Promoters$K562, U6_Promoters$iPSC)
+cor.test(U6_Promoters$iPSC, U6_Promoters$mESC)
+cor.test(U6_Promoters$iPSC, U6_Promoters$HEK293T)
+cor.test(U6_Promoters$mESC, U6_Promoters$HEK293T)
+
+##Creating corr matrix to look at correlation coefficinent range 
+
+U6_Results_Matrix <- U6_Promoters %>% 
+  select(K562, HEK293T, iPSC) 
+
+U6_Results_Matrix <- as.matrix(U6_Results_Matrix)
+
+U6_Results_Corr_Matrix <- cor(U6_Results_Matrix)
+
+
+U6_Results_Corr_Matrix[U6_Results_Corr_Matrix == 1] <- NA
+
+range(U6_Results_Corr_Matrix, na.rm = TRUE)
+
+
+
+##Looking at number U6 promoters with edit scores above zero or above 1 across contexts
+
+U6_Results_Matrix <- U6_Promoters %>% 
+  select(K562, HEK293T, iPSC) 
+
+U6_Results_Matrix_0 <- U6_Results_Matrix %>% 
+  filter(K562 > 0) %>% 
+  filter(HEK293T > 0) %>%
+  filter(iPSC > 0) 
+
+U6_Results_Matrix_1 <- U6_Results_Matrix %>% 
+  filter(K562 > 1) %>% 
+  filter(HEK293T > 1) %>%
+  filter(iPSC > 1) 
+
+##How much better is the platypus than human promoter across contexts 
+
+RNU61 <- U6_Promoters %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+Platypus <- U6_Promoters %>% 
+  filter(Name == "Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249")
+
+Platypus$K562/RNU61$K562
+Platypus$HEK293T/RNU61$HEK293T
+Platypus$iPSC/RNU61$iPSC
+
+##How many above hRNU6-1p across contexts 
+
+Standard <- U6_Promoters %>% 
+  filter(Name == "Human_Weissman_RNU6-1") 
+
+U6_Promoters_Above_Standard <- U6_Promoters %>% 
+  filter(K562 > (median(Standard$K562))) %>% 
+  filter(HEK293T > (median(Standard$HEK293T))) %>% 
+  filter(iPSC > (median(Standard$iPSC)))
+
+##How many within 5x of hRNU6-1p across contexts 
+
+Top_U6_Promoters <- U6_Promoters %>% 
+  filter(K562 > (0.2*median(Standard$K562))) %>% 
+  filter(HEK293T > (0.2*median(Standard$HEK293T))) %>% 
+  filter(iPSC > (0.2*median(Standard$iPSC))) %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+
+
+##How many of these top U6 promoters are better than Weissman or non-RNU6-1p sets
+
+Weissman <- Top_U6_Promoters %>% 
+  filter(grepl("Weissman", Name)) %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+Human <- Top_U6_Promoters %>% 
+  filter(grepl("Human", Name)) %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+
+Human_Weissman <- rbind(Weissman, Human)
+
+Above_Human_Weissman_Sets <- U6_Promoters %>% 
+  filter(K562 > max(Human_Weissman$K562)) %>% 
+  filter(HEK293T > max(Human_Weissman$HEK293T)) %>% 
+  filter(iPSC > max(Human_Weissman$iPSC)) %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+
+
+##Comparing synthetic vs naturally diversified U6 promoters
+
+SynU6_Promoters <- U6_Promoters %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- U6_Promoters %>% 
+  filter(!grepl("Syn", Name))
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+U6_Promoters <- rbind(SynU6_Promoters, DivU6_Promoters)
+
+ggplot(U6_Promoters, aes(x = Promoter_Lib, y = K562)) +
+  geom_violin() +
+  geom_jitter()
+
+wilcox.test(K562 ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(mESC ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(HEK293T ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(iPSC ~ Promoter_Lib, data = U6_Promoters)
+
+var.test(K562 ~ Promoter_Lib, data = U6_Promoters)
+var.test(mESC ~ Promoter_Lib, data = U6_Promoters)
+var.test(HEK293T ~ Promoter_Lib, data = U6_Promoters)
+var.test(iPSC ~ Promoter_Lib, data = U6_Promoters)
+
+##Adding above standard column 
+
+U6_Above_Standard <- U6_Promoters %>% 
+  filter(Name %in% U6_Promoters_Above_Standard$Name)
+
+U6_Above_Standard$Above_Standard_Across_Contexts <- "TRUE"
+
+Other_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% U6_Promoters_Above_Standard$Name)
+
+Other_Promoters$Above_Standard_Across_Contexts <- "FALSE"
+
+U6_Promoters <- rbind(U6_Above_Standard, Other_Promoters)
+
+
+##Adding within 5x standard column 
+
+U6_Within_5x_Standard <- U6_Promoters %>% 
+  filter(Name %in% Top_U6_Promoters$Name) 
+
+U6_Within_5x_Standard$Within_5x_Standard_Across_Contexts <- "TRUE"
+
+Other_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% Top_U6_Promoters$Name) 
+
+Other_Promoters$Within_5x_Standard_Across_Contexts <- "FALSE"
+
+U6_Promoters <- rbind(U6_Within_5x_Standard, Other_Promoters)
+
+
+##Rewriting table
+
+write_csv(U6_Promoters, "/Users/troymcdiarmid/Downloads/U6_Edit_Scores_Comparison_Table.csv")
+
+##Calculating promoter length
+
+U6 <- U6_Promoters %>% 
+  mutate(Promoter_Length = str_length(U6_Promoter_Seq))
+
+DivU6 <- U6 %>% 
+  filter(!grepl("Syn", Name)) 
+
+mean(DivU6$Promoter_Length)
+range(DivU6$Promoter_Length)
+
+SynU6 <- U6 %>% 
+  filter(grepl("Syn", Name)) 
+
+mean(SynU6$Promoter_Length)
+range(SynU6$Promoter_Length)
+
+```
+
+
+```{r}
+##Correlating barcode and not barcode normalized U6 edit scores
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Downloads/AllU6_Filtered_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Reading in raw data 
+
+Raw_U6_Promoters <- read_csv("/Users/troymcdiarmid/Downloads/AllU6_Not_iBC_Normalized_Mean_Edit_Scores_Comparison_Table.csv") 
+
+##Convert NAs to zeros 
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>% replace(is.na(.), 0)
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+##Rename columns
+
+Raw_U6_Promoters <- Raw_U6_Promoters %>%
+  dplyr::rename(Raw_K562 = K562, Raw_HEK293T = HEK293T, Raw_iPSC = iPSC, Raw_mESC = mESC) 
+
+##Join dfs
+
+U6_Promoters <- U6_Promoters %>% 
+  left_join(Raw_U6_Promoters, by = "Name")
+
+##Calculating correlation between normalized and non-normalized edit scores 
+
+cor.test(U6_Promoters$K562, U6_Promoters$Raw_K562)
+cor.test(U6_Promoters$HEK293T, U6_Promoters$Raw_HEK293T)
+cor.test(U6_Promoters$iPSC, U6_Promoters$Raw_iPSC)
+cor.test(U6_Promoters$mESC, U6_Promoters$Raw_mESC)
+
+
+```
+
+
+
+```{r}
+
+##Reading in table
+
+BB <- read_csv("/Users/troymcdiarmid/Downloads/BB_Filtered_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the two backbones that did not satisfy Lmax < 40
+
+BB <- BB %>% 
+  filter(!Oligo_Number %in% c("209", "17")) 
+
+##Correlation plot of edit scores
+
+ggplot(BB, aes(x = K562, y = HEK293T)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10() 
+ggplot(BB, aes(x = K562, y = iPSC)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+ggplot(BB, aes(x = iPSC, y = HEK293T)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10() 
+
+
+##Calculating correlation between different cell contexts
+
+cor.test(BB$K562, BB$HEK293T)
+cor.test(BB$K562, BB$iPSC)
+cor.test(BB$iPSC, BB$HEK293T)
+
+
+##Creating corr matrix to look at correlation range 
+
+BB_Results_Matrix <- BB %>% 
+  select(K562, HEK293T, iPSC) 
+
+BB_Results_Matrix <- as.matrix(BB_Results_Matrix)
+
+BB_Results_Corr_Matrix <- cor(BB_Results_Matrix)
+
+
+BB_Results_Corr_Matrix[BB_Results_Corr_Matrix == 1] <- NA
+
+range(BB_Results_Corr_Matrix, na.rm = TRUE)
+
+
+##How many above zero
+
+BB_BC_Pool1 <- BB %>% 
+  filter(BC_Pool == 1) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(K562 > 0) %>% 
+  filter(iPSC > 0) %>% 
+  filter(HEK293T > 0)
+
+BB_BC_Pool2 <- BB %>% 
+  filter(BC_Pool == 2) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(K562 > 0) %>% 
+  filter(iPSC > 0) %>% 
+  filter(HEK293T > 0)
+
+Above_Zero <- BB_BC_Pool1 %>% 
+  filter(Oligo_Number %in% BB_BC_Pool2$Oligo_Number) %>% 
+  filter(!Variant_Type == "Standard")
+  
+
+##Finding how many had edit score above median of standard across barcodes and contexts
+
+##BC pool 1
+
+Standard_BC_Pool_1 <- BB %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "1") 
+
+BB_BC_Pool1 <- BB %>% 
+  filter(BC_Pool == "1")
+
+BB_BC_Pool1_Above_Standard <- BB_BC_Pool1 %>% 
+  filter(K562 > (median(Standard_BC_Pool_1$K562))) %>% 
+  filter(HEK293T > (median(Standard_BC_Pool_1$HEK293T))) %>% 
+  filter(iPSC > (median(Standard_BC_Pool_1$iPSC)))
+
+#BC pool 2
+
+Standard_BC_Pool_2 <- BB %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "2") 
+
+BB_BC_Pool2 <- BB %>% 
+  filter(BC_Pool == "2")
+
+BB_BC_Pool2_Above_Standard <- BB_BC_Pool2 %>% 
+  filter(K562 > (median(Standard_BC_Pool_2$K562))) %>% 
+  filter(HEK293T > (median(Standard_BC_Pool_2$HEK293T))) %>% 
+  filter(iPSC > (median(Standard_BC_Pool_2$iPSC)))
+
+##Above median of standard across barcodes and contexts
+
+Above_Standard <- BB_BC_Pool1_Above_Standard %>% 
+  filter(Oligo_Number %in% BB_BC_Pool2_Above_Standard$Oligo_Number) %>% 
+  filter(!Variant_Type == "Standard")
+
+##Finding how many within five-fold of standard
+
+##BC pool 1
+
+Standard_BC_Pool_1 <- BB %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "1") 
+
+BB_BC_Pool1 <- BB %>% 
+  filter(BC_Pool == "1")
+
+BB_BC_Pool1_Within_5fold_Standard <- BB_BC_Pool1 %>% 
+  filter(K562 > (0.2*(median(Standard_BC_Pool_1$K562)))) %>% 
+  filter(HEK293T > (0.2*(median(Standard_BC_Pool_1$HEK293T)))) %>% 
+  filter(iPSC > (0.2*(median(Standard_BC_Pool_1$iPSC))))
+
+#BC pool 2
+
+Standard_BC_Pool_2 <- BB %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "2") 
+
+BB_BC_Pool2 <- BB %>% 
+  filter(BC_Pool == "2")
+
+BB_BC_Pool2_Within_5fold_Standard <- BB_BC_Pool2 %>% 
+  filter(K562 > (0.2*(median(Standard_BC_Pool_2$K562)))) %>% 
+  filter(HEK293T > (0.2*(median(Standard_BC_Pool_2$HEK293T)))) %>% 
+  filter(iPSC > (0.2*(median(Standard_BC_Pool_2$iPSC))))
+
+##Within 5 fold of median of standard across barcodes and contexts
+
+Within_5x_Standard <- BB_BC_Pool1_Within_5fold_Standard %>% 
+  filter(Oligo_Number %in% BB_BC_Pool2_Within_5fold_Standard$Oligo_Number) %>% 
+  filter(!Variant_Type == "Standard")
+
+##Rewriting table
+
+##Adding within 5X standard column
+
+BB_Within_5x_Standard <- BB %>% 
+  filter(Oligo_Number %in% Within_5x_Standard$Oligo_Number)
+
+BB_Within_5x_Standard$Within_5x_Standard <- "TRUE"
+
+BB_Other <- BB %>% 
+  filter(!Oligo_Number %in% Within_5x_Standard$Oligo_Number)
+
+BB_Other$Within_5x_Standard <- "FALSE"
+
+BB <- rbind(BB_Within_5x_Standard, BB_Other)
+
+##Adding above standard column
+
+BB_Above_Standard <- BB %>% 
+  filter(Oligo_Number %in% Above_Standard$Oligo_Number)
+
+BB_Above_Standard$Above_Standard <- "TRUE"
+
+BB_Other <- BB %>% 
+  filter(!Oligo_Number %in% Above_Standard$Oligo_Number)
+
+BB_Other$Above_Standard <- "FALSE"
+
+BB <- rbind(BB_Above_Standard, BB_Other)
+
+##Rewriting table
+
+write_csv(BB, "/Users/troymcdiarmid/Downloads/BB_Edit_Scores_Comparison_Table.csv")
+
+
+##Looking at median edit score of replacements vs. extensions in each context
+
+Replacement <- BB %>% 
+  filter(Variant_Type == "Replacement")
+Extension <- BB %>% 
+  filter(Variant_Type == "Extension")
+
+median(Replacement$K562)/median(Extension$K562)
+median(Replacement$iPSC)/median(Extension$iPSC)
+median(Replacement$HEK293T)/median(Extension$HEK293T)
+
+##Correlating individual barcodes 
+
+##K562
+
+K562_BC_Correlation <- BB %>% 
+  select(Oligo_Number, BC_Pool, K562) %>% 
+  filter(K562 > 0)
+K562_BC_Correlation <- K562_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = K562) 
+
+##HEK293T
+
+HEK293T_BC_Correlation <- BB %>% 
+  select(Oligo_Number, BC_Pool, HEK293T) %>% 
+  filter(HEK293T > 0)
+HEK293T_BC_Correlation <- HEK293T_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = HEK293T) 
+
+##iPSC
+
+iPSC_BC_Correlation <- BB %>% 
+  select(Oligo_Number, BC_Pool, iPSC) %>% 
+  filter(iPSC > 0)
+iPSC_BC_Correlation <- iPSC_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = iPSC) 
+
+
+ggplot(K562_BC_Correlation, aes(x = `1`, y = `2`)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+
+ggplot(HEK293T_BC_Correlation, aes(x = `1`, y = `2`)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+
+ggplot(iPSC_BC_Correlation, aes(x = `1`, y = `2`)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+
+
+cor.test(K562_BC_Correlation$`1`, K562_BC_Correlation$`2`)
+cor.test(HEK293T_BC_Correlation$`1`, HEK293T_BC_Correlation$`2`)
+cor.test(iPSC_BC_Correlation$`1`, iPSC_BC_Correlation$`2`)
+
+cor.test(log2(K562_BC_Correlation$`1`), log2(K562_BC_Correlation$`2`))
+cor.test(log2(HEK293T_BC_Correlation$`1`), log2(HEK293T_BC_Correlation$`2`))
+cor.test(log2(iPSC_BC_Correlation$`1`), log2(iPSC_BC_Correlation$`2`))
+
+
+```
+
+
+
+
+```{r}
+
+##Reading in table
+
+MW <- read_csv("/Users/troymcdiarmid/Downloads/MW_Filtered_Edit_Scores_Comparison_Table.csv") 
+
+##Removing positive control repeat:antirepeat variants 
+
+MW <- MW %>% 
+  filter(!Variant_Type == "R:AR")
+
+##Counting the number of variant types
+
+Variant_Class_Counts <- MW %>% filter(!BC_Pool == 2) %>% 
+  group_by(Variant_Type) %>% count()
+
+##Plot correlation across cell contexts
+
+ggplot(MW, aes(x = K562, y = HEK293T)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10() 
+ggplot(MW, aes(x = K562, y = iPSC)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+ggplot(MW, aes(x = iPSC, y = HEK293T)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10() 
+
+##Calculating correlation between different cell contexts
+
+cor.test(MW$K562, MW$HEK293T)
+cor.test(MW$K562, MW$iPSC)
+cor.test(MW$iPSC, MW$HEK293T)
+
+
+##Creating corr matrix to look at range of correlation coefficinents 
+
+MW_Results_Matrix <- MW %>% 
+  select(K562, HEK293T, iPSC) 
+
+MW_Results_Matrix <- as.matrix(MW_Results_Matrix)
+
+MW_Results_Corr_Matrix <- cor(MW_Results_Matrix)
+
+
+MW_Results_Corr_Matrix[MW_Results_Corr_Matrix == 1] <- NA
+
+range(MW_Results_Corr_Matrix, na.rm = TRUE)
+
+
+##Looking at median edit score of promoter vs. backbone variants in each context
+
+U6_Promoter <- MW %>% 
+  filter(Variant_Position < 112)
+pegRNA_BB <- MW %>% 
+  filter(Variant_Position > 111)
+  
+median(U6_Promoter$K562)/median(pegRNA_BB$K562)
+median(U6_Promoter$iPSC)/median(pegRNA_BB$iPSC)
+median(U6_Promoter$HEK293T)/median(pegRNA_BB$HEK293T)
+
+
+##Dot plot of effects of deletions by position
+
+MW_Del <- MW %>% 
+  filter(Variant_Type == "Deletion") %>% 
+  filter(BC_Pool == 1)
+
+ggplot(MW_Del, aes(x = Variant_Position, y = iPSC)) +
+  geom_point() 
+
+##Looking at median edit score of deletions in the TATA box compared to other regions
+
+TATA <- MW %>% 
+  filter(Variant_Position > 80) %>%
+  filter(Variant_Position < 90) %>% 
+  filter(Variant_Type == "Deletion")
+
+Not_TATA <- MW %>% 
+  filter(Variant_Position < 80 | Variant_Position > 90) %>%
+  filter(Variant_Type == "Deletion")
+
+##Median edit score of PAM-proximal spacer region compared to others
+
+PAM_Prox <- MW %>% 
+  filter(Variant_Position > 121) %>%
+  filter(Variant_Position < 132) %>% 
+  filter(Variant_Type == "Deletion")
+
+Not_Pam_Prox <- MW %>% 
+  filter(Variant_Position < 121 | Variant_Position > 132) %>%
+  filter(Variant_Type == "Deletion")
+
+median(Not_Pam_Prox$K562)/median(PAM_Prox$K562)
+median(Not_Pam_Prox$HEK293T)/median(PAM_Prox$HEK293T)
+median(Not_Pam_Prox$iPSC)/median(PAM_Prox$iPSC)
+
+##Median edit score of final stem loop region compared to others
+
+SL <- MW %>% 
+  filter(Variant_Position > 197) %>%
+  filter(Variant_Position < 202) %>% 
+  filter(Variant_Type == "Deletion")
+
+Not_SL <- MW %>% 
+  filter(Variant_Position < 197 | Variant_Position > 202) %>%
+  filter(Variant_Type == "Deletion")
+
+median(Not_SL$K562)/median(SL$K562)
+median(Not_SL$HEK293T)/median(SL$HEK293T)
+median(Not_SL$iPSC)/median(SL$iPSC)
+
+
+##Median edit score of the RTT and PBS depletions
+
+RTT <- MW %>% 
+  filter(Variant_Position > 213) %>%
+  filter(Variant_Position < 218) %>% 
+  filter(Variant_Type == "Deletion")
+
+PBS <- MW %>% 
+  filter(Variant_Position > 222) %>%
+  filter(Variant_Position < 228) %>% 
+  filter(Variant_Type == "Deletion")
+
+
+##Correlating individual barcodes 
+
+##K562
+
+K562_BC_Correlation <- MW %>% 
+  select(ID_Number, BC_Pool, K562) %>% 
+  filter(K562 > 0)
+K562_BC_Correlation <- K562_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = K562) 
+
+##HEK293T
+
+HEK293T_BC_Correlation <- MW %>% 
+  select(ID_Number, BC_Pool, HEK293T) %>% 
+  filter(HEK293T > 0)
+HEK293T_BC_Correlation <- HEK293T_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = HEK293T) 
+
+##iPSC
+
+iPSC_BC_Correlation <- MW %>% 
+  select(ID_Number, BC_Pool, iPSC) %>% 
+  filter(iPSC > 0)
+iPSC_BC_Correlation <- iPSC_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = iPSC) 
+
+
+ggplot(K562_BC_Correlation, aes(x = `1`, y = `2`)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+
+ggplot(HEK293T_BC_Correlation, aes(x = `1`, y = `2`)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+
+ggplot(iPSC_BC_Correlation, aes(x = `1`, y = `2`)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+
+
+cor.test(K562_BC_Correlation$`1`, K562_BC_Correlation$`2`, method = "spearman")
+cor.test(HEK293T_BC_Correlation$`1`, HEK293T_BC_Correlation$`2`, method = "spearman")
+cor.test(iPSC_BC_Correlation$`1`, iPSC_BC_Correlation$`2`, method = "spearman")
+
+
+##Finding the top parts better than median of standard across both barcodes and all contexts 
+
+Standard_BC_Pool1 <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 1)
+
+Above_Standard_Parts_BC1 <- MW %>% 
+  filter(BC_Pool == 1) %>% 
+  filter(K562 > median(Standard_BC_Pool1$K562)) %>% 
+  filter(HEK293T > median(Standard_BC_Pool1$HEK293T)) %>% 
+  filter(iPSC > median(Standard_BC_Pool1$iPSC))
+
+#BC2
+
+Standard_BC_Pool2 <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 2)
+
+Above_Standard_Parts_BC2 <- MW %>% 
+  filter(BC_Pool == 2) %>% 
+  filter(K562 > median(Standard_BC_Pool2$K562)) %>% 
+  filter(HEK293T > median(Standard_BC_Pool2$HEK293T)) %>% 
+  filter(iPSC > median(Standard_BC_Pool2$iPSC))
+
+Above_Standard_Parts <- Above_Standard_Parts_BC1 %>% 
+  filter(ID_Number %in% Above_Standard_Parts_BC2$ID_Number) %>% 
+  filter(!Variant_Type == "Standard" & !Variant_Type == "R:AR")
+
+
+
+##Finding how many within 10% of standard accross both BC and cell contexts 
+
+##BC pool 1
+
+Standard_BC_Pool_1 <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "1") 
+
+MW_BC_Pool1 <- MW %>% 
+  filter(BC_Pool == "1")
+
+MW_BC_Pool1_Within_10p_Standard <- MW_BC_Pool1 %>% 
+  filter(K562 > (0.9*(median(Standard_BC_Pool_1$K562)))) %>% 
+  filter(HEK293T > (0.9*(median(Standard_BC_Pool_1$HEK293T)))) %>% 
+  filter(iPSC > (0.9*(median(Standard_BC_Pool_1$iPSC))))
+
+#BC pool 2
+
+Standard_BC_Pool_2 <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "2") 
+
+MW_BC_Pool2 <- MW %>% 
+  filter(BC_Pool == "2")
+
+MW_BC_Pool2_Within_10p_Standard <- MW_BC_Pool2 %>% 
+  filter(K562 > (0.9*(median(Standard_BC_Pool_2$K562)))) %>% 
+  filter(HEK293T > (0.9*(median(Standard_BC_Pool_2$HEK293T)))) %>% 
+  filter(iPSC > (0.9*(median(Standard_BC_Pool_2$iPSC))))
+
+##Within 10p of median of standard across barcodes and contexts
+
+Within_10p_Standard <- MW_BC_Pool1_Within_10p_Standard %>% 
+  filter(ID_Number %in% MW_BC_Pool2_Within_10p_Standard$ID_Number) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(!Variant_Type == "R:AR")
+
+ggplot(Within_10p_Standard, aes(x = Variant_Position, y = K562)) +
+  geom_point() +
+  xlim(0,235) +
+  ylim(0,max(Within_10p_Standard$K562+1))
+
+##Finding how many within two fold of standard across both BC and cell contexts 
+
+##BC pool 1
+
+Standard_BC_Pool_1 <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "1") 
+
+MW_BC_Pool1 <- MW %>% 
+  filter(BC_Pool == "1")
+
+MW_BC_Pool1_Within_2x_Standard <- MW_BC_Pool1 %>% 
+  filter(K562 > (0.5*(median(Standard_BC_Pool_1$K562)))) %>% 
+  filter(HEK293T > (0.5*(median(Standard_BC_Pool_1$HEK293T)))) %>% 
+  filter(iPSC > (0.5*(median(Standard_BC_Pool_1$iPSC))))
+
+#BC pool 2
+
+Standard_BC_Pool_2 <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == "2") 
+
+MW_BC_Pool2 <- MW %>% 
+  filter(BC_Pool == "2")
+
+MW_BC_Pool2_Within_2x_Standard <- MW_BC_Pool2 %>% 
+  filter(K562 > (0.5*(median(Standard_BC_Pool_2$K562)))) %>% 
+  filter(HEK293T > (0.5*(median(Standard_BC_Pool_2$HEK293T)))) %>% 
+  filter(iPSC > (0.5*(median(Standard_BC_Pool_2$iPSC))))
+
+##Within 10p of median of standard across barcodes and contexts
+
+Within_2x_Standard <- MW_BC_Pool1_Within_2x_Standard %>% 
+  filter(ID_Number %in% MW_BC_Pool2_Within_2x_Standard$ID_Number) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(!Variant_Type == "R:AR")
+
+ggplot(Within_2x_Standard, aes(x = Variant_Position, y = K562)) +
+  geom_point() +
+  xlim(0,235) +
+  ylim(0,max(Within_10p_Standard$K562+1))
+
+
+##Rewriting table
+
+##Adding within 2X standard column
+
+MW_Within_2x_Standard <- MW %>% 
+  filter(ID_Number %in% Within_2x_Standard$ID_Number)
+
+MW_Within_2x_Standard$Within_2x_Standard <- "TRUE"
+
+MW_Other <- MW %>% 
+  filter(!ID_Number %in% Within_2x_Standard$ID_Number)
+
+MW_Other$Within_2x_Standard <- "FALSE"
+
+MW <- rbind(MW_Within_2x_Standard, MW_Other)
+
+##Adding within 10% standard column
+
+MW_Within_10p_Standard <- MW %>% 
+  filter(ID_Number %in% Within_10p_Standard$ID_Number)
+
+MW_Within_10p_Standard$Within_10_Percent_Standard <- "TRUE"
+
+MW_Other <- MW %>% 
+  filter(!ID_Number %in% Within_10p_Standard$ID_Number)
+
+MW_Other$Within_10_Percent_Standard <- "FALSE"
+
+MW <- rbind(MW_Within_10p_Standard, MW_Other)
+
+
+##Adding above standard column 
+
+MW_Above_Standard_Parts <- MW %>% 
+  filter(ID_Number %in% Above_Standard_Parts$ID_Number)
+
+MW_Above_Standard_Parts$Above_Standard <- "TRUE"
+
+Other_Parts <- MW %>% 
+  filter(!ID_Number %in% Above_Standard_Parts$ID_Number)
+
+Other_Parts$Above_Standard <- "FALSE"
+
+MW <- rbind(MW_Above_Standard_Parts, Other_Parts)
+
+
+##See how much better the above standard parts are 
+
+Above_Standard <- MW %>% 
+  filter(Above_Standard == "TRUE") %>% 
+  filter(BC_Pool == 1)
+
+Standard <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 1)
+
+range(Above_Standard$K562/median(Standard$K562))
+range(Above_Standard$HEK293T/median(Standard$HEK293T))
+range(Above_Standard$iPSC/median(Standard$iPSC))
+
+K562_Fold_Increase_BC_1 <- Above_Standard$K562/median(Standard$K562)
+HEK293T_Fold_Increase_BC_1 <- Above_Standard$HEK293T/median(Standard$HEK293T)
+iPSC_Fold_Increase_BC_1 <- Above_Standard$iPSC/median(Standard$iPSC)
+
+
+Above_Standard <- MW %>% 
+  filter(Above_Standard == "TRUE") %>% 
+  filter(BC_Pool == 2)
+
+Standard <- MW %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 2)
+
+range(Above_Standard$K562/median(Standard$K562))
+range(Above_Standard$HEK293T/median(Standard$HEK293T))
+range(Above_Standard$iPSC/median(Standard$iPSC))
+
+K562_Fold_Increase_BC_2 <- Above_Standard$K562/median(Standard$K562)
+HEK293T_Fold_Increase_BC_2 <- Above_Standard$HEK293T/median(Standard$HEK293T)
+iPSC_Fold_Increase_BC_2 <- Above_Standard$iPSC/median(Standard$iPSC)
+
+median(c(K562_Fold_Increase_BC_1, K562_Fold_Increase_BC_2, HEK293T_Fold_Increase_BC_1, HEK293T_Fold_Increase_BC_2, iPSC_Fold_Increase_BC_1, iPSC_Fold_Increase_BC_2))
+
+ggplot(Above_Standard_Parts, aes(x = Variant_Position, y = K562)) +
+  geom_point() +
+  xlim(0,235) +
+  ylim(0,max(Above_Standard_Parts$K562+1))
+
+
+##Rewriting table
+
+write_csv(MW, "/Users/troymcdiarmid/Downloads/MW_Edit_Scores_Comparison_Table.csv")
+
+```
+

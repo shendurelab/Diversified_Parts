@@ -1,0 +1,114 @@
+---
+title: "Fig_S4_Viz"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+
+
+
+```{r}
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS4_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Add colour labels
+
+SynU6_Promoters <- U6_Promoters %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- U6_Promoters %>% 
+  filter(!grepl("Syn", Name))
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+U6_Promoters <- rbind(DivU6_Promoters, SynU6_Promoters)
+
+##Ordering factors for plotting
+
+U6_Promoters$Promoter_Lib <- ordered(U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse"))
+
+##Comparing synthetic vs. diverse U6 promoters across contexts 
+
+wilcox.test(K562 ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(mESC ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(HEK293T ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(iPSC ~ Promoter_Lib, data = U6_Promoters)
+
+##Plotting
+
+ggplot(U6_Promoters, aes(x = Promoter_Lib, y = log2(K562), fill = Promoter_Lib)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#D2D5D5", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0.05, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-7,7), breaks = c(-6,-3, 0, 3, 6)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("K562_Diverse_Synthetic_Comparison.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+ggplot(U6_Promoters, aes(x = Promoter_Lib, y = log2(HEK293T), fill = Promoter_Lib)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#D2D5D5", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0.05, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-7,7), breaks = c(-6,-3, 0, 3, 6)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("HEK293T_Diverse_Synthetic_Comparison.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(U6_Promoters, aes(x = Promoter_Lib, y = log2(iPSC), fill = Promoter_Lib)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#D2D5D5", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0.05, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-7,7), breaks = c(-6,-3, 0, 3, 6)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("iPSC_Diverse_Synthetic_Comparison.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+```{r}
+
+##Comparing variance between synthetically and evolutionarily diversified U6 promoters 
+
+library(car)
+
+var.test(K562 ~ Promoter_Lib, data = U6_Promoters)
+var.test(iPSC ~ Promoter_Lib, data = U6_Promoters)
+var.test(HEK293T ~ Promoter_Lib, data = U6_Promoters)
+
+
+```
+
+
+
+

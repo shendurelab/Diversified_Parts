@@ -1,0 +1,338 @@
+---
+title: "Top_Part_Assembly_Pairings"
+author: "Troy McDiarmid"
+date: "2024-02-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings") 
+```
+
+```{r}
+U6 <- read_csv("/Users/troymcdiarmid/Downloads/U6_Edit_Scores_Comparison_Table.csv")
+BB <- read_csv("/Users/troymcdiarmid/Downloads/BB_Edit_Scores_Comparison_Table.csv") 
+  
+```
+
+```{r}
+##Isolate top 10 U6 promoters
+
+Top_U6_Promoters <- U6 %>% 
+  rowwise() %>% 
+  mutate(Median_Human_Edit_Score = median(K562:iPSC))
+
+Top_U6_Promoters <- Top_U6_Promoters %>% 
+  arrange(-Median_Human_Edit_Score) %>% 
+  head(10) %>% 
+  select(Name, U6_Promoter_Seq, U6_Median_Human_Edit_Score = Median_Human_Edit_Score)
+
+```
+
+```{r}
+
+##Isolate top 10 BBs 
+
+##First select the median standard oligo-BC pair and the 6 that performed better across standard. 
+
+Standard_BB <- BB %>% 
+  filter(Oligo_Number == 3) 
+
+Above_Standard_BBs <- BB %>% 
+  filter(Above_Standard == "TRUE") 
+
+Standard_And_Above <- rbind(Standard_BB, Above_Standard_BBs)
+
+Standard_And_Above <- Standard_And_Above %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  filter(BC_Pool == 2)
+
+##Then select 3 more with the highest BC2 edit score from the set within 5x of standard in all contexts
+
+Top_BBs <- BB %>% 
+  filter(Within_5x_Standard == "TRUE") %>% 
+  filter(!Above_Standard == "TRUE") %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  arrange(-BB_BC2_Median_Human_Edit_Score) %>% 
+  head(3)
+
+##Combine the sets to get the top 10 and arrange by median edit score
+
+Top_BBs <- rbind(Standard_And_Above, Top_BBs)
+
+Top_BBs <- Top_BBs %>% 
+  select(Oligo_Number, Full_Seq, Backbone_Seq, BB_BC2_Median_Human_Edit_Score) 
+
+
+##Remove restriction sites from full BB sequences
+
+Top_BBs <- Top_BBs %>% 
+  separate(Full_Seq, into = c("5_Restriction", "Rest"), sep = 17) %>% 
+  separate(Rest, into = c("Full_pegRNA_Seq", "3_Restriction"), sep = -12) %>% 
+  select(!`5_Restriction` & !`3_Restriction`) %>% 
+  arrange(BB_BC2_Median_Human_Edit_Score)
+
+
+```
+
+
+```{r}
+
+Top_U6_Promoters_Seq <- Top_U6_Promoters %>% 
+  select(Name, U6_Promoter_Seq, U6_Median_Human_Edit_Score)
+
+TopBB_Seq <- Top_BBs %>% 
+  select(Oligo_Number, Full_pegRNA_Seq, BB_BC2_Median_Human_Edit_Score)
+
+Top_Part_Assembly_Pairings <- cbind(Top_U6_Promoters_Seq, TopBB_Seq)
+
+Top_Part_Assembly_Pairings$Termination_End <- "TT"
+
+Top_Part_Assembly_Pairings <- Top_Part_Assembly_Pairings %>% 
+  unite("Top_Part_Assembly_Pair_Seq", U6_Promoter_Seq, Full_pegRNA_Seq, sep = "", remove = FALSE) %>%
+  unite("Top_Part_Assembly_Pair_Seq", Top_Part_Assembly_Pair_Seq, Termination_End, sep = "", remove = FALSE) %>%
+  select(Name, Oligo_Number, U6_Promoter_Seq, Full_pegRNA_Seq, Top_Part_Assembly_Pair_Seq, U6_Median_Human_Edit_Score, BB_BC2_Median_Human_Edit_Score)
+
+
+Top_Part_Assembly_Pairings <- Top_Part_Assembly_Pairings %>%
+  mutate(Predicted_Additive_Edit_Score = U6_Median_Human_Edit_Score + BB_BC2_Median_Human_Edit_Score)
+
+write_csv(Top_Part_Assembly_Pairings, "/Users/troymcdiarmid/Downloads/10x_Top_Part_Assembly_Pairings.csv")
+
+```
+
+```{r}
+##Making lineage tracing pegRNAs
+
+##First remove the HEK3 spacer and RTT/PBS
+
+Lineage_Top_Part_Assembly_Pairings <- Top_Part_Assembly_Pairings %>% 
+  separate(Full_pegRNA_Seq, into = c("HEK3_Spacer", "pegRNA"), sep = 20) %>% 
+  separate(pegRNA, into = c("pegRNA", "HEK3_RTT_BC_PBS"), sep = -33) 
+
+##Then add DA tape-targeting spacer and RTT/PBS sequences 
+
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_Spacer <- "GGATGATGGTGAGCACGTGA" 
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_RTT <- "TCACCATCA"
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_Key <- "TCC"
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_PBS <- "CGTGCTCACCATC"
+Lineage_Top_Part_Assembly_Pairings$Termination <- "TTTTTTT"
+
+##Then add the best 3N barcodes
+
+##Reading in the 3N barcodes
+
+set.seed(2)
+
+DNA_TAPE1_3N_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Choi_data/TAPE-3N3-editScore.csv") %>% 
+  arrange(-EditScore) %>% 
+  head(29) 
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  sample_n(10) 
+
+DNA_TAPE1_3N_BC$BC_3N_Seq <- sapply(DNA_TAPE1_3N_BC$Insert, function(x) as.character(reverseComplement(DNAString(x))))
+
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC$BC_3N_Seq
+
+##Then select and bind everything together
+
+
+Lineage_Top_Part_Assembly_Pairings <- Lineage_Top_Part_Assembly_Pairings %>% 
+  select(Name, Oligo_Number, U6_Promoter_Seq, DNA_TAPE1_Spacer, pegRNA, DNA_TAPE1_RTT, DNA_TAPE1_Key, DNA_TAPE1_3N_BC, DNA_TAPE1_PBS, Termination, U6_Median_Human_Edit_Score:Predicted_Additive_Edit_Score)
+
+Lineage_Top_Part_Assembly_Pairings <- Lineage_Top_Part_Assembly_Pairings %>% 
+  unite(Full_U6_pegRNA_seq, U6_Promoter_Seq:Termination, sep = "", remove = FALSE)
+
+write_csv(Lineage_Top_Part_Assembly_Pairings, "/Users/troymcdiarmid/Downloads/10x_Lineage_Top_Part_Assembly_Pairings.csv")
+
+##Writing specific columns for benchling import 
+
+Benchling_Lineage_Top_Part_Assembly_Pairings <- Lineage_Top_Part_Assembly_Pairings %>% 
+  unite(Name, c("Name", "Oligo_Number")) %>% 
+  select(Name, Bases = Full_U6_pegRNA_seq)
+  
+
+write_csv(Benchling_Lineage_Top_Part_Assembly_Pairings, "/Users/troymcdiarmid/Downloads/10x_Lineage_Top_Part_Assembly_Pairings_Benchling.csv")
+
+
+```
+
+
+
+
+
+##Doing the same for 29x
+
+
+
+```{r}
+
+U6 <- read_csv("/Users/troymcdiarmid/Downloads/U6_Edit_Scores_Comparison_Table.csv")
+BB <- read_csv("/Users/troymcdiarmid/Downloads/BB_Edit_Scores_Comparison_Table.csv") 
+  
+```
+
+```{r}
+##Isolate top 29 U6 promoters
+
+Top_U6_Promoters <- U6 %>% 
+  rowwise() %>% 
+  mutate(Median_Human_Edit_Score = median(K562:iPSC))
+
+Top_U6_Promoters <- Top_U6_Promoters %>%
+  filter(Within_5x_Standard_Across_Contexts == TRUE | Name == "Human_Weissman_RNU6-1") %>% 
+  arrange(-Median_Human_Edit_Score) %>% 
+  select(Name, U6_Promoter_Seq, U6_Median_Human_Edit_Score = Median_Human_Edit_Score)
+
+```
+
+```{r}
+
+##Isolate top 29 BBs 
+
+##First select the median standard oligo-BC pair and the 6 that performed better across standard. 
+
+Standard_BB <- BB %>% 
+  filter(Oligo_Number == 3) 
+
+Above_Standard_BBs <- BB %>% 
+  filter(Above_Standard == "TRUE") 
+
+Standard_And_Above <- rbind(Standard_BB, Above_Standard_BBs)
+
+Standard_And_Above <- Standard_And_Above %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  filter(BC_Pool == 2)
+
+##Then select 22 more with the highest BC2 edit score from the set within 5x of standard in all contexts
+
+Top_BBs <- BB %>% 
+  filter(Within_5x_Standard == "TRUE") %>% 
+  filter(!Above_Standard == "TRUE") %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  arrange(-BB_BC2_Median_Human_Edit_Score) %>% 
+  head(22)
+
+##Combine the sets to get the top 28 and arrange by median edit score
+
+Top_BBs <- rbind(Standard_And_Above, Top_BBs)
+
+Top_BBs <- Top_BBs %>% 
+  select(Oligo_Number, Full_Seq, Backbone_Seq, BB_BC2_Median_Human_Edit_Score) 
+
+
+##Remove restriction sites from full BB sequences
+
+Top_BBs <- Top_BBs %>% 
+  separate(Full_Seq, into = c("5_Restriction", "Rest"), sep = 17) %>% 
+  separate(Rest, into = c("Full_pegRNA_Seq", "3_Restriction"), sep = -12) %>% 
+  select(!`5_Restriction` & !`3_Restriction`) %>% 
+  arrange(BB_BC2_Median_Human_Edit_Score)
+
+
+```
+
+
+```{r}
+
+Top_U6_Promoters_Seq <- Top_U6_Promoters %>% 
+  select(Name, U6_Promoter_Seq, U6_Median_Human_Edit_Score)
+
+TopBB_Seq <- Top_BBs %>% 
+  select(Oligo_Number, Full_pegRNA_Seq, BB_BC2_Median_Human_Edit_Score)
+
+Top_Part_Assembly_Pairings <- cbind(Top_U6_Promoters_Seq, TopBB_Seq)
+
+Top_Part_Assembly_Pairings$Termination_End <- "TT"
+
+Top_Part_Assembly_Pairings <- Top_Part_Assembly_Pairings %>% 
+  unite("Top_Part_Assembly_Pair_Seq", U6_Promoter_Seq, Full_pegRNA_Seq, sep = "", remove = FALSE) %>%
+  unite("Top_Part_Assembly_Pair_Seq", Top_Part_Assembly_Pair_Seq, Termination_End, sep = "", remove = FALSE) %>%
+  select(Name, Oligo_Number, U6_Promoter_Seq, Full_pegRNA_Seq, Top_Part_Assembly_Pair_Seq, U6_Median_Human_Edit_Score, BB_BC2_Median_Human_Edit_Score)
+
+
+Top_Part_Assembly_Pairings <- Top_Part_Assembly_Pairings %>%
+  mutate(Predicted_Additive_Edit_Score = U6_Median_Human_Edit_Score + BB_BC2_Median_Human_Edit_Score)
+
+write_csv(Top_Part_Assembly_Pairings, "/Users/troymcdiarmid/Downloads/29x_Top_Part_Assembly_Pairings.csv")
+
+
+##Writing specific columns for benchling import 
+
+Benchling_Top_Part_Assembly_Pairings <- Top_Part_Assembly_Pairings %>% 
+  unite(Name, c("Name", "Oligo_Number")) %>% 
+  select(Name, Bases = Top_Part_Assembly_Pair_Seq)
+  
+
+write_csv(Benchling_Top_Part_Assembly_Pairings, "/Users/troymcdiarmid/Downloads/29x_Top_Part_Assembly_Pairings_Benchling.csv") 
+
+```
+
+```{r}
+##Making lineage tracing pegRNAs
+
+##First remove the HEK3 spacer and RTT/PBS
+
+Lineage_Top_Part_Assembly_Pairings <- Top_Part_Assembly_Pairings %>% 
+  separate(Full_pegRNA_Seq, into = c("HEK3_Spacer", "pegRNA"), sep = 20) %>% 
+  separate(pegRNA, into = c("pegRNA", "HEK3_RTT_BC_PBS"), sep = -33) 
+
+##Then add DA tape-targeting spacer and RTT/PBS sequences 
+
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_Spacer <- "GGATGATGGTGAGCACGTGA" 
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_RTT <- "TCACCATCA"
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_Key <- "TCC"
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_PBS <- "CGTGCTCACCATC"
+Lineage_Top_Part_Assembly_Pairings$Termination <- "TTTTTTT"
+
+##Then add the best 3N barcodes
+
+##Reading in the 3N barcodes
+
+set.seed(2)
+
+DNA_TAPE1_3N_BC <- read_csv("/Users/troymcdiarmid/Downloads/TAPE-3N3-editScore.csv") %>% 
+  arrange(-EditScore) %>% 
+  head(29) 
+
+DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC %>% 
+  sample_n(29) 
+
+DNA_TAPE1_3N_BC$BC_3N_Seq <- sapply(DNA_TAPE1_3N_BC$Insert, function(x) as.character(reverseComplement(DNAString(x))))
+
+Lineage_Top_Part_Assembly_Pairings$DNA_TAPE1_3N_BC <- DNA_TAPE1_3N_BC$BC_3N_Seq
+
+##Then select and bind everything together
+
+
+Lineage_Top_Part_Assembly_Pairings <- Lineage_Top_Part_Assembly_Pairings %>% 
+  select(Name, Oligo_Number, U6_Promoter_Seq, DNA_TAPE1_Spacer, pegRNA, DNA_TAPE1_RTT, DNA_TAPE1_Key, DNA_TAPE1_3N_BC, DNA_TAPE1_PBS, Termination, U6_Median_Human_Edit_Score:Predicted_Additive_Edit_Score)
+
+Lineage_Top_Part_Assembly_Pairings <- Lineage_Top_Part_Assembly_Pairings %>% 
+  unite(Full_U6_pegRNA_seq, U6_Promoter_Seq:Termination, sep = "", remove = FALSE)
+
+write_csv(Lineage_Top_Part_Assembly_Pairings, "/Users/troymcdiarmid/Downloads/29x_Lineage_Top_Part_Assembly_Pairings.csv")
+
+##Writing specific columns for benchling import 
+
+Benchling_Lineage_Top_Part_Assembly_Pairings <- Lineage_Top_Part_Assembly_Pairings %>% 
+  unite(Name, c("Name", "Oligo_Number")) %>% 
+  select(Name, Bases = Full_U6_pegRNA_seq)
+  
+
+write_csv(Benchling_Lineage_Top_Part_Assembly_Pairings, "/Users/troymcdiarmid/Downloads/29x_Lineage_Top_Part_Assembly_Pairings_Benchling.csv")
+
+```
+

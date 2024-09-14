@@ -1,0 +1,96 @@
+---
+title: "Fig_2_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+```
+
+
+
+```{r}
+##Sequential editing efficiency
+
+Editing_Effciency_By_Position <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/10unit_Assembly_Editing_Efficiency_By_Position.csv") 
+
+
+ggplot(Editing_Effciency_By_Position, aes(x = TAPE_Position, y = Insertion_Efficiency, group = as.factor(Transfection_Replicate))) +
+    scale_shape_manual(values = c(16, 16)) +
+  geom_point(colour = "black", size = 2.75) +
+  geom_line() +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.5)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.5)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  scale_x_discrete(limits=c("1","2", "3", "4", "5","6")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(panel.background = element_rect(fill = "transparent",
+                                  colour = NA_character_), # necessary to avoid drawing panel outline
+  panel.grid.major = element_blank(), # get rid of major grid
+  panel.grid.minor = element_blank(), # get rid of minor grid
+  plot.background = element_rect(fill = "transparent",
+                                 colour = NA_character_), # necessary to avoid drawing plot outline
+  legend.background = element_rect(fill = "transparent"),
+  legend.box.background = element_rect(fill = "transparent"),
+  legend.key = element_rect(fill = "transparent")) +
+  theme(text = element_text(family="Arial", colour = "black", size = 22))
+ggsave("TAPE_Insertion_Efficiency_By_Position.png", width = 6, height = 3.3, bg='transparent', path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Number of unique barcodes recovered
+
+All_Rep_TAPE_Insertions_Recovered_Per_Position <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/10unit_Assembly_Insertions_Recovered_Accross_All_Reps_By_Position.csv")
+
+ggplot(All_Rep_TAPE_Insertions_Recovered_Per_Position, aes(x = TAPE_Position, y = Unique_iBC_Recovered)) +
+  scale_shape_manual(values = c(16, 16)) +
+  geom_bar(stat="identity", fill = "#56B4E9", colour = "#56B4E9", width = 0.2) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = "#56B4E9", size = 0.5)) +
+  theme(axis.ticks = element_line(colour = "#56B4E9", size = 0.5)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  scale_x_discrete(limits=c("1","2", "3", "4", "5","6")) +
+  labs(title = "", x = "", y = "") +
+  scale_y_continuous(position = "right", limits=c(0,10), breaks = c(0,5,10)) +
+  theme(legend.position = "none") +
+  theme(axis.text = element_text(family="Arial", colour = "#56B4E9")) +
+  theme(text = element_text(family="Arial", colour = "#56B4E9", size = 22))
+ggsave("All_Rep_TAPE_Insertions_Recovered_Per_Position.jpeg", width = 6, height = 3.3, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+ 
+
+
+##Plotting observed and predicted proportion edited reads by position
+
+All_TAPE_Position_Editing <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/10unit_Assembly_TAPE_Insertion_Count_And_Proportion_Across_All_TAPE_Sites.csv") %>% 
+  mutate(Predicted_Relative_Proportion_Edited_Reads = (Predicted_Multiplied_Edit_Score/(((sum(Predicted_Multiplied_Edit_Score))/4))*100)) 
+
+##Plotting
+
+
+ggplot(All_TAPE_Position_Editing, aes(x = as.factor(Assembly_Position), y = All_TAPE_Positions_Insertion_Proportion)) +
+  geom_boxplot(colour = "black", width = 0.35, lwd = 0.4, outlier.shape = NA, fill = "#56B4E9", position = position_dodge(width=0.1)) +
+  scale_shape_manual(values = c(16, 16)) +
+  geom_point(colour = "black", size = 2.5) +
+  geom_line(aes(x=Assembly_Position, y = Mean_All_TAPE_Position_Insertion_Proportion_Accross_Reps), colour = "black") +
+  geom_point(aes(x=Assembly_Position, y = Mean_All_TAPE_Position_Insertion_Proportion_Accross_Reps), colour = "black", size = 3.5) +
+  geom_line(aes(x=Assembly_Position, y = Predicted_Relative_Proportion_Edited_Reads), colour = "#56B4E9") +
+  geom_point(aes(x=Assembly_Position, y = Predicted_Relative_Proportion_Edited_Reads), colour = "#56B4E9", size = 3.5) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.5)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.5)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  ylim(0,30) +
+  scale_x_discrete(expand=c(0.04,0.04)) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 18))
+ggsave("All_TAPE_Position_Editing.jpeg", width = 16, height = 3, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+
+

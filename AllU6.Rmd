@@ -1,0 +1,399 @@
+---
+title: "NRP_AllU6"
+author: "Megan Taylor & Troy McDiarmid"
+output: html_document
+date: "2024-02-14"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Loading Libraries
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+library(scales)
+library("Biostrings") 
+library(dplyr)
+
+```
+
+
+```{r Loading_Files, include=FALSE}
+
+#Loading Normalized REGEX insertion efficiency of the fivermer barcodes  
+Normalized_BC_Insert_Efficiency <- read_csv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/5N_Insertion_Frequency_Normalization_Data/Normalized_5N_Insert_Efficiency_REGEX.csv")
+
+
+#Loading sequenced library plasmid barcode abundace files
+Raw_AllU6_BC_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/Plasmid_Libraries/AllU6/AllU6_bc_count.txt", col_names = c("BC_Counts")) %>% 
+  separate(BC_Counts, into = c("BC_Counts", "Plasmid_BC_Seq"))
+
+
+#Loading designed AllU6 promoter library barcodes
+AllU6_BC <- read_csv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/NRP_BC_Associations/AllU6_BC_0629_2021.csv")
+
+
+#Loading AllU6 sequenced edit counts for each cell type
+K562_HEK3_Edit_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/K562/AllU6/Merged_BC_Counts.txt", col_names = c("All_Data"))
+
+HEK293T_HEK3_Edit_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/HEK293T/AllU6/Merged_BC_Counts.txt", col_names = c("All_Data"))
+
+iPSC_HEK3_Edit_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/iPSC/AllU6/Merged_BC_Counts.txt", col_names = c("All_Data"))
+
+mESC_HEK3_Edit_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/mESC/AllU6/Merged_BC_Counts.txt", col_names = c("All_Data"))
+
+
+#Loading FASTQ Counts
+AllU6_K562_FASTQ_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/K562/AllU6/FASTQ_Counts.txt", col_names = c("All_Data")) 
+
+AllU6_HEK293T_FASTQ_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/HEK293T/AllU6/FASTQ_Counts.txt", col_names = c("All_Data"))
+
+AllU6_iPSC_FASTQ_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/iPSC/AllU6/FASTQ_Counts.txt", col_names = c("All_Data"))
+
+AllU6_mESC_FASTQ_Counts <- read_tsv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/mESC/AllU6/FASTQ_Counts.txt", col_names = c("All_Data"))
+
+
+#Loading AllU6 sequences for final table 
+AllU6_Sequences <- read_csv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/NRP_Sequences/AllU6/230710_U6p_Sequences.csv")
+
+DivU6_Seqs <- read_csv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/NRP_Sequences/AllU6/DivU6_pro_series_0328_2021.csv") %>% 
+  select(Name, Full_Seq, `5_BP_Insertion_Barcode`) %>% 
+  mutate(Full_Seq = str_to_upper(Full_Seq))
+
+SynDivU6_Seq <- read_csv("/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/NRP_Sequences/AllU6/Synthetic_human_DivU6_0328_2021.csv") %>% 
+  select(Name, Full_Seq, `5_BP_Insertion_Barcode`) %>% 
+  mutate(Full_Seq = str_to_upper(Full_Seq))
+
+#Combining diverse and synthetic AllU6 library sequences
+U6seqs <- rbind(DivU6_Seqs, SynDivU6_Seq)
+colnames(U6seqs)[colnames(U6seqs) == "Full_Seq"] <- "Full_Seq_With_Restriction_Sites"
+
+```
+
+```{r FUNCTION_Plasmid_Library_Barcode_Abundance_Filtration, cache=TRUE}
+#The plasmid libraries for barcodes were sequenced and now need to be filtered
+#to just the actual sequences that should be in the library (removing sequencing
+#errors in the abundance library information)
+Filter_Barcode_Abundance <- function(Abundance_BC_Counts, Library_BC_Counts){
+  
+  Abundance_BC_Counts <- Abundance_BC_Counts %>%
+    type_convert() %>%
+    mutate(BC_Freq = (BC_Counts/(sum(BC_Counts)))*100) %>% 
+    arrange(BC_Freq) %>%
+    mutate(Total_Plasmid_Library_Read_Count = sum(BC_Counts))
+
+  #Filtering for only barcodes that are a perfect match to those in the libraries 
+  Filtered_BC_Counts <- Library_BC_Counts %>%
+    left_join(Abundance_BC_Counts, by = "Plasmid_BC_Seq") %>% 
+    type_convert() %>% 
+    arrange(BC_Counts)
+  
+  #Changing the colour library into factors
+  Filtered_BC_Counts$Colour_Lib <- as.factor(Filtered_BC_Counts$Colour_Lib)
+  
+  return(Filtered_BC_Counts)
+}
+```
+
+```{r FUNCTION_Processing_Sequencing_Dataframe, cache=TRUE}
+#This function processes the HEK3 sequencing count data
+#It will remove white space, separate data into columns, and generate reverse
+#compliment of the insertion barcode
+Processing_Sequencing_Data <- function(Edit_Counts){
+  #Removing white space from concatenated count files
+  Edit_Counts$All_Data <- gsub(':     ', ':', Edit_Counts$All_Data)
+  Edit_Counts$All_Data <- gsub(':    ', ':', Edit_Counts$All_Data)
+  Edit_Counts$All_Data <- gsub(':   ', ':', Edit_Counts$All_Data)
+  Edit_Counts$All_Data <- gsub(':  ', ':', Edit_Counts$All_Data)
+  Edit_Counts$All_Data <- gsub(': ', ':', Edit_Counts$All_Data)
+  
+  #Separating data into variable columns
+  Edit_Counts <- Edit_Counts %>% 
+    separate(All_Data, into = c("Meta_Data", 
+                                  "Insertion_Read_Count"), sep = ":") %>% 
+    separate(Insertion_Read_Count, into = c("Insertion_Read_Count", 
+                                            "RC_Insertion_BC_Seq"), sep = " ") %>% 
+    separate(Meta_Data, into = c("Garbage", "NRP_Library"), sep = "/") %>% 
+    separate(NRP_Library, into = c("NRP_Library", "Day_Word", "Day", 
+                                   "Cell_Type", "Light_Exposure_Period", "h", 
+                                   "Dark_Or_Light", "Stimulation", "Replicate", 
+                                   "Sample_ID", "Read", "Suffix"), sep = "_") %>% 
+    select(Replicate, NRP_Library, Cell_Type, Insertion_Read_Count, RC_Insertion_BC_Seq) %>% 
+    type_convert()
+  
+  #Generating the reverse compliment of the insertion BC to match the plasmid BC
+  Edit_Counts$Plasmid_BC_Seq <- sapply(Edit_Counts$RC_Insertion_BC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+  
+  return(Edit_Counts)
+}
+```
+
+```{r FUNCTION_Normalizing_Edit_Counts, cache=TRUE}
+#This function calculated edit scores for each U6 promoter and normalizes
+#those edit scores to the plasmid library abundance and the normalizes insert
+#efficiency of the 5mer barcode sequences
+Normalized_Edit_Scores <- function(Edit_Counts, Filtered_BC_Counts, Normalized_5N_BC_Counts) {
+  
+  #Creating a column for the total number of reads per replicate
+  Normalized_Edit_Scores <- Edit_Counts %>% 
+    group_by(Replicate) %>% 
+    mutate(Total_Replicate_Read_Count = sum(Insertion_Read_Count))
+  
+  #Creating a column for the total number of insertions per barcode and rep
+  #Total insertion read count should be the same as insertion read count for most examples
+  Normalized_Edit_Scores <- Normalized_Edit_Scores %>% 
+    group_by(Replicate, Plasmid_BC_Seq) %>% 
+    mutate(Total_Insertion_Read_Count = sum(Insertion_Read_Count))
+  
+  #Calculating insertion frequency creating a column for that percentage
+  Normalized_Edit_Scores <- Normalized_Edit_Scores %>% 
+    mutate(Insertion_Freq = ((Total_Insertion_Read_Count/Total_Replicate_Read_Count)*100)) %>% 
+    arrange(Insertion_Freq)
+  
+  #Filtering for only insertion BCs that are a perfect match to those in the plasmid pool
+  Normalized_Edit_Scores <- Filtered_BC_Counts %>%
+    left_join(Normalized_Edit_Scores, by = "Plasmid_BC_Seq") %>% 
+    filter(!Insertion_Read_Count == "Na") %>% 
+    filter(!BC_Counts == "Na") %>% 
+    type_convert() 
+  
+  #Calculating edit scores
+  Normalized_Edit_Scores <- Normalized_Edit_Scores %>%
+    mutate(Edit_Score = Insertion_Freq/BC_Freq) %>% 
+    mutate(R2_Edit_Score = round(Edit_Score, digits = 2))
+  
+  #Normalizing for 5N barcode sequence efficiency
+  Normalized_Edit_Scores <- Normalized_Edit_Scores %>%
+    left_join(Normalized_5N_BC_Counts, by = "Plasmid_BC_Seq") %>%
+    mutate(BC_Normalized_Edit_Score = Edit_Score/Normalized_5N_Edit_Score) %>% 
+    mutate(R2_BC_Normalized_Edit_Score = round(BC_Normalized_Edit_Score, digits = 2))
+  
+  #Adding the column with the mean normalized edit score 
+  Normalized_Edit_Scores <- Normalized_Edit_Scores %>%
+    group_by(`Name`) %>% 
+    mutate(Mean_BC_Normalized_Edit_Score = round(mean(BC_Normalized_Edit_Score), digits = 2))
+  
+  return(Normalized_Edit_Scores)
+}
+```
+
+```{r ANALYSIS_AllU6_Plasmid_Library_Abundance, cache=TRUE}
+#Calculating the AllU6 Plasmid Abundance
+AllU6_pBC_Counts <- Filter_Barcode_Abundance(Raw_AllU6_BC_Counts, AllU6_BC)
+
+#For parts that have a bc count of 0, removing NA to be 0 
+AllU6_pBC_Counts$Total_Plasmid_Library_Read_Count <- 274051
+AllU6_pBC_Counts <- AllU6_pBC_Counts %>%
+  mutate_all(~replace(., is.na(.), 0))
+
+```
+```{r ANALYSIS_AllU6_Edit_Scores, cache=TRUE}
+#Processing sequence data for all cell types and calculating their normalized edit scores
+
+#AllU6 K562
+Processed_AllU6_K562_Edit_Counts <- Processing_Sequencing_Data(K562_HEK3_Edit_Counts)
+
+Normalized_AllU6_K562_Edit_Scores <- Normalized_Edit_Scores(Processed_AllU6_K562_Edit_Counts, AllU6_pBC_Counts, Normalized_BC_Insert_Efficiency)
+
+#AllU6 HEK293T
+Processed_AllU6_HEK293T_Edit_Counts <- Processing_Sequencing_Data(HEK293T_HEK3_Edit_Counts)
+
+Normalized_AllU6_HEK293T_Edit_Scores <- Normalized_Edit_Scores(Processed_AllU6_HEK293T_Edit_Counts, AllU6_pBC_Counts, Normalized_BC_Insert_Efficiency)
+
+#AllU6 iPSC
+Processed_AllU6_iPSC_Edit_Counts <- Processing_Sequencing_Data(iPSC_HEK3_Edit_Counts)
+
+Normalized_AllU6_iPSC_Edit_Scores <- Normalized_Edit_Scores(Processed_AllU6_iPSC_Edit_Counts, AllU6_pBC_Counts, Normalized_BC_Insert_Efficiency)
+
+#AllU6 mESC
+Processed_AllU6_mESC_Edit_Counts <- Processing_Sequencing_Data(mESC_HEK3_Edit_Counts)
+
+Normalized_AllU6_mESC_Edit_Scores <- Normalized_Edit_Scores(Processed_AllU6_mESC_Edit_Counts, AllU6_pBC_Counts, Normalized_BC_Insert_Efficiency)
+
+```
+
+```{r ANALYSIS_AllU6_Filtered_Edit_Scores, cache=TRUE}
+#K562
+#Filtering scores based on read count distribution thresholds
+pBC_Filter_Normalized_AllU6_K562_Edit_Scores <- Normalized_AllU6_K562_Edit_Scores %>%
+  mutate(Filter_BC_Normalized_Edit_Score = case_when((BC_Counts > 100) ~BC_Normalized_Edit_Score))
+
+#Adding the column with the filtered mean normalized edit score
+pBC_Filter_Normalized_AllU6_K562_Edit_Scores <- pBC_Filter_Normalized_AllU6_K562_Edit_Scores %>%
+  group_by(`Name`) %>% 
+  mutate(Filter_Mean_BC_Normalized_Edit_Score = round(mean(Filter_BC_Normalized_Edit_Score, na.rm = TRUE), digits = 2))
+
+#HEK293T
+#Filtering scores based on read count distribution thresholds
+pBC_Filter_Normalized_AllU6_HEK293T_Edit_Scores <- Normalized_AllU6_HEK293T_Edit_Scores %>%
+  mutate(Filter_BC_Normalized_Edit_Score = case_when((BC_Counts > 100) ~BC_Normalized_Edit_Score))
+
+#Adding the column with the filtered mean normalized edit score
+pBC_Filter_Normalized_AllU6_HEK293T_Edit_Scores <- pBC_Filter_Normalized_AllU6_HEK293T_Edit_Scores %>%
+  group_by(`Name`) %>% 
+  mutate(Filter_Mean_BC_Normalized_Edit_Score = round(mean(Filter_BC_Normalized_Edit_Score, na.rm = TRUE), digits = 2))
+
+
+#iPSC
+#Filtering scores based on plasmid distribution thresholds
+pBC_Filter_Normalized_AllU6_iPSC_Edit_Scores <- Normalized_AllU6_iPSC_Edit_Scores %>%
+  mutate(Filter_BC_Normalized_Edit_Score = case_when((BC_Counts > 100) ~BC_Normalized_Edit_Score))
+
+#Adding the column with the filtered mean normalized edit score
+pBC_Filter_Normalized_AllU6_iPSC_Edit_Scores <- pBC_Filter_Normalized_AllU6_iPSC_Edit_Scores %>%
+  group_by(`Name`) %>% 
+  mutate(Filter_Mean_BC_Normalized_Edit_Score = round(mean(Filter_BC_Normalized_Edit_Score, na.rm = TRUE), digits = 2))
+
+
+#mESC
+#Filtering scores based on plasmid pool distribution thresholds
+pBC_Filter_Normalized_AllU6_mESC_Edit_Scores <- Normalized_AllU6_mESC_Edit_Scores %>%
+  mutate(Filter_BC_Normalized_Edit_Score = case_when((BC_Counts > 100) ~BC_Normalized_Edit_Score))
+
+#Adding the column with the filtered mean normalized edit score
+pBC_Filter_Normalized_AllU6_mESC_Edit_Scores <- pBC_Filter_Normalized_AllU6_mESC_Edit_Scores %>%
+  group_by(`Name`) %>% 
+  mutate(Filter_Mean_BC_Normalized_Edit_Score = round(mean(Filter_BC_Normalized_Edit_Score, na.rm = TRUE), digits = 2))
+
+```
+
+```{r ANALYSIS_AllU6_Combined_Filtered_Edit_Scores, cache=TRUE}
+#Combining all of the cell type pBC filtered dataframes
+Comb_pBC_Filter_Normalized_AllU6_Edit_Scores <- bind_rows(pBC_Filter_Normalized_AllU6_K562_Edit_Scores, pBC_Filter_Normalized_AllU6_HEK293T_Edit_Scores, pBC_Filter_Normalized_AllU6_iPSC_Edit_Scores, pBC_Filter_Normalized_AllU6_mESC_Edit_Scores)
+
+#Ordering the groups/conditions in order
+Comb_pBC_Filter_Normalized_AllU6_Edit_Scores$Cell_Type <- factor(Comb_pBC_Filter_Normalized_AllU6_Edit_Scores$Cell_Type, levels = c("K562", "HEK293T", "iPSC", "mESC"))
+```
+
+```{r ANALYSIS_AllU6_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table, cache=TRUE}
+#Separating out replicate edit scores for each cell type in a table
+AllU6_Replicate_Edit_Scores_Comparison_Table <- Comb_pBC_Filter_Normalized_AllU6_Edit_Scores %>%
+  select(Replicate, Name, Cell_Type, Filter_BC_Normalized_Edit_Score, Colour_Lib) %>%
+  group_by(Replicate, Name, Cell_Type) %>%
+  mutate(Cell_Replicate = paste(Cell_Type, "Rep", Replicate, "Normalized_Edit_Score",sep = "_")) %>%
+  ungroup() %>%
+  select(Cell_Replicate, Name, Filter_BC_Normalized_Edit_Score, Colour_Lib) %>%
+  pivot_wider(names_from = Cell_Replicate, values_from = Filter_BC_Normalized_Edit_Score)
+
+write.csv(AllU6_Replicate_Edit_Scores_Comparison_Table, "/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/Supplementary_Tables/Raw_Tables/AllU6_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table.csv")
+
+```
+
+```{r ANALYSIS_AllU6_Not_Normalized_Mean_Edit_Scores_Comparison_Table, cache=TRUE}
+#Creating a table of the not normalized edit scores for comparisons
+AllU6_Not_Normalized_Mean_Edit_Scores_Comparison_Table <- Comb_pBC_Filter_Normalized_AllU6_Edit_Scores %>%
+  group_by(Name, Cell_Type) %>%
+  mutate(Mean_Edit_Score = case_when((BC_Counts > 100) ~mean(Edit_Score))) %>%
+  ungroup() %>%
+  select(Name, Cell_Type, Mean_Edit_Score, Colour_Lib) %>%
+  group_by(Name, Cell_Type) %>%
+  filter(row_number()==1)%>%
+  ungroup() %>%
+  pivot_wider(names_from = Cell_Type, values_from = Mean_Edit_Score)
+
+write.csv(AllU6_Not_Normalized_Mean_Edit_Scores_Comparison_Table, "/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/Supplementary_Tables/Raw_Tables/AllU6_Not_iBC_Normalized_Mean_Edit_Scores_Comparison_Table.csv")
+
+```
+
+```{r ANALYSIS_AllU6_Edit_Efficiency_Comparison_Table, cache=TRUE}
+#Processing FASTQ data for all cell types and calculating their editing efficiency for a table
+
+#Function to separate out FASTQ data into variables of interest
+Processing_FASTQ_Data <- function(Edit_Counts) {
+  Edit_Counts <- Edit_Counts %>%
+  separate(All_Data, into = c("NRP_Library", "Total_FASTQ_Read_Count"), sep = ":") %>%
+  separate(NRP_Library, into = c("NRP_Library", "Day_Word", "Day", 
+                                   "Cell_Type", "Light_Exposure_Period", "h", 
+                                   "Dark_Or_Light", "Stimulation", "Replicate", 
+                                   "Sample_ID", "Read", "Suffix"), sep = "_") %>%
+  select(Replicate, NRP_Library, Total_FASTQ_Read_Count, Sample_ID, Cell_Type) %>%
+  type_convert()
+  
+  return(Edit_Counts)
+}
+
+#K562
+Processed_AllU6_K562_FASTQ_Counts <- Processing_FASTQ_Data(AllU6_K562_FASTQ_Counts)
+
+AllU6_K562_FASTQ_Calculation <- Processed_AllU6_K562_FASTQ_Counts %>% 
+  left_join(Normalized_AllU6_K562_Edit_Scores, by = "Replicate", suffix=c("",".y")) %>% 
+  select(-ends_with(".y")) %>%
+  mutate(Edit_Efficiency_Percent = (Total_Replicate_Read_Count/Total_FASTQ_Read_Count)*100)
+
+#HEK293T
+Processed_AllU6_HEK293T_FASTQ_Counts <- Processing_FASTQ_Data(AllU6_HEK293T_FASTQ_Counts) 
+
+AllU6_HEK293T_FASTQ_Calculation <- Processed_AllU6_HEK293T_FASTQ_Counts %>% 
+  left_join(Normalized_AllU6_HEK293T_Edit_Scores, by = "Replicate", suffix=c("",".y")) %>% 
+  select(-ends_with(".y")) %>%
+  mutate(Edit_Efficiency_Percent = (Total_Replicate_Read_Count/Total_FASTQ_Read_Count)*100)
+
+#iPSC
+Processed_AllU6_iPSC_FASTQ_Counts <- Processing_FASTQ_Data(AllU6_iPSC_FASTQ_Counts)
+
+AllU6_iPSC_FASTQ_Calculation <- Processed_AllU6_iPSC_FASTQ_Counts %>% 
+  left_join(Normalized_AllU6_iPSC_Edit_Scores, by = "Replicate", suffix=c("",".y")) %>% 
+  select(-ends_with(".y")) %>%
+  mutate(Edit_Efficiency_Percent = (Total_Replicate_Read_Count/Total_FASTQ_Read_Count)*100)
+
+#mESC
+Processed_AllU6_mESC_FASTQ_Counts <- Processing_FASTQ_Data(AllU6_mESC_FASTQ_Counts)
+
+AllU6_mESC_FASTQ_Calculation <- Processed_AllU6_mESC_FASTQ_Counts %>% 
+  left_join(Normalized_AllU6_mESC_Edit_Scores, by = "Replicate", suffix=c("",".y")) %>% 
+  select(-ends_with(".y")) %>%
+  mutate(Edit_Efficiency_Percent = (Total_Replicate_Read_Count/Total_FASTQ_Read_Count)*100)
+
+#Combined edit efficiency
+Comb_AllU6_Edit_Efficiency <- bind_rows(AllU6_K562_FASTQ_Calculation, AllU6_HEK293T_FASTQ_Calculation, AllU6_iPSC_FASTQ_Calculation, AllU6_mESC_FASTQ_Calculation)
+
+#Order by cell type
+Comb_AllU6_Edit_Efficiency$Cell_Type <- factor(Comb_AllU6_Edit_Efficiency$Cell_Type, 
+                                           levels = c("K562","HEK293T","iPSC","mESC"))
+
+#Selecting variables of interest
+Comb_AllU6_Edit_Efficiency <- Comb_AllU6_Edit_Efficiency %>%
+  select(Cell_Type, Replicate, Total_Replicate_Read_Count, Total_FASTQ_Read_Count, Edit_Efficiency_Percent) %>%
+  group_by(Cell_Type, Replicate) %>%
+  filter(row_number()==1)%>%
+  ungroup()
+
+write.csv(Comb_AllU6_Edit_Efficiency, "/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/Supplementary_Tables/Raw_Tables/AllU6_Edit_Efficiency_Comparison_Table.csv")
+  
+```
+
+
+```{r ANALYSIS_AllU6_Filtered_Edit_Scores_Comparison_Table, cache=TRUE}
+##Creating a final table of normalized edit scores passing plasmid barcode filtration
+
+#Filtered edit score comparison table for all cell types and parts
+AllU6_Filtered_Edit_Scores_Comparison_Table <- Comb_pBC_Filter_Normalized_AllU6_Edit_Scores %>%
+  left_join(AllU6_Sequences, by = "Name") %>%
+  group_by(Name, Cell_Type) %>%
+  arrange(desc(Filter_BC_Normalized_Edit_Score)) %>%
+  filter(row_number()==1)
+
+#Adding AllU6 sequences
+AllU6_Filtered_Edit_Scores_Comparison_Table$U6_Pro <- str_to_upper(AllU6_Filtered_Edit_Scores_Comparison_Table$U6_Pro)
+colnames(AllU6_Filtered_Edit_Scores_Comparison_Table)[colnames(AllU6_Filtered_Edit_Scores_Comparison_Table) == "U6_Pro"] <- "U6_Promoter_Seq"
+
+AllU6_Filtered_Edit_Scores_Comparison_Table <- AllU6_Filtered_Edit_Scores_Comparison_Table %>% 
+  left_join(U6seqs, by = "Name")
+
+#Formatting table to have cell types as columns
+AllU6_Filtered_Edit_Scores_Comparison_Table <- AllU6_Filtered_Edit_Scores_Comparison_Table %>%
+  arrange(desc(Filter_Mean_BC_Normalized_Edit_Score)) %>%
+  select(Name, Cell_Type, Filter_Mean_BC_Normalized_Edit_Score, U6_Promoter_Seq, Full_Seq_With_Restriction_Sites) %>%
+  pivot_wider(names_from = Cell_Type, values_from = Filter_Mean_BC_Normalized_Edit_Score) %>%
+  mutate(K562 = ifelse(is.na(K562), 0, K562),
+         HEK293T = ifelse(is.na(HEK293T), 0, HEK293T),
+         iPSC = ifelse(is.na(iPSC), 0, iPSC),
+         mESC = ifelse(is.na(mESC), 0, mESC))
+
+write.csv(AllU6_Filtered_Edit_Scores_Comparison_Table, "/net/shendure/vol10/projects/troym/synthetic_rec/nobackup/NRP_Preprint_Data/Supplementary_Tables/Raw_Tables/AllU6_Filtered_Edit_Scores_Comparison_Table.csv")
+
+```
+

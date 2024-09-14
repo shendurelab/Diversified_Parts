@@ -1,0 +1,102 @@
+---
+title: "Fig_4_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+```{r}
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig4_Final_Figure_Datasets/AllU6_Filtered_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Add colour labels and reordering factor for plotting
+
+hRNU61_Promoter <- U6_Promoters %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- U6_Promoters %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- U6_Promoters %>% 
+  filter(!grepl("Syn", Name)) %>% 
+  filter(!Name %in% c("Human_Weissman_RNU6-1", "Weissman_mU6"))
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+mU6_Promoter <- U6_Promoters %>% 
+  filter(Name == "Weissman_mU6")
+mU6_Promoter$Promoter_Lib <- "Weissman_mU6"
+
+U6_Promoters <- rbind(SynU6_Promoters, DivU6_Promoters, mU6_Promoter, hRNU61_Promoter)
+
+U6_Promoters$Promoter_Lib <- factor(U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse", "Weissman_mU6", "hRNU61"))
+
+
+
+##Correlation plot of edit scores 
+
+ggplot(U6_Promoters, aes(x = log2(K562), y = log2(mESC), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("K562_mESC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(U6_Promoters, aes(x = log2(iPSC), y = log2(mESC), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("iPSC_mESC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(U6_Promoters, aes(x = log2(HEK293T), y = log2(mESC), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
+  scale_size_manual(values=c(4, 4, 6, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("HEK293T_mESC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+##Calculating correlation between different cell contexts
+
+
+cor.test(U6_Promoters$K562, U6_Promoters$mESC)
+cor.test(U6_Promoters$iPSC, U6_Promoters$mESC)
+cor.test(U6_Promoters$HEK293T, U6_Promoters$mESC)
+```
+

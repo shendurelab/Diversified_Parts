@@ -1,0 +1,120 @@
+---
+title: "Fig_S2_Viz"
+author: "Troy McDiarmid"
+date: "2024-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(reshape)
+
+```
+
+```{r}
+##Reading in 8N edit scores 
+
+Edit_Scores_8N <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS13_Final_Figure_Datasets/Pooled_Edit_Scores.csv") %>% 
+  type_convert() 
+
+Edit_Scores_8N[is.na(Edit_Scores_8N)] <- 0
+
+##How many within 3-fold
+
+Within3fold <- Edit_Scores_8N %>% 
+  filter(Edit_Score > (median(Edit_Scores_8N$Edit_Score)/3)) %>% 
+  filter(Edit_Score < (median(Edit_Scores_8N$Edit_Score)*3))
+
+length(Within3fold$iBC_Seq)/length(Edit_Scores_8N$Edit_Score)
+
+##Plotting
+
+ggplot(Edit_Scores_8N, aes(x = log2(Edit_Score))) +
+  geom_histogram(fill = "black", colour = "black") +
+  scale_y_continuous() +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5, -5, -2.5, 0, 2.5)) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 31), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("8N_Insertion_Histo.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/") 
+  
+  
+```
+
+
+```{r}
+##How correlated are the 8N edit scores with raw and bc normalized edit scores 
+
+Pol_III_Pro_Edit_Scores_Class <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS13_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv")
+
+
+Raw_vs_Normalized_Corr_DF <- as.data.frame(cor(Pol_III_Pro_Edit_Scores_Class$Mean_Raw_Edit_Score_Per_iBC, Pol_III_Pro_Edit_Scores_Class$Mean_BC_Normalized_Edit_Score_Per_iBC)) %>% 
+  dplyr::rename(corr = 1) %>% 
+  mutate(corr = round(corr, digits = 2))
+
+ggplot(Raw_vs_Normalized_Corr_DF, aes(y = corr, x = 1, fill = corr)) +
+  geom_tile(color = "white",
+            lwd = 12,
+            linetype = 1) +
+  theme_void() +
+  geom_text(aes(label = corr), color = "white", size = 58) +
+  scale_fill_continuous(limits=c(0, 1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("3k_PolIII_Raw_vs_Normalized_Corr_Heatmap.jpeg", width = 8, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+Raw_vs_8NiBC_Corr_DF <- as.data.frame(cor(Pol_III_Pro_Edit_Scores_Class$Mean_Raw_Edit_Score_Per_iBC, Pol_III_Pro_Edit_Scores_Class$Normalized_8N_Edit_Score)) %>% 
+  dplyr::rename(corr = 1) %>% 
+  mutate(corr = round(corr, digits = 2))
+
+ggplot(Raw_vs_8NiBC_Corr_DF, aes(y = corr, x = 1, fill = corr)) +
+  geom_tile(color = "white",
+            lwd = 12,
+            linetype = 1) +
+  theme_void() +
+  geom_text(aes(label = corr), color = "white", size = 58) +
+  scale_fill_continuous(limits=c(0, 1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("3k_PolIII_Raw_vs_8NiBC_Corr_Heatmap.jpeg", width = 8, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+Normalized_vs_8NiBC_Corr_DF <- as.data.frame(cor(Pol_III_Pro_Edit_Scores_Class$Mean_BC_Normalized_Edit_Score_Per_iBC, Pol_III_Pro_Edit_Scores_Class$Normalized_8N_Edit_Score)) %>% 
+  dplyr::rename(corr = 1) %>% 
+  mutate(corr = round(corr, digits = 2))
+
+ggplot(Normalized_vs_8NiBC_Corr_DF, aes(y = corr, x = 1, fill = corr)) +
+  geom_tile(color = "white",
+            lwd = 12,
+            linetype = 1) +
+  theme_void() +
+  geom_text(aes(label = corr), color = "white", size = 58) +
+  scale_fill_continuous(limits=c(0, 1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("3k_PolIII_BC_Normalized_vs_8NiBC_Corr_Heatmap.jpeg", width = 8, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+cor.test(Pol_III_Pro_Edit_Scores_Class$Mean_Raw_Edit_Score_Per_iBC, Pol_III_Pro_Edit_Scores_Class$Normalized_8N_Edit_Score)
+
+cor.test(Pol_III_Pro_Edit_Scores_Class$Mean_Raw_Edit_Score_Per_iBC, Pol_III_Pro_Edit_Scores_Class$Mean_BC_Normalized_Edit_Score_Per_iBC)
+
+cor.test(Pol_III_Pro_Edit_Scores_Class$Mean_BC_Normalized_Edit_Score_Per_iBC, Pol_III_Pro_Edit_Scores_Class$Normalized_8N_Edit_Score)
+
+```
+
+
+
+

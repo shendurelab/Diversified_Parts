@@ -1,0 +1,437 @@
+---
+title: "Untitled"
+author: "Troy McDiarmid"
+date: "2024-04-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+```
+
+
+```{r}
+##Create saturation mutagenesis of H1 and 7SK promoters 
+
+##Function to generate all SNVs or deletions accross a sequence 
+
+mutate_sequence <- function(string, num = 1, nucleotides = c("A","T","C","G","_")) {
+  l_str <- str_length(string)
+
+  choices <- cross(list(
+    cols = combn(seq_len(l_str), num, simplify = F),
+    muts = cross(rerun(num, nucleotides)) %>% map(unlist)
+  ))
+
+  choice_matrix <- 
+    map_dfr(choices, as_tibble, .id = "rows") %>% 
+    mutate(rows = as.numeric(rows))
+
+  seq_matrix <- str_split(rep(string, max(choice_matrix$rows)), "", simplify = T)
+
+  seq_matrix[as.matrix(choice_matrix[,1:2])] <- str_to_lower(choice_matrix$muts)
+  apply(seq_matrix, 1, paste, collapse = "")
+}
+
+##Specific example
+
+mutate_sequence("ATCG", num = 1) 
+
+##Saturation mutagenesis of H1  
+
+H1_Saturation_Seqs <- mutate_sequence("AATATTTGCATGTCGCTATGTGTTCTGGGAAATCACCATAAACGTGAAATGTCTTTGGATTTGGGAATCTTATAAGTTCTGTATGACACCACTCTTTCCC", num = 1) %>% 
+  as.data.frame()
+
+names(H1_Saturation_Seqs)[names(H1_Saturation_Seqs) == '.'] <- 'Sequence'
+
+##Change all strings to uppercase and select only unique sequences (i.e. filter out WT replicates)
+
+
+H1_Saturation_Seqs <-  H1_Saturation_Seqs %>% 
+  mutate(Pro_Seq = str_to_upper(Sequence))
+
+##Add a column indicating variant position 
+
+H1_Saturation_Seqs$Variant_Position <- rep(1:str_length(H1_Saturation_Seqs$Pro_Seq), times = 5)
+
+H1_Standard_Nucleotide <- tibble(x = c("AATATTTGCATGTCGCTATGTGTTCTGGGAAATCACCATAAACGTGAAATGTCTTTGGATTTGGGAATCTTATAAGTTCTGTATGACACCACTCTTTCCC")) %>% 
+  mutate(x = str_to_upper(x)) %>% 
+  separate_longer_position(x, width = 1)
+
+H1_Saturation_Seqs$Standard_Nucleotide <- rep(H1_Standard_Nucleotide$x, times = 5)
+
+H1_Saturation_Seqs$Variant_Nucleotide <- rep(c("A", "T", "C", "G", "Del"), each = str_length(H1_Saturation_Seqs$Pro_Seq))
+
+H1_Saturation_Seqs$FASTA_Arrow <- ">"
+H1_Saturation_Seqs$Variant_Arrow <- ">"
+H1_Saturation_Seqs$Promoter_Name <- "H1"
+
+H1_Saturation_Seqs <- H1_Saturation_Seqs %>% 
+  unite(Seq_Name_1, FASTA_Arrow, Promoter_Name, sep = "") %>% 
+  unite(Seq_Name_2, Seq_Name_1, Variant_Position) %>% 
+  unite(Seq_Name, Seq_Name_2, Standard_Nucleotide, Variant_Arrow, Variant_Nucleotide, sep = "")
+
+##Filter for only distinct barcodes 
+
+H1_Saturation_Seqs <-  H1_Saturation_Seqs %>%
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  mutate(Pro_Seq = str_replace(Pro_Seq, "_", "")) %>% 
+  select(!Sequence, Seq_Name, Pro_Seq)
+
+
+##Saturation mutagenesis of 7SK  
+
+SevenSK_Saturation_Seqs <- mutate_sequence("ctgcagtatttagcatgccccacccatctgcaaggcattctggatagtgtcaaaacagccggaaatcaagtccgtttatctcaaactttagcattttgggaataaatgatatttgctatgctggttaaattagattttagttaaatttcctgctgaagctctagtacgataagcaacttgacctaagtgtaaagttgagacttccttcaggtttatatagcttgtgcgccgcttgggtacctc", num = 1) %>% 
+  as.data.frame()
+
+names(SevenSK_Saturation_Seqs)[names(SevenSK_Saturation_Seqs) == '.'] <- 'Sequence'
+
+##Change all strings to uppercase and select only unique sequences (i.e. filter out WT replicates)
+
+
+SevenSK_Saturation_Seqs <-  SevenSK_Saturation_Seqs %>% 
+  mutate(Pro_Seq = str_to_upper(Sequence))
+
+##Add a column indicating variant position 
+
+SevenSK_Saturation_Seqs$Variant_Position <- rep(1:str_length(SevenSK_Saturation_Seqs$Pro_Seq), times = 5)
+
+SevenSK_Standard_Nucleotide <- tibble(x = c("ctgcagtatttagcatgccccacccatctgcaaggcattctggatagtgtcaaaacagccggaaatcaagtccgtttatctcaaactttagcattttgggaataaatgatatttgctatgctggttaaattagattttagttaaatttcctgctgaagctctagtacgataagcaacttgacctaagtgtaaagttgagacttccttcaggtttatatagcttgtgcgccgcttgggtacctc")) %>% 
+  mutate(x = str_to_upper(x)) %>% 
+  separate_longer_position(x, width = 1)
+
+SevenSK_Saturation_Seqs$Standard_Nucleotide <- rep(SevenSK_Standard_Nucleotide$x, times = 5)
+
+SevenSK_Saturation_Seqs$Variant_Nucleotide <- rep(c("A", "T", "C", "G", "Del"), each = str_length(SevenSK_Saturation_Seqs$Pro_Seq))
+
+SevenSK_Saturation_Seqs$FASTA_Arrow <- ">"
+SevenSK_Saturation_Seqs$Variant_Arrow <- ">"
+SevenSK_Saturation_Seqs$Promoter_Name <- "7SK"
+
+SevenSK_Saturation_Seqs <- SevenSK_Saturation_Seqs %>% 
+  unite(Seq_Name_1, FASTA_Arrow, Promoter_Name, sep = "") %>% 
+  unite(Seq_Name_2, Seq_Name_1, Variant_Position) %>% 
+  unite(Seq_Name, Seq_Name_2, Standard_Nucleotide, Variant_Arrow, Variant_Nucleotide, sep = "")
+
+##Filter for only distinct barcodes 
+
+SevenSK_Saturation_Seqs <-  SevenSK_Saturation_Seqs %>%
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  mutate(Pro_Seq = str_replace(Pro_Seq, "_", "")) %>% 
+  select(!Sequence, Seq_Name, Pro_Seq) 
+
+
+```
+
+
+
+```{r}
+
+##Read in orthologous promoters and convert from fasta to dataframe
+
+Ortholog_Pol3_Pro <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/all_Pol3_promoters_cactus_2020v2_20240406.fa", col_names = FALSE)
+
+n_seqs <- length(Ortholog_Pol3_Pro$X1)/2
+
+Ortholog_Pol3_Pro$ID <- rep(1:n_seqs, each = 2)
+
+Names <- Ortholog_Pol3_Pro %>% 
+  filter(grepl(">", X1))
+Seqs <- Ortholog_Pol3_Pro %>% 
+  filter(!grepl(">", X1))
+
+Ortholog_Pol3_Pro <- Names %>% 
+  left_join(Seqs, by = "ID") %>% 
+  select(ID, Seq_Name = X1.x, Pro_Seq = X1.y) 
+
+Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  select(Seq_Name, Pro_Seq)
+
+##Calculate how many unique sequences, duplicates, filter for unique sequences 
+
+length(unique(Ortholog_Pol3_Pro$Pro_Seq))
+
+Dup_Seqs <- Ortholog_Pol3_Pro$Pro_Seq[duplicated(Ortholog_Pol3_Pro$Pro_Seq)]
+
+Dup_Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  filter(Pro_Seq %in% Dup_Seqs)
+
+Distinct_Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Seq_Name, Pro_Seq) 
+
+
+##Seeing how many of final promoters are extant or ancestral
+
+Extant_Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  filter(!grepl("fullTreeAnc", Seq_Name)) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>%
+  filter(Pro_Seq %in% Distinct_Ortholog_Pol3_Pro$Pro_Seq)  
+
+Distinct_Ortholog_Pol3_Pro %>% 
+  filter(!Pro_Seq %in% Extant_Ortholog_Pol3_Pro$Pro_Seq)
+
+```
+
+
+
+
+
+```{r}
+
+##Add source column and bind everything together
+
+Distinct_Ortholog_Pol3_Pro$Source <- "Ortholog_Promoter"
+H1_Saturation_Seqs$Source <- "H1_Saturation"
+SevenSK_Saturation_Seqs$Source <- "SevenSK_Saturation_Seqs"
+
+#Bind everything together, calculate how many unique sequences, duplicates 
+
+Pol3_Pro <- rbind(Distinct_Ortholog_Pol3_Pro, H1_Saturation_Seqs, SevenSK_Saturation_Seqs)
+
+length(unique(Pol3_Pro$Pro_Seq))
+
+Dup_Seqs <- Pol3_Pro$Pro_Seq[duplicated(Pol3_Pro$Pro_Seq)]
+
+Dup_Pol3_Pros <- Pol3_Pro %>% 
+  filter(Pro_Seq %in% Dup_Seqs)
+
+##Calculate sequence length and plot
+
+Pol3_Pro <- Pol3_Pro %>% 
+  mutate(Seq_Length = str_length(Pro_Seq))
+
+ggplot(Pol3_Pro, aes(x = Seq_Length)) + 
+  geom_histogram()
+
+##Filter for all promoters greater than 282bp and chop them down, plot
+
+Long_Pol3_Pro <- Pol3_Pro %>% 
+  filter(Seq_Length > 259) 
+
+Short_Pol3_Pro <- Pol3_Pro %>% 
+  filter(Seq_Length <= 259)
+
+Long_Pol3_Pro <- Long_Pol3_Pro %>% 
+  separate(Pro_Seq, into = c("Five_Prime_Cutoff", "Pro_Seq"), sep = -259) %>% 
+  mutate(Seq_Length = str_length(Pro_Seq)) %>% 
+  select(!Five_Prime_Cutoff)
+
+Chopped_Pol3_Pro <- rbind(Long_Pol3_Pro, Short_Pol3_Pro)
+
+ggplot(Chopped_Pol3_Pro, aes(x = Seq_Length)) + 
+  geom_histogram() 
+
+
+##See how many of the promoters have restriction sites and change them 
+
+Forward_RS_Check <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GGTCTC", Pro_Seq))) 
+  
+Reverse_RS_Check <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GAGACC", Pro_Seq))) 
+
+
+Chopped_Pol3_Pro <- Chopped_Pol3_Pro %>% 
+  mutate(Pro_Seq = str_replace_all(Pro_Seq, "GGTCTC", "GGTTTC")) %>% 
+  mutate(Pro_Seq = str_replace_all(Pro_Seq, "GAGACC", "GAGGCC"))
+
+Forward_RS_Check_After_Correction <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GGTCTC", Pro_Seq))) 
+  
+Forward_RS_Check_After_Correction <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GAGACC", Pro_Seq))) 
+
+```
+
+
+
+```{r}
+
+##Add restriction sites, pegRNAs, barcodes 
+
+Chopped_Pol3_Pro$Five_Prime_BsaI_Restriction <- "TAGTGAGGTCTCGGTGC"
+Chopped_Pol3_Pro$Spacer <- "GGCCCAGACTGAGCACGTGA"
+Chopped_Pol3_Pro$pegRNA_BB <- "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Chopped_Pol3_Pro$RTT <- "TCTGCCATCA"
+Chopped_Pol3_Pro$PBS <- "CGTGCTCAGTCTG"
+Chopped_Pol3_Pro$Terminator_And_Three_Prime_BsaI_Restriction <- "TTTTTGAGACCTCCCTA"
+
+##Create distance threshold barcodes, remove any with full or partial BsaI sites
+
+#Dist_8N_Barcodes <- create.dnabarcodes(8, dist = 1, filter.triplets = FALSE)
+#Dist_8N_Barcodes <- data.frame(matrix(unlist(Dist_8N_Barcodes), nrow=length(Dist_8N_Barcodes), byrow=TRUE)) 
+#Dist_8N_Barcodes <- Dist_8N_Barcodes %>% 
+  #select(BC_8N_Seq = matrix.unlist.Dist_8N_Barcodes...nrow...length.Dist_8N_Barcodes...)
+
+#Dist_8N_Barcodes <- Dist_8N_Barcodes %>%
+  #filter(!(grepl("AAAA", BC_8N_Seq))) %>% 
+  #filter(!(grepl("TTTT", BC_8N_Seq))) %>% 
+  #filter(!(grepl("GGGG", BC_8N_Seq))) %>% 
+  #filter(!(grepl("CCCC", BC_8N_Seq))) %>% 
+  #filter(!(grepl("GGTCTC", BC_8N_Seq))) %>%
+  #filter(!(grepl("GAGACC", BC_8N_Seq))) %>% 
+  #filter(!(grepl("GGTC", BC_8N_Seq))) %>%
+  #filter(!(grepl("GAGA", BC_8N_Seq)))
+
+
+#Dist_8N_Barcodes$BC_8N_Seq <- Dist_8N_Barcodes[sample(1:nrow(Dist_8N_Barcodes)), ] 
+
+#Dist_8N_Barcodes <- Dist_8N_Barcodes %>%
+  #head(3*(length(Chopped_Pol3_Pro$Pro_Seq)))
+
+##Select best barcodes from edit scores in K562
+
+Top_8N_BCs <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/Pooled_Edit_Scores.csv") %>% 
+  filter(Edit_Score > 0.5) %>% 
+  filter(!(grepl("GGTCTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGACC", pBC_Seq))) %>% 
+  filter(!(grepl("GGTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGA", pBC_Seq))) %>% 
+  sample_n(3*(length(Chopped_Pol3_Pro$Pro_Seq)))
+
+
+
+##Replicate the set of sequences 3 times for each barcode and add labels 
+
+Chopped_Pol3_Pro_BC1 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC1$BC_Number <- "BC_1"
+
+Chopped_Pol3_Pro_BC2 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC2$BC_Number <- "BC_2"
+
+Chopped_Pol3_Pro_BC3 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC3$BC_Number <- "BC_3"
+
+Chopped_Pol3_Pro_BCs <- rbind(Chopped_Pol3_Pro_BC1, Chopped_Pol3_Pro_BC2, Chopped_Pol3_Pro_BC3)
+
+Chopped_Pol3_Pro_BCs <- Chopped_Pol3_Pro_BCs %>% 
+  unite(Seq_Name, Seq_Name, BC_Number)
+
+##Add the barcodes
+
+Chopped_Pol3_Pro_BCs$BC_8N <- Top_8N_BCs$pBC_Seq
+
+
+##Reorder columns and join the functional sequence 
+
+RS_U6p_pegRNA8N_RS <- Chopped_Pol3_Pro_BCs %>% 
+  select(Seq_Name, Five_Prime_BsaI_Restriction, Pro_Seq, Spacer, pegRNA_BB, RTT, BC_8N, PBS, Terminator_And_Three_Prime_BsaI_Restriction, Seq_Length) %>% 
+  unite(RS_U6p_pegRNA8N_RS, Five_Prime_BsaI_Restriction, Pro_Seq, Spacer, pegRNA_BB, RTT, BC_8N, PBS, Terminator_And_Three_Prime_BsaI_Restriction, sep= "", remove = FALSE)
+
+
+##Add a random sequence to all sequences to make them all longer than the 258 cut off then chop em down to be the same length (stuffer sequence of 300bp from c-terminal end of eGFP with not common restriction sites)
+
+RS_U6p_pegRNA8N_RS$Stuffer_GFP_Seq <- "gctacgtccaggagcgcaccatcttcttcaaggacgacggcaactacaagacccgcgccgaggtgaagttcgagggcgacaccctggtgaaccgcatcgagctgaagggcatcgacttcaaggaggacggcaacatcctggggcacaagctggagtacaactacaacagccacaacgtctatatcatggccgacaagcagaagaacggcatcaaggtgaacttcaagatccgccacaacatcgaggacggcagcgtgcagctcgccgaccactaccagcagaacacccccatcggcgacg" 
+
+RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  mutate(Stuffer_GFP_Seq = str_to_upper(Stuffer_GFP_Seq))
+
+RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  unite(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq, Stuffer_GFP_Seq, RS_U6p_pegRNA8N_RS, sep = "", remove = FALSE)
+
+##Calculate full seq length and chop down
+
+RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq))
+
+ggplot(RS_U6p_pegRNA8N_RS, aes(x = Seq_Length)) + 
+  geom_histogram()
+
+##Filter for all promoters greater than 282bp and chop them down, plot
+
+Long_RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  filter(Seq_Length > 420) 
+
+Short_RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  filter(Seq_Length <= 420)
+
+Long_RS_U6p_pegRNA8N_RS <- Long_RS_U6p_pegRNA8N_RS %>% 
+  separate(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq, into = c("Five_Prime_Cutoff", "Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq"), sep = -420) %>% 
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq)) %>% 
+  select(!Five_Prime_Cutoff)
+
+Chopped_RS_U6p_pegRNA8N_RS <- rbind(Long_RS_U6p_pegRNA8N_RS, Short_RS_U6p_pegRNA8N_RS)
+
+ggplot(Chopped_RS_U6p_pegRNA8N_RS, aes(x = Seq_Length)) + 
+  geom_histogram() 
+
+
+##Add PCR handles 
+
+Chopped_RS_U6p_pegRNA8N_RS$PCR_Handle_15_F <- "GACGGGGAATTAACC"
+Chopped_RS_U6p_pegRNA8N_RS$PCR_Handle_15_R <- "GCTTACGGGCAACAT"
+
+##Create full oligo sequence
+
+Chopped_RS_U6p_pegRNA8N_RS <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  unite(Full_Oligo_Seq, PCR_Handle_15_F, Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq, PCR_Handle_15_R, sep = "", remove = FALSE) %>% 
+  mutate(Pro_Seq_Length = str_length(Pro_Seq)) %>% 
+  mutate(RS_U6p_pegRNA8N_RS_Seq_Length = str_length(RS_U6p_pegRNA8N_RS)) %>%
+  mutate(Full_Oligo_Seq_Length = str_length(Full_Oligo_Seq)) 
+
+```
+
+
+```{r}
+##Make sure there are no remaining restriction sites 
+
+Chopped_RS_U6p_pegRNA8N_RS <- Chopped_RS_U6p_pegRNA8N_RS %>%
+  unite(U6p_pegRNA8N, Pro_Seq, Spacer, pegRNA_BB, RTT, BC_8N, PBS, Terminator_And_Three_Prime_BsaI_Restriction, sep= "", remove = FALSE) %>% 
+  separate(U6p_pegRNA8N, into = c("U6p_pegRNA8N", "Three_Prime_BsaI"), sep = -12) %>% 
+  select(!Three_Prime_BsaI)
+
+Forward_RS_Check <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  filter((grepl("GGTCTC", U6p_pegRNA8N))) 
+  
+Reverse_RS_Check <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  filter((grepl("GAGACC", U6p_pegRNA8N))) 
+
+
+```
+
+```{r}
+##Create the final olio sequence table
+
+Final_PolIII_Oligos <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  select(Seq_Name, Full_Oligo_Seq:RS_U6p_pegRNA8N_RS, PCR_Handle_15_F, Five_Prime_BsaI_Restriction:Terminator_And_Three_Prime_BsaI_Restriction, PCR_Handle_15_R, Pro_Seq_Length:Full_Oligo_Seq_Length)
+
+Final_PolIII_Oligos$Oligo_ID <- seq(1:length(Final_PolIII_Oligos$Seq_Name)) 
+
+Final_PolIII_Oligos <- Final_PolIII_Oligos %>% 
+  select(Oligo_ID, Seq_Name, Full_Oligo_Seq:RS_U6p_pegRNA8N_RS, PCR_Handle_15_F, Five_Prime_BsaI_Restriction:Terminator_And_Three_Prime_BsaI_Restriction, PCR_Handle_15_R, Pro_Seq_Length:Full_Oligo_Seq_Length)
+
+#write_csv(Final_PolIII_Oligos, "/Users/troymcdiarmid/Documents/U6_pro_series/eBlock_order_spreadsheets/TAM_Final_Pol3_Promoter_450bp_Twist_Oligos_240416.csv")
+
+write_csv(Final_PolIII_Oligos, "/Users/troymcdiarmid/Documents/U6_pro_series/eBlock_order_spreadsheets/TAM_Final_Pol3_Promoter_450bp_Twist_Oligos_Ndate.csv")
+
+
+```
+
+```{r}
+
+##Check oligo order before buying 
+
+Final_PolIII_Pro_Oligos <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/eBlock_order_spreadsheets/TAM_Final_Pol3_Promoter_450bp_Twist_Oligos_240416.csv")
+
+Twist_Order <- read_csv("/Users/troymcdiarmid/Downloads/240418_Shendure-500mer-submission.csv", skip = 2) %>% 
+  select(Name, Fragment_Sequence = `Fragment Sequence`)
+
+##Make sure allthe oligos are there
+
+Oligos_In_Twist_Order <- Twist_Order %>% 
+  filter(Fragment_Sequence %in%  Final_PolIII_Pro_Oligos$Full_Oligo_Seq)
+
+length(Oligos_In_Twist_Order$Fragment_Sequence)
+
+##Check that PCR primers are only perfect matches to primers
+
+Twist_Order %>% 
+  filter((grepl("GACGGGGAATTAACC", Fragment_Sequence))) 
+Twist_Order %>% 
+  filter((grepl("GCTTACGGGCAACAT", Fragment_Sequence)))
+
+
+```
+

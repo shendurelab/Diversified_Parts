@@ -1,0 +1,844 @@
+---
+title: "Top_U6_Promoter_Validations"
+author: "Troy McDiarmid"
+date: "2024-03-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings")
+
+```
+
+
+```{r}
+
+##Reading in and selecting our Top U6 promoters 
+
+U6 <- read_csv("/Users/troymcdiarmid/Downloads/U6_Edit_Scores_Comparison_Table.csv")
+
+TopU6 <- U6 %>% 
+  filter(Within_5x_Standard_Across_Contexts == TRUE | Name == "Human_Weissman_RNU6-1")
+
+
+##Read in original U6 promoter designs to make sure full sequence and barcodes match 
+
+DivU6_By_Element <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/DivU6_pro_series_0328_2021.csv") %>% 
+  mutate(Full_Seq = str_to_upper(Full_Seq)) %>% 
+  filter(Full_Seq %in% TopU6$Full_Seq_With_Restriction_Sites)
+SynDivU6_By_Element <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Synthetic_human_DivU6_0328_2021.csv") %>% 
+  mutate(Full_Seq = str_to_upper(Full_Seq)) %>% 
+  filter(Full_Seq %in% TopU6$Full_Seq_With_Restriction_Sites)
+
+AllU6_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/AllU6p_data/AllU6_BC_Plexity/AllU6_BC_0629_2021.csv") 
+
+```
+
+```{r}
+##Pair the platypus and human U6 promoter with multiple different barcodes (selected from the above 29 we know edit well) for assessing strength 
+
+##First isolate original Platypus and human sequences
+
+Platypus_Human <- DivU6_By_Element %>% 
+  filter(Name %in% c("Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249", "Human_Weissman_RNU6-1"))
+
+##Then select additional barcodes randomly from the list of barcodes in the top 29 promoters
+
+set.seed(2)
+
+Not_Platypus_Human_BC <- DivU6_By_Element %>% 
+  filter(!Name %in% c("Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249", "Human_Weissman_RNU6-1")) %>% 
+  select(`5_BP_Insertion_Barcode`) %>% 
+  slice_sample(n = 10)
+
+##Then replicate platypus and human promoter sequences n times, remove existing 5N insertion barcodes, and add new ones
+
+Platypus_Human_Alt_BC <- Platypus_Human[rep(seq_len(nrow(Platypus_Human)), each = 5), ]
+
+Platypus_Human_Alt_BC <- Platypus_Human_Alt_BC %>% 
+  select(!`5_BP_Insertion_Barcode`)
+
+
+Platypus_Human_Alt_BC$`5_BP_Insertion_Barcode` <- Not_Platypus_Human_BC$`5_BP_Insertion_Barcode`
+
+##Add BC number and bind the new barcode pairings with the old ones
+
+Platypus_Human$BC_Number <- "1"
+Platypus_Human_Alt_BC$BC_Number <- rep(c(2,3,4,5,6),times=2)
+
+Platypus_Human_Alt_BC <- rbind(Platypus_Human_Alt_BC, Platypus_Human) 
+
+Platypus_Human_Alt_BC <- Platypus_Human_Alt_BC %>% 
+  select(-Full_Seq) 
+
+Platypus_Human_Alt_BC <- Platypus_Human_Alt_BC %>%
+  unite("Full_Seq", `5_Prime_Buffer`:`10_BP_Landing_Pad`, `5_BP_Insertion_Barcode`, PBS:`Term_&_3_Prime_Restriction`, sep = "", remove = FALSE, na.rm = TRUE) 
+
+##Select relevant columns for ordering and add a barcode number
+
+Platypus_Human_Alt_BC$BC <- "BC"
+
+Platypus_Human_Alt_BC <- Platypus_Human_Alt_BC %>%
+   unite("Name", Name, BC, BC_Number, remove = FALSE, na.rm = TRUE) 
+
+
+Platypus_Human_Alt_BC_eBlock <- Platypus_Human_Alt_BC %>% 
+  select(Name, Full_Seq, `5_BP_Insertion_Barcode`) 
+
+
+```
+
+```{r}
+#Now taking our top 10 promoters and pairing them with alternate barcodes
+
+Top_U6_Promoters <- U6 %>% 
+  rowwise() %>% 
+  mutate(Median_Human_Edit_Score = median(K562:iPSC))
+
+Top_U6_Promoters <- Top_U6_Promoters %>% 
+  arrange(-Median_Human_Edit_Score) %>% 
+  head(10) %>% 
+  select(Name, U6_Promoter_Seq, U6_Median_Human_Edit_Score = Median_Human_Edit_Score)
+
+Top_U6_Promoters_By_Element <- DivU6_By_Element %>% 
+  filter(Name %in% Top_U6_Promoters$Name) %>% 
+  select(!`5_BP_Insertion_Barcode`)
+
+##Pair Top U6 promoters with 10 new barcodes 
+
+set.seed(2)
+
+Top_U6_Promoters_Alt_BCs <- DivU6_By_Element %>%
+  filter(!`5_BP_Insertion_Barcode` %in% Platypus_Human_Alt_BC$`5_BP_Insertion_Barcode`) %>% 
+  slice_sample(n = 10)
+
+Top_U6_Promoters_By_Element$`5_BP_Insertion_Barcode` <- Top_U6_Promoters_Alt_BCs$`5_BP_Insertion_Barcode`
+
+Top_U6_Promoters_Alt_BC <- Top_U6_Promoters_By_Element %>%
+  unite("Full_Seq", `5_Prime_Buffer`:`10_BP_Landing_Pad`, `5_BP_Insertion_Barcode`, PBS:`Term_&_3_Prime_Restriction`, sep = "", remove = FALSE, na.rm = TRUE) 
+
+
+##Select relevant columns for ordering
+
+Top_U6_Promoters_Alt_BC$BC <- "BC"
+Top_U6_Promoters_Alt_BC$BC_Number <- "2"
+
+Top_U6_Promoters_Alt_BC <- Top_U6_Promoters_Alt_BC %>%
+   unite("Name", Name, BC, BC_Number, remove = FALSE, na.rm = TRUE)
+
+Top_U6_Promoters_Alt_BC <- Top_U6_Promoters_Alt_BC %>% 
+  select(Name, Full_Seq, `5_BP_Insertion_Barcode`) %>% 
+  filter(!Name %in% c("Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249_BC_2", "Human_Weissman_RNU6-1_BC_2"))
+
+
+```
+
+
+```{r}
+##Rbind the platypus and top 10 alternate barcodes nd add a BC number
+
+Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet <- rbind(Platypus_Human_Alt_BC_eBlock, Top_U6_Promoters_Alt_BC)
+
+Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet <- Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet %>% 
+  mutate(Full_Seq = str_to_upper(Full_Seq))
+
+##Check the barcodes are all unique and the only matching sequences to those tested before are the human and platypus
+
+length(unique(Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet$`5_BP_Insertion_Barcode`))
+
+U6 %>% 
+  filter(Full_Seq_With_Restriction_Sites %in% Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet$Full_Seq)
+
+
+##Write to disk
+
+#write_csv(Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet, "/Users/troymcdiarmid/Documents/U6_pro_series/eBlock_order_spreadsheets/Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet.csv")
+
+
+```
+
+
+
+```{r}
+
+##Reading in insertion data and calculating and editing score for each barcode to control for relative barcode insertion efficiency. 
+
+Fivemer_insert_efficiency_REGEX <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/Normalized_Fivemer_insert_efficiency_REGEX.csv")
+
+Fivemer_insert_efficiency_REGEX <- Fivemer_insert_efficiency_REGEX %>% 
+  mutate(Edit_Score_5N = 2^EditScoreAverage)
+
+Normalized_Fivemer_insert_efficiency_REGEX <- Fivemer_insert_efficiency_REGEX %>% 
+  mutate(Normalized_5N_Edit_Score = (Edit_Score_5N-min(Edit_Score_5N))/(max(Edit_Score_5N)-min(Edit_Score_5N))) 
+
+Normalized_Fivemer_insert_efficiency_REGEX$Plasmid_BC_Seq <- sapply(Normalized_Fivemer_insert_efficiency_REGEX$Insert, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+
+```
+
+
+
+
+```{r}
+##Analyze TopU6 and SubU6 pBC abundance 
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/TopU6_SubU6_pBC_Merged_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+pBC_Counts <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Meta_Data", "Day", "Cell_Type", "Light_Exposure_Period", "h", "Dark_Or_Light", "Stimulation", "Replicate", "Sample_ID", "Read", "Suffix"), sep = "_Plasmid_Pool") %>% 
+  select(Library, pBC_Read_Count, pBC_Seq) %>% 
+  type_convert()
+
+##Separate out sub libraries and calculate BC freq 
+
+TopU6_pBC_Counts <- pBC_Counts %>% 
+  filter(Library == "TopU6")
+
+TopU6_pBC_Counts <- TopU6_pBC_Counts %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  arrange(pBC_Freq)
+
+SubU6_pBC_Counts <- pBC_Counts %>% 
+  filter(Library == "SubU6")
+
+SubU6_pBC_Counts <- SubU6_pBC_Counts %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  arrange(pBC_Freq)
+
+##Plot frequencies
+
+ggplot(TopU6_pBC_Counts, aes(x = pBC_Freq)) +
+  geom_histogram() +
+  scale_x_log10()
+  
+ggplot(SubU6_pBC_Counts, aes(x = pBC_Freq)) +
+  geom_histogram() +
+  scale_x_log10()
+
+##Filter for barcodes we ordered
+
+TopU6_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/Platypus_Human_Top_U6_Alt_BC_eBlock_Order_Sheet.csv") %>% 
+  select(Name, Full_Seq, pBC_Seq = `5_BP_Insertion_Barcode`)
+
+TopU6_pBC_Counts <- TopU6_pBC_Counts %>% 
+  left_join(TopU6_BC, by = "pBC_Seq")
+
+
+
+SubU6_BC <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/AllU6_BC_0629_2021.csv") %>% 
+  select(Name, pBC_Seq = `Plasmid_BC_Seq`)
+
+SubU6_pBC_Counts <- SubU6_pBC_Counts %>% 
+  left_join(SubU6_BC, by = "pBC_Seq")
+  
+  
+```  
+
+```{r}
+##Analyze the edit scores 
+
+##Reading in TopU6 edit counts
+
+HEK3_Edit_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/Merged_BC_Counts_TopU6.txt", col_names = c("Insertion_Read_Count")) 
+
+
+##Removing white space from concatenated count files 
+
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':      ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':     ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':    ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':   ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':  ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(': ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>% 
+  separate(Insertion_Read_Count, into = c("Meta_Data", "Insertion_Read_Count"), sep = ":") %>% 
+  separate(Insertion_Read_Count, into = c("Insertion_Read_Count", "RC_Insertion_BC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Meta_Data", "Replicate"), sep = "Unstim_") %>% 
+  separate(Replicate, into = c("Replicate", "Garbage"), sep = "_S") %>%
+  separate(Meta_Data, into = c("Garbagee", "Meta_Data"), sep = "/") %>% 
+  select(Meta_Data, Replicate, Insertion_Read_Count, RC_Insertion_BC_Seq) %>% 
+  type_convert()
+   
+
+##Generting the reverse compliment of the insertion barcode to match the plasmid BC
+
+HEK3_Edit_Counts$pBC_Seq <- sapply(HEK3_Edit_Counts$RC_Insertion_BC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+##Calcuating insertion frequency and edit scores 
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Replicate_Read_Count = sum(Insertion_Read_Count))
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>%
+  group_by(Replicate, pBC_Seq) %>% 
+  mutate(Total_Insertion_Read_Count = sum(Insertion_Read_Count))
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>%
+  mutate(Insertion_Freq = ((Total_Insertion_Read_Count/Total_Replicate_Read_Count)*100)) %>% 
+  arrange(Insertion_Freq)
+
+##Filtering for only insertion BCs that are a perfect match to those in the plasmid pool
+
+TopU6_Edit_Stats <- TopU6_pBC_Counts %>%
+  left_join(HEK3_Edit_Counts, by = "pBC_Seq") %>% 
+  filter(!Insertion_Read_Count == "Na") %>% 
+  filter(!pBC_Read_Count == "Na") %>% 
+  type_convert() 
+
+length(unique(TopU6_Edit_Stats$pBC_Seq))
+
+##Calculating edit scores
+
+TopU6_Edit_Stats <- TopU6_Edit_Stats %>%
+  mutate(U6_pegRNA_BC_Edit_Score = Insertion_Freq/pBC_Freq) %>% 
+  mutate(R2_U6_pegRNA_BC_Edit_Score = round(U6_pegRNA_BC_Edit_Score, digits = 2)) %>% 
+  filter(!is.na(Name)) 
+
+##Adding the column on normalized editing efficiency of each barcode
+
+Normalized_Fivemer_insert_efficiency_REGEX_2 <- Normalized_Fivemer_insert_efficiency_REGEX %>% 
+  select(pBC_Seq = Plasmid_BC_Seq, Normalized_5N_Edit_Score)
+
+TopU6_Edit_Stats <- TopU6_Edit_Stats %>%
+  left_join(Normalized_Fivemer_insert_efficiency_REGEX_2, by = "pBC_Seq") 
+
+##Normalizing for barcode sequence
+
+TopU6_Edit_Stats <- TopU6_Edit_Stats %>%
+  mutate(BC_Normalized_U6_pegRNA_Edit_Score = U6_pegRNA_BC_Edit_Score/Normalized_5N_Edit_Score) %>% 
+  mutate(R2_BC_Normalized_U6_pegRNA_Edit_Score = round(BC_Normalized_U6_pegRNA_Edit_Score, digits = 2))
+
+
+##Calculate a mean edit score for each promoter, then read in original U6 edit scores and correlate with these 
+
+TopU6_Edit_Stats <- TopU6_Edit_Stats %>%
+  separate(Name, into = c("Name", "Barcode"), sep = "_BC_", remove = FALSE) %>% 
+  group_by(Name) %>% 
+  mutate(Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score = mean(R2_BC_Normalized_U6_pegRNA_Edit_Score))
+
+OG_U6_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") %>% 
+  select(Name, iPSC) 
+
+TopU6_Edit_Stats <- TopU6_Edit_Stats %>% 
+  left_join(OG_U6_Edit_Scores, by = "Name")
+
+
+##Comparing platypus and human
+
+Platypus <- TopU6_Edit_Stats %>% 
+  filter((grepl("Orni", Name))) 
+
+Platypus$Species <- "Platypus"
+
+Human <- TopU6_Edit_Stats %>% 
+  filter((grepl("Human", Name))) %>% 
+  filter((!grepl("RNU6-2", Name)))
+
+Human$Species <- "Human"
+
+Platypus_Human <- rbind(Human, Platypus)
+
+wilcox.test(R2_BC_Normalized_U6_pegRNA_Edit_Score ~ Species, data = Platypus_Human)
+
+##Comparing edit scores for different U6 promoters 
+
+TopU6_Edit_Stats_2 <- TopU6_Edit_Stats 
+
+TopU6_Edit_Stats_2 <- TopU6_Edit_Stats_2 %>% 
+  group_by(Name) %>% 
+  mutate(Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score = mean(R2_BC_Normalized_U6_pegRNA_Edit_Score)) %>% 
+  mutate(Max_R2_BC_Normalized_U6_pegRNA_Edit_Score = max(R2_BC_Normalized_U6_pegRNA_Edit_Score))
+
+cor.test(TopU6_Edit_Stats_2$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_Edit_Stats_2$iPSC)
+cor.test(TopU6_Edit_Stats_2$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_Edit_Stats_2$iPSC, method = "spearman")
+
+```
+
+
+
+```{r}
+##Analyzing edit scores for SubU6
+
+##Analyze the edit scores 
+
+##Reading in edit counts
+
+HEK3_Edit_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/Merged_BC_Counts_SubU6.txt", col_names = c("Insertion_Read_Count")) 
+
+
+##Removing white space from concatenated count files 
+
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':      ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':     ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':    ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':   ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':  ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(': ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>% 
+  separate(Insertion_Read_Count, into = c("Meta_Data", "Insertion_Read_Count"), sep = ":") %>% 
+  separate(Insertion_Read_Count, into = c("Insertion_Read_Count", "RC_Insertion_BC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Meta_Data", "Replicate"), sep = "Unstim_") %>% 
+  separate(Replicate, into = c("Replicate", "Garbage"), sep = "_S") %>%
+  separate(Meta_Data, into = c("Garbagee", "Meta_Data"), sep = "/") %>% 
+  select(Meta_Data, Replicate, Insertion_Read_Count, RC_Insertion_BC_Seq) %>% 
+  type_convert()
+   
+
+##Generting the reverse compliment of the insertion barcode to match the plasmid BC
+
+HEK3_Edit_Counts$pBC_Seq <- sapply(HEK3_Edit_Counts$RC_Insertion_BC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+##Calcuating insertion frequency and edit scores 
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Replicate_Read_Count = sum(Insertion_Read_Count))
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>%
+  group_by(Replicate, pBC_Seq) %>% 
+  mutate(Total_Insertion_Read_Count = sum(Insertion_Read_Count))
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>%
+  mutate(Insertion_Freq = ((Total_Insertion_Read_Count/Total_Replicate_Read_Count)*100)) %>% 
+  arrange(Insertion_Freq)
+
+##Filtering for only insertion BCs that are a perfect match to those in the plasmid pool
+
+SubU6_Edit_Stats <- SubU6_pBC_Counts %>%
+  left_join(HEK3_Edit_Counts, by = "pBC_Seq") %>% 
+  filter(!Insertion_Read_Count == "Na") %>% 
+  filter(!pBC_Read_Count == "Na") %>% 
+  type_convert() 
+
+length(unique(SubU6_Edit_Stats$pBC_Seq))
+
+##Calculating edit scores
+
+SubU6_Edit_Stats <- SubU6_Edit_Stats %>%
+  mutate(U6_pegRNA_BC_Edit_Score = Insertion_Freq/pBC_Freq) %>% 
+  mutate(R2_U6_pegRNA_BC_Edit_Score = round(U6_pegRNA_BC_Edit_Score, digits = 2)) %>% 
+  filter(!is.na(Name)) %>% 
+  filter(pBC_Freq > 0.1)
+
+##Adding the column on normalized editing efficiency of each barcode
+
+Normalized_Fivemer_insert_efficiency_REGEX_2 <- Normalized_Fivemer_insert_efficiency_REGEX %>% 
+  select(pBC_Seq = Plasmid_BC_Seq, Normalized_5N_Edit_Score)
+
+SubU6_Edit_Stats <- SubU6_Edit_Stats %>%
+  left_join(Normalized_Fivemer_insert_efficiency_REGEX_2, by = "pBC_Seq") 
+
+##Normalizing for barcode sequence
+
+SubU6_Edit_Stats <- SubU6_Edit_Stats %>%
+  mutate(BC_Normalized_U6_pegRNA_Edit_Score = U6_pegRNA_BC_Edit_Score/Normalized_5N_Edit_Score) %>% 
+  mutate(R2_BC_Normalized_U6_pegRNA_Edit_Score = round(BC_Normalized_U6_pegRNA_Edit_Score, digits = 2))
+
+
+##Calculate a mean edit score for each promoter, then read in original U6 edit scores and correlate with these 
+
+SubU6_Edit_Stats <- SubU6_Edit_Stats %>%
+  group_by(Name) %>% 
+  mutate(Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score = mean(R2_BC_Normalized_U6_pegRNA_Edit_Score))
+
+OG_U6_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") %>% 
+  select(Name, iPSC) 
+
+SubU6_Edit_Stats <- SubU6_Edit_Stats %>% 
+  left_join(OG_U6_Edit_Scores, by = "Name")
+
+
+ggplot(SubU6_Edit_Stats, aes(x = log2(Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score), y = log2(iPSC))) +
+  geom_point() 
+
+cor.test(SubU6_Edit_Stats$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = SubU6_Edit_Stats$iPSC)
+cor.test(SubU6_Edit_Stats$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = SubU6_Edit_Stats$iPSC, method = "spearman")
+
+
+##Calculate edit efficiency for SubU6
+
+SubU6_Fastq_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/FASTQ_Counts_SubU6.txt", col_names = c("Total_FASTQ_Read_Count"))
+
+SubU6_Fastq_Counts <- SubU6_Fastq_Counts %>% 
+  separate(Total_FASTQ_Read_Count, into = c("Meta_Data", "Total_FASTQ_Read_Count"), sep = ":") %>% 
+  separate(Meta_Data, into = c("Meta_Data", "Replicate"), sep = "Unstim_") %>% 
+  separate(Replicate, into = c("Replicate", "Sample"), sep = "_S") %>% 
+  type_convert()
+
+SubU6_Edit_Stats_Efficiency <- SubU6_Edit_Stats %>% 
+  left_join(SubU6_Fastq_Counts, by = "Replicate")
+
+SubU6_Edit_Stats_Efficiency <- SubU6_Edit_Stats_Efficiency %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Perfect_Match_Replicate_Edited_Read_Count = sum(Total_Insertion_Read_Count)) %>% 
+  mutate(Edit_Efficiency = (Total_Perfect_Match_Replicate_Edited_Read_Count / Total_FASTQ_Read_Count)*100)
+
+
+```
+
+
+
+```{r}
+##Looking at TopU6 edit scores with no extra PE 
+
+##Analyze the edit scores 
+
+##Reading in TopU6 edit counts
+
+HEK3_Edit_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/Merged_BC_Counts_TopU6_No_PE.txt", col_names = c("Insertion_Read_Count")) 
+
+
+##Removing white space from concatenated count files 
+
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':      ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':     ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':    ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':   ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(':  ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+HEK3_Edit_Counts$Insertion_Read_Count <- gsub(': ', ':', HEK3_Edit_Counts$Insertion_Read_Count)
+
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>% 
+  separate(Insertion_Read_Count, into = c("Meta_Data", "Insertion_Read_Count"), sep = ":") %>% 
+  separate(Insertion_Read_Count, into = c("Insertion_Read_Count", "RC_Insertion_BC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Meta_Data", "Replicate"), sep = "Unstim_") %>% 
+  separate(Replicate, into = c("Replicate", "Garbage"), sep = "_S") %>%
+  separate(Meta_Data, into = c("Garbagee", "Meta_Data"), sep = "/") %>% 
+  select(Meta_Data, Replicate, Insertion_Read_Count, RC_Insertion_BC_Seq) %>% 
+  type_convert()
+   
+
+##Generting the reverse compliment of the insertion barcode to match the plasmid BC
+
+HEK3_Edit_Counts$pBC_Seq <- sapply(HEK3_Edit_Counts$RC_Insertion_BC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Calcuating insertion frequency and edit scores 
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Replicate_Read_Count = sum(Insertion_Read_Count))
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>%
+  group_by(Replicate, pBC_Seq) %>% 
+  mutate(Total_Insertion_Read_Count = sum(Insertion_Read_Count))
+
+
+HEK3_Edit_Counts <- HEK3_Edit_Counts %>%
+  mutate(Insertion_Freq = ((Total_Insertion_Read_Count/Total_Replicate_Read_Count)*100)) %>% 
+  arrange(Insertion_Freq)
+
+##Filtering for only insertion BCs that are a perfect match to those in the plasmid pool
+
+TopU6_No_PE_Edit_Stats <- TopU6_pBC_Counts %>%
+  left_join(HEK3_Edit_Counts, by = "pBC_Seq") %>% 
+  filter(!Insertion_Read_Count == "Na") %>% 
+  filter(!pBC_Read_Count == "Na") %>% 
+  type_convert() 
+
+length(unique(TopU6_No_PE_Edit_Stats$pBC_Seq))
+
+##Calculating edit scores
+
+TopU6_No_PE_Edit_Stats <- TopU6_No_PE_Edit_Stats %>%
+  mutate(U6_pegRNA_BC_Edit_Score = Insertion_Freq/pBC_Freq) %>% 
+  mutate(R2_U6_pegRNA_BC_Edit_Score = round(U6_pegRNA_BC_Edit_Score, digits = 2)) %>% 
+  filter(!is.na(Name)) 
+
+##Adding the column on normalized editing efficiency of each barcode
+
+Normalized_Fivemer_insert_efficiency_REGEX_2 <- Normalized_Fivemer_insert_efficiency_REGEX %>% 
+  select(pBC_Seq = Plasmid_BC_Seq, Normalized_5N_Edit_Score)
+
+TopU6_No_PE_Edit_Stats <- TopU6_No_PE_Edit_Stats %>%
+  left_join(Normalized_Fivemer_insert_efficiency_REGEX_2, by = "pBC_Seq") 
+
+##Normalizing for barcode sequence
+
+TopU6_No_PE_Edit_Stats <- TopU6_No_PE_Edit_Stats %>%
+  mutate(BC_Normalized_U6_pegRNA_Edit_Score = U6_pegRNA_BC_Edit_Score/Normalized_5N_Edit_Score) %>% 
+  mutate(R2_BC_Normalized_U6_pegRNA_Edit_Score = round(BC_Normalized_U6_pegRNA_Edit_Score, digits = 2))
+
+
+##Calculate a mean edit score for each promoter, then read in original U6 edit scores and correlate with these 
+
+TopU6_No_PE_Edit_Stats <- TopU6_No_PE_Edit_Stats %>%
+  separate(Name, into = c("Name", "Barcode"), sep = "_BC_", remove = FALSE) %>% 
+  group_by(Name) %>% 
+  mutate(Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score = mean(R2_BC_Normalized_U6_pegRNA_Edit_Score))
+
+OG_U6_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") %>% 
+  select(Name, iPSC) 
+
+TopU6_No_PE_Edit_Stats <- TopU6_No_PE_Edit_Stats %>% 
+  left_join(OG_U6_Edit_Scores, by = "Name")
+
+
+ggplot(TopU6_No_PE_Edit_Stats, aes(x = Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = iPSC)) +
+  geom_point() +
+  xlim(0,10) +
+  ylim(0,50)
+
+cor.test(TopU6_No_PE_Edit_Stats$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_No_PE_Edit_Stats$iPSC)
+cor.test(TopU6_No_PE_Edit_Stats$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_No_PE_Edit_Stats$iPSC, method = "spearman")
+
+##Comparing platypus and human 
+
+Platypus <- TopU6_No_PE_Edit_Stats %>% 
+  filter((grepl("Orni", Name))) 
+
+Platypus$Species <- "Platypus"
+
+Human <- TopU6_No_PE_Edit_Stats %>% 
+  filter((grepl("Human", Name))) %>% 
+  filter((!grepl("RNU6-2", Name)))
+
+Human$Species <- "Human"
+
+Platypus_Human <- rbind(Human, Platypus)
+
+
+ggplot(Platypus_Human, aes(x = Species, y = log2(R2_BC_Normalized_U6_pegRNA_Edit_Score))) +
+  geom_point() 
+
+wilcox.test(R2_BC_Normalized_U6_pegRNA_Edit_Score ~ Species, data = Platypus_Human)
+
+##Comparing edit scores for different U6 promoters 
+
+TopU6_No_PE_Edit_Stats_2 <- TopU6_No_PE_Edit_Stats 
+
+TopU6_No_PE_Edit_Stats_2 <- TopU6_No_PE_Edit_Stats_2 %>% 
+  group_by(Name) %>% 
+  mutate(Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score = mean(R2_BC_Normalized_U6_pegRNA_Edit_Score)) %>% 
+  mutate(Max_R2_BC_Normalized_U6_pegRNA_Edit_Score = max(R2_BC_Normalized_U6_pegRNA_Edit_Score))
+
+cor.test(TopU6_No_PE_Edit_Stats_2$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_No_PE_Edit_Stats_2$iPSC)
+cor.test(TopU6_No_PE_Edit_Stats_2$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_No_PE_Edit_Stats_2$iPSC, method = "spearman")
+
+##Correlating TopU6 with and without adding extra PEmax
+
+TopU6_No_PE_Edit_Stats_United <- TopU6_No_PE_Edit_Stats %>% 
+  unite("Name_BC_Rep", Name, Barcode, Replicate) %>% 
+  dplyr::rename(No_PE_R2_BC_Normalized_U6_pegRNA_Edit_Score = R2_BC_Normalized_U6_pegRNA_Edit_Score) %>% 
+  dplyr::rename(No_PE_Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score = Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score)
+
+TopU6_Edit_Stats_United <- TopU6_Edit_Stats %>% 
+  unite("Name_BC_Rep", Name, Barcode, Replicate)
+
+TopU6_No_PE_Edit_Stats_United <- TopU6_No_PE_Edit_Stats_United %>% 
+  left_join(TopU6_Edit_Stats_United, by = "Name_BC_Rep")
+
+ggplot(TopU6_No_PE_Edit_Stats_United, aes(x = No_PE_Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score)) +
+  geom_point() 
+
+cor.test(TopU6_No_PE_Edit_Stats_United$No_PE_Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_No_PE_Edit_Stats_United$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score)
+cor.test(TopU6_No_PE_Edit_Stats_United$No_PE_Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, y = TopU6_No_PE_Edit_Stats_United$Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, method = "spearman") 
+
+##Comparing edit efficiency without or without extra PEmax transfected
+
+TopU6_No_PE_Fastq_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/FASTQ_Counts_TopU6_No_PE.txt", col_names = c("Total_FASTQ_Read_Count"))
+
+TopU6_No_PE_Fastq_Counts <- TopU6_No_PE_Fastq_Counts %>% 
+  separate(Total_FASTQ_Read_Count, into = c("Meta_Data", "Total_FASTQ_Read_Count"), sep = ":") %>% 
+  separate(Meta_Data, into = c("Meta_Data", "Replicate"), sep = "Unstim_") %>% 
+  separate(Replicate, into = c("Replicate", "Sample"), sep = "_S") %>% 
+  type_convert()
+
+TopU6_No_PE_Edit_Stats_Efficiency <- TopU6_No_PE_Edit_Stats %>% 
+  left_join(TopU6_No_PE_Fastq_Counts, by = "Replicate")
+
+TopU6_No_PE_Edit_Stats_Efficiency <- TopU6_No_PE_Edit_Stats_Efficiency %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Perfect_Match_Replicate_Edited_Read_Count = sum(Total_Insertion_Read_Count)) %>% 
+  mutate(Edit_Efficiency = (Total_Perfect_Match_Replicate_Edited_Read_Count / Total_FASTQ_Read_Count)*100)
+
+##For TopU6 with PEmax 
+
+TopU6_Fastq_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/FASTQ_Counts_TopU6.txt", col_names = c("Total_FASTQ_Read_Count"))
+
+TopU6_Fastq_Counts <- TopU6_Fastq_Counts %>% 
+  separate(Total_FASTQ_Read_Count, into = c("Meta_Data", "Total_FASTQ_Read_Count"), sep = ":") %>% 
+  separate(Meta_Data, into = c("Meta_Data", "Replicate"), sep = "Unstim_") %>% 
+  separate(Replicate, into = c("Replicate", "Sample"), sep = "_S") %>% 
+  type_convert()
+
+TopU6_Edit_Stats_Efficiency <- TopU6_Edit_Stats %>% 
+  left_join(TopU6_Fastq_Counts, by = "Replicate")
+
+TopU6_Edit_Stats_Efficiency <- TopU6_Edit_Stats_Efficiency %>% 
+  group_by(Replicate) %>% 
+  mutate(Total_Perfect_Match_Replicate_Edited_Read_Count = sum(Total_Insertion_Read_Count)) %>% 
+  mutate(Edit_Efficiency = (Total_Perfect_Match_Replicate_Edited_Read_Count / Total_FASTQ_Read_Count)*100)
+
+##Plotting
+
+TopU6_Edit_Stats_Efficiency$PE_Added <- "Transient PEmax (+)"
+TopU6_No_PE_Edit_Stats_Efficiency$PE_Added <- "Transient PEmax (-)"
+
+TopU6_Edit_Stats_Efficiency_Grouped <- rbind(TopU6_Edit_Stats_Efficiency, TopU6_No_PE_Edit_Stats_Efficiency)
+
+TopU6_Edit_Stats_Efficiency_Grouped <- TopU6_Edit_Stats_Efficiency_Grouped %>% 
+  type_convert()
+
+ggplot(TopU6_Edit_Stats_Efficiency_Grouped, aes(x = Edit_Efficiency, y = fct_relevel(PE_Added, "Transient PEmax (+)", "Transient PEmax (-)"))) +
+  geom_point(size =7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 35)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("TopU6_Edit_Efficiency_+-_PEmax.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Downloads/")
+
+
+
+```
+```{r}
+##Writing datasets to file
+
+SubU6_Edit_Stats_To_Write <- SubU6_Edit_Stats %>% 
+  select(Name, Replicate, Recloned_Subset_iPSC_BC_Normalized_Edit_Score = R2_BC_Normalized_U6_pegRNA_Edit_Score, Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score = Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score, Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score = iPSC)
+
+TopU6_Edit_Stats_To_Write <- TopU6_Edit_Stats %>% 
+  select(Name, Replicate, iPSC_BC_Normalized_Edit_Score = R2_BC_Normalized_U6_pegRNA_Edit_Score, Mean_iPSC_BC_Normalized_Edit_Score = Mean_R2_BC_Normalized_U6_pegRNA_Edit_Score)
+
+
+TopU6_Edit_Stats_Efficiency_To_Write <- TopU6_Edit_Stats_Efficiency_Grouped %>%
+  select(Replicate, Edit_Efficiency) %>% 
+  distinct(Replicate, .keep_all = TRUE)
+
+TopU6_Edit_Stats_Efficiency_To_Write$Library <- "TopU6"
+
+SubU6_Edit_Stats_Efficiency_To_Write <- SubU6_Edit_Stats_Efficiency%>%
+  select(Replicate, Edit_Efficiency) %>% 
+  distinct(Replicate, .keep_all = TRUE)
+
+SubU6_Edit_Stats_Efficiency_To_Write$Library <- "SubU6"
+
+
+Edit_Efficiency_To_Write <- rbind(TopU6_Edit_Stats_Efficiency_To_Write, SubU6_Edit_Stats_Efficiency_To_Write)
+
+write_csv(SubU6_Edit_Stats_To_Write, "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/SubU6_Edit_Stats.csv")
+write_csv(TopU6_Edit_Stats_To_Write, "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/TopU6_Edit_Stats.csv")
+write_csv(Edit_Efficiency_To_Write, "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/TopU6_SubU6_Edit_Efficiency.csv")
+
+```
+
+
+
+```{r}
+##Making correlation between SubU6 and original iPSC edit scores. 
+
+##Add colour labels
+
+hRNU61_Promoter <- SubU6_Edit_Stats_To_Write %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- SubU6_Edit_Stats_To_Write %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- SubU6_Edit_Stats_To_Write %>% 
+  filter(!grepl("Syn", Name)) %>% 
+  filter(!Name == "Human_Weissman_RNU6-1")
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+
+U6_Promoters <- rbind(SynU6_Promoters, DivU6_Promoters, hRNU61_Promoter)
+
+U6_Promoters$Promoter_Lib <- factor(U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+
+
+
+##Correlation plot of edit scores 
+
+ggplot(U6_Promoters, aes(x = log2(Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score), y = log2(Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(6, 6, 8)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 27), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("Subset_U6_iPSC_Original_iPSC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+cor.test(U6_Promoters$Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score, y = U6_Promoters$Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score)
+cor.test(U6_Promoters$Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score, y = U6_Promoters$Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score, method = "spearman")
+
+
+
+##Making plot comparing edit efifciency between subset and top-performing U6 promoters 
+
+
+ggplot(Edit_Efficiency_To_Write, aes(x = Edit_Efficiency, y = fct_relevel(Library, "TopU6", "SubU6"))) +
+  geom_point(size = 7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 35)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 25)) 
+ggsave("Edit_Efficiency_SubU6_TopU6.jpeg", width = 8, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Making plot comparing TopU6 promoters 
+
+TopU6_Edit_Stats_To_Write <- TopU6_Edit_Stats_To_Write %>% 
+  group_by(Name) %>% 
+  mutate(Max_iPSC_BC_Normalized_Edit_Score = max(iPSC_BC_Normalized_Edit_Score))
+
+ggplot(TopU6_Edit_Stats_To_Write, aes(x = log2(iPSC_BC_Normalized_Edit_Score), y = fct_reorder(Name, Max_iPSC_BC_Normalized_Edit_Score), colour = Name)) +
+  geom_point(size = 5) +
+  scale_colour_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "black", "#56B4E9", "#56B4E9")) +
+  theme_classic() +
+  scale_x_continuous(position = "top", lim = c(0, 4), labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.text.y=element_blank()) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 25))
+ggsave("TopU6_Boxplot.jpeg", width = 6, height = 12, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+

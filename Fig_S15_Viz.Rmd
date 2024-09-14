@@ -1,0 +1,156 @@
+---
+title: "Fig_2_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(scales)
+
+```
+
+
+
+```{r}
+##Read in data
+
+Pol_III_Pro_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS15_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores.csv")
+
+##Histogram of different promoter classes  
+
+Human_RNU61_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6__Homo_sapiens", Seq_Name))
+
+U6_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6", Seq_Name)) %>% 
+  filter(!grepl("U6__Homo_sapiens", Seq_Name))
+
+SevenSK_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("7SK", Seq_Name)) 
+
+H1_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("H1", Seq_Name)) 
+
+Human_RNU61_Pol_III_Pro_Edit_Scores$Promoter_Class <- "Human_RNU61p"
+U6_Pol_III_Pro_Edit_Scores$Promoter_Class <- "U6"
+SevenSK_Pol_III_Pro_Edit_Scores$Promoter_Class <- "7SK"
+H1_Pol_III_Pro_Edit_Scores$Promoter_Class <- "H1"
+
+Pol_III_Pro_Edit_Scores_Class <- rbind(U6_Pol_III_Pro_Edit_Scores, SevenSK_Pol_III_Pro_Edit_Scores, H1_Pol_III_Pro_Edit_Scores, Human_RNU61_Pol_III_Pro_Edit_Scores)
+
+
+
+```
+
+```{r}
+##Making the saturation heatmaps 
+
+H1 <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(Promoter_Class == "H1") %>% 
+  separate(Seq_Name, into = c("Garbage", "Seq_Name"), sep = 1) %>% 
+  filter(grepl(">", Seq_Name)) %>% 
+  separate(Seq_Name, into = c("H1_Variant", "Barcode"), sep = "_BC_") %>% 
+  distinct(H1_Variant, .keep_all = TRUE) %>% 
+  separate(H1_Variant, into = c("H1_Variant", "SNV_Change"), sep = ">") %>% 
+  separate(H1_Variant, into = c("H1", "Variant_Position"), sep = "_") %>% 
+  separate(Variant_Position, into = c("Variant_Position", "Standard_Nucleotide"), sep = -1) %>% 
+  select(-H1, -Garbage) %>% 
+  type_convert()
+
+#H1$Grand_Mean_BC_Normalized_Edit_Score <- replace(H1$Grand_Mean_BC_Normalized_Edit_Score, H1$Grand_Mean_BC_Normalized_Edit_Score<3, 0)
+  
+
+ggplot(H1, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(Grand_Mean_BC_Normalized_Edit_Score))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(0, 3.5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("H1_K562_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+#7SK 
+
+
+SevenSK <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(Promoter_Class == "7SK") %>% 
+  separate(Seq_Name, into = c("Garbage", "Seq_Name"), sep = 1) %>% 
+  filter(grepl(">", Seq_Name)) %>% 
+  separate(Seq_Name, into = c("SevenSK_Variant", "Barcode"), sep = "_BC_") %>% 
+  distinct(SevenSK_Variant, .keep_all = TRUE) %>% 
+  separate(SevenSK_Variant, into = c("SevenSK_Variant", "SNV_Change"), sep = ">") %>% 
+  separate(SevenSK_Variant, into = c("SevenSK", "Variant_Position"), sep = "_") %>% 
+  separate(Variant_Position, into = c("Variant_Position", "Standard_Nucleotide"), sep = -1) %>% 
+  select(-SevenSK, -Garbage) %>% 
+  type_convert()
+
+
+#SevenSK$Grand_Mean_BC_Normalized_Edit_Score <- replace(SevenSK$Grand_Mean_BC_Normalized_Edit_Score, SevenSK$Grand_Mean_BC_Normalized_Edit_Score<7.5, 0)
+  
+
+ggplot(SevenSK, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(Grand_Mean_BC_Normalized_Edit_Score))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(2.5, 4.5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("7SK_K562_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+
+
+```{r}
+##Doing the same for fold change to standard
+
+Standard_H1 <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(Seq_Name == ">H1__Homo_sapiens__chr14:20343411-20343511()_BC_1")
+
+median(Standard_H1$Grand_Mean_BC_Normalized_Edit_Score)
+
+H1 <- H1 %>% 
+  mutate(Log2_Fold_Change_Relative_To_Standard = log2(Grand_Mean_BC_Normalized_Edit_Score/median(Standard_H1$Grand_Mean_BC_Normalized_Edit_Score)))
+
+
+ggplot(H1, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-2,0,8)),
+                         guide = "colorbar", limits=c(-2,8)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("H1_K562_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##7SK
+
+Standard_7SK <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(Seq_Name == ">7SK__Homo_sapiens__chr6:52995376-52995619()_BC_1")
+
+median(Standard_7SK$Grand_Mean_BC_Normalized_Edit_Score)
+
+SevenSK <- SevenSK %>% 
+  mutate(Log2_Fold_Change_Relative_To_Standard = log2(Grand_Mean_BC_Normalized_Edit_Score/median(Standard_7SK$Grand_Mean_BC_Normalized_Edit_Score)))
+
+
+ggplot(SevenSK, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-1,0,2)),
+                         guide = "colorbar", limits=c(-1,2)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("7SK_K562_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+

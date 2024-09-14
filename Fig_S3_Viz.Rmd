@@ -1,0 +1,115 @@
+---
+title: "Fig_S3_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(reshape)
+
+```
+
+```{r}
+##Read in edit efficiency data 
+
+Edit_Efficiency_U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS3_Final_Figure_Datasets/AllU6_Edit_Efficiency_Comparison_Table.csv") %>% 
+  filter(!Cell_Type == "mESC")
+
+
+ggplot(Edit_Efficiency_U6, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 20)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_U6.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+
+
+```{r}
+##Read in replicate data
+
+Replicate_Edit_Scores_U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS3_Final_Figure_Datasets/AllU6_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
+
+##Convert NAs to zeros
+
+Replicate_Edit_Scores_U6  <- Replicate_Edit_Scores_U6  %>% replace(is.na(.), 0)
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Replicate_Edit_Scores_U6 %>% 
+  select(-1, -2, -3) %>% 
+  select(-mESC_Rep_1_Normalized_Edit_Score, -mESC_Rep_2_Normalized_Edit_Score, -mESC_Rep_3_Normalized_Edit_Score, -mESC_Rep_4_Normalized_Edit_Score)
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix)
+
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("K562_Rep_1", "K562_Rep_2", "K562_Rep_3", "HEK293T_Rep_1", "HEK293T_Rep_2", "HEK293T_Rep_3", "HEK293T_Rep_4", "HEK293T_Rep_5", "HEK293T_Rep_6", "HEK293T_Rep_7", "HEK293T_Rep_8", "iPSC_Rep_1", "iPSC_Rep_2", "iPSC_Rep_3", "iPSC_Rep_4"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("iPSC_Rep_4", "iPSC_Rep_3", "iPSC_Rep_2", "iPSC_Rep_1", "HEK293T_Rep_8", "HEK293T_Rep_7", "HEK293T_Rep_6", "HEK293T_Rep_5", "HEK293T_Rep_4", "HEK293T_Rep_3", "HEK293T_Rep_2", "HEK293T_Rep_1", "K562_Rep_3", "K562_Rep_2", "K562_Rep_1"))
+
+##Making correlation heatmap 
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() 
+  ggsave("U6_Replicate_Heatmap_Legend.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 5) +
+  scale_fill_continuous(limits=c(0, 1), breaks = c(0.0, 0.5, 1.0)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_Replicate_Heatmap.jpeg", width = 10, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Assess the correlation range
+
+Replicate_Edit_Scores_U6_Corr_Matrix[Replicate_Edit_Scores_U6_Corr_Matrix == 1] <- NA
+
+range(Replicate_Edit_Scores_U6_Corr_Matrix, na.rm = TRUE)
+mean(Replicate_Edit_Scores_U6_Corr_Matrix, na.rm = TRUE)
+
+```
+
+
+
+
+
+

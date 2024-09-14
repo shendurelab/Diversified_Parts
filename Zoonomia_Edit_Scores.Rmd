@@ -1,0 +1,577 @@
+---
+title: "Zoonomia_Edit_Scores"
+author: "Troy McDiarmid"
+date: "2024-04-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings")
+library(ggridges)
+```
+
+```{r}
+##Calculating abundance for R1 first. 
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240607_PolIII_Twist_10k_Library/pBC_Data/R1/Merged_Plasmid_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+pBC_Counts_Parsed <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, pBC_Seq)
+
+##Reverse compliment the R2 to get the PBC seq (not necessary here because BC is on R1)
+
+#pBC_Counts_Parsed$pBC_Seq <- sapply(pBC_Counts_Parsed$RC_pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Filter for the correct library (there were other libraries counted that are not relevant)
+
+pBC_Counts_Parsed <- pBC_Counts_Parsed %>% 
+  filter(Library == "Twist_PolIII_Plasmid_Pool_Plexity")
+
+write_csv(pBC_Counts_Parsed, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/240607_PolIII_Twist_10k_Library/pBC_Data/R1/R1_pBC_Counts_Parsed.csv")
+
+```
+
+```{r}
+##Read in Parsed pBC counts
+
+pBC_Counts_Parsed <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240607_PolIII_Twist_10k_Library/pBC_Data/R1/R1_pBC_Counts_Parsed.csv")
+
+##How many reads are there total
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed %>% 
+  type_convert() 
+
+sum(pBC_Counts_Parsed_Calc$pBC_Read_Count)
+
+##Calculate pBC frequency 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) 
+
+pBC_Counts_Parsed_Distinct <- pBC_Counts_Parsed_Calc %>% 
+  distinct(pBC_Seq, .keep_all = TRUE) %>% 
+  select(Library, pBC_Seq, pBC_Read_Count, pBC_Freq)
+
+##Plot
+
+ggplot(pBC_Counts_Parsed_Distinct, aes(x = pBC_Freq)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+
+ggplot(pBC_Counts_Parsed_Distinct, aes(x = pBC_Read_Count)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+
+##Read in the plasmid library and merge on barcodes to see if the abundant barcodes are the ones we ordered/programmed
+
+pBC_Order <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/eBlock_order_spreadsheets/TAM_Final_Pol3_Promoter_450bp_Twist_Oligos_240416.csv") %>% 
+  dplyr::rename(pBC_Seq = BC_8N)
+
+R1_pBC_Abundance <- pBC_Counts_Parsed_Distinct %>% 
+  left_join(pBC_Order, by = "pBC_Seq")
+
+Ordered <- R1_pBC_Abundance %>% 
+  filter(pBC_Seq %in% pBC_Order$pBC_Seq)
+Not_Ordered <- R1_pBC_Abundance %>% 
+  filter(!pBC_Seq %in% Ordered$pBC_Seq)
+
+Ordered$Ordered_8N <- "Ordered_8N_pBC"
+Not_Ordered$Ordered_8N <- "Not_Ordered_8N_pBC"
+
+R1_pBC_Abundance <- rbind(Ordered, Not_Ordered)
+
+ggplot(R1_pBC_Abundance, aes(x = pBC_Freq, fill = Ordered_8N)) +
+  geom_histogram() +  
+  scale_fill_manual(values = c("#999999", "#56B4E9")) +
+  theme_classic() 
+
+ggplot(R1_pBC_Abundance, aes(x = pBC_Freq, fill = Ordered_8N)) +
+  geom_histogram() +  
+  scale_fill_manual(values = c("#999999", "#56B4E9")) +
+  theme_classic() +
+  scale_x_log10()
+
+ggplot(R1_pBC_Abundance, aes(x = pBC_Read_Count, fill = Ordered_8N)) +
+  geom_histogram() +  
+  scale_fill_manual(values = c("#999999", "#56B4E9")) +
+  theme_classic() +
+  scale_x_log10()
+
+
+```
+
+```{r}
+##Counting how many of each promoter class we ordered
+
+pBC_order_parsed <- pBC_Order %>% 
+  separate(Seq_Name, into = c("Garbage", "Seq_Name"), sep = 1) %>% 
+  separate(Seq_Name, into = c("Seq_Name_2", "Barcode"), sep = "_BC_") 
+
+Zoo_U6_Pro_Seqs <- pBC_order_parsed %>%
+  filter(grepl("U6__", Seq_Name_2)) 
+Zoo_U62_Pro_Seqs <- pBC_order_parsed %>% 
+  filter(grepl("U6_2__", Seq_Name_2))
+Zoo_U68_Pro_Seqs <- pBC_order_parsed %>% 
+  filter(grepl("U6_8__", Seq_Name_2))
+Zoo_U67_Pro_Seqs <- pBC_order_parsed %>% 
+  filter(grepl("U6_7__", Seq_Name_2))
+Zoo_U69_Pro_Seqs <- pBC_order_parsed %>% 
+  filter(grepl("U6_9__", Seq_Name_2))
+Zoo_7SK_Pro_Seqs <- pBC_order_parsed %>%
+  filter(grepl("7SK__", Seq_Name_2)) 
+Zoo_H1_Pro_Seqs <- pBC_order_parsed %>%
+  filter(grepl("H1__", Seq_Name_2)) 
+
+U6_Seq_Count <- length(unique(Zoo_U6_Pro_Seqs$Seq_Name_2))
+U62_Seq_Count <- length(unique(Zoo_U62_Pro_Seqs$Seq_Name_2))
+U67_Seq_Count <- length(unique(Zoo_U67_Pro_Seqs$Seq_Name_2))
+U68_Seq_Count <- length(unique(Zoo_U68_Pro_Seqs$Seq_Name_2))
+U69_Seq_Count <- length(unique(Zoo_U69_Pro_Seqs$Seq_Name_2))
+SevenSK_Seq_Count <- length(unique(Zoo_7SK_Pro_Seqs$Seq_Name_2))
+H1_Seq_Count <-length(unique(Zoo_H1_Pro_Seqs$Seq_Name_2))
+
+sum(U6_Seq_Count, U62_Seq_Count, U67_Seq_Count, U68_Seq_Count, U69_Seq_Count,  SevenSK_Seq_Count, H1_Seq_Count)
+
+```
+
+
+```{r}
+##Reading in edited reads (from K562 transfection, 20240624 pol III Twist: /net/shendure/vol9/seq/NEXTSEQ/240624_VH00979_239_AAFNYNKM5)
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240624_Twist_PolIII_Edit_Data/Merged_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+iBC_Counts_Parsed <- iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  separate(Metadata, into = c("Replicate", "Metadata"), sep = 1) %>%
+  select(Library, Replicate, Metadata, iBC_Read_Count, pBC_Seq)
+
+##Reverse compliment the R2 to get the PBC seq (not necessary here because BC is on R1)
+
+iBC_Counts_Parsed$iBC_Seq <- sapply(iBC_Counts_Parsed$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Write processed file to disk. 
+
+write_csv(iBC_Counts_Parsed, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/240624_Twist_PolIII_Edit_Data/Twist_PolIII_iBC_Counts_Parsed.csv")
+
+##Calculate iBC frequnecy by rep
+
+iBC_Counts_Parsed_calc <- iBC_Counts_Parsed %>% 
+  type_convert() %>% 
+  group_by(Replicate) %>% 
+  mutate(iBC_Freq = (iBC_Read_Count/(sum(iBC_Read_Count)))*100)
+  
+
+
+##Left join iBC counts with pBC counts
+
+iBC_Counts_Parsed_pBC_Order_pBC_Abundance <- iBC_Counts_Parsed_calc %>% 
+  left_join(R1_pBC_Abundance, by = "pBC_Seq")
+
+##Filter for only barcodes we ordered and that are present in library above noise
+
+iBC_Counts_Parsed_pBC_Order_pBC_Abundance_calc <- iBC_Counts_Parsed_pBC_Order_pBC_Abundance %>% 
+  filter(Ordered_8N == "Ordered_8N_pBC") %>% 
+  filter(pBC_Read_Count > 100) %>% 
+  mutate(Raw_Edit_Score = (iBC_Freq/pBC_Freq)) 
+
+##Correct for 8N insertion efficiency 
+
+Edit_Scores_8N <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/Pooled_Edit_Scores.csv") %>% 
+  type_convert() 
+
+Edit_Scores_8N[is.na(Edit_Scores_8N)] <- 0
+  
+Edit_Scores_8N <- Edit_Scores_8N %>% 
+  mutate(Normalized_8N_Edit_Score = (Edit_Score-min(Edit_Score))/(max(Edit_Score)-min(Edit_Score))) %>% 
+  select(pBC_Seq, Normalized_8N_Edit_Score)
+
+iBC_Counts_Parsed_pBC_Order_pBC_Abundance_calc_normalized <- iBC_Counts_Parsed_pBC_Order_pBC_Abundance_calc %>% 
+  left_join(Edit_Scores_8N, by = "pBC_Seq") %>% 
+  mutate(BC_Normalized_Edit_Score = Raw_Edit_Score/Normalized_8N_Edit_Score)
+
+##Create final data set
+
+Pol_III_Pro_Edit_Scores <- iBC_Counts_Parsed_pBC_Order_pBC_Abundance_calc_normalized %>% 
+  separate(Seq_Name, into = c("Seq_Name_2", "BC_Number"), sep = "_BC_", remove = FALSE) %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq, iBC_Seq, BC_Number, Replicate, pBC_Read_Count, iBC_Read_Count, pBC_Freq, iBC_Freq, Raw_Edit_Score, Normalized_8N_Edit_Score, BC_Normalized_Edit_Score, Pro_Seq_Length, Full_Oligo_Seq_Length)
+
+Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  group_by(pBC_Seq, BC_Number) %>% 
+  mutate(Mean_BC_Normalized_Edit_Score_Per_iBC = mean(BC_Normalized_Edit_Score)) %>% 
+  mutate(Mean_Raw_Edit_Score_Per_iBC = mean(Raw_Edit_Score)) %>% 
+  ungroup()
+
+Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_BC_Normalized_Edit_Score = mean(Mean_BC_Normalized_Edit_Score_Per_iBC)) %>% 
+  ungroup() %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq, iBC_Seq, BC_Number, Replicate, pBC_Read_Count, iBC_Read_Count, pBC_Freq, iBC_Freq, Raw_Replicate_Edit_Score = Raw_Edit_Score, Mean_Raw_Edit_Score_Per_iBC, Normalized_8N_Edit_Score, BC_Normalized_Replicate_Edit_Score = BC_Normalized_Edit_Score, Mean_BC_Normalized_Edit_Score_Per_iBC, Grand_Mean_BC_Normalized_Edit_Score, Pro_Seq_Length, Full_Oligo_Seq_Length)
+
+
+##Write everything to file
+
+write_csv(Pol_III_Pro_Edit_Scores, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/240624_Twist_PolIII_Edit_Data/Pol_III_Pro_Edit_Scores.csv")
+
+Pol_III_Pro_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240624_Twist_PolIII_Edit_Data/Pol_III_Pro_Edit_Scores.csv")
+
+```
+
+
+```{r}
+##Now analyzing 
+
+##Which promoter class performed the best?
+
+Human_RNU61_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6__Homo_sapiens", Seq_Name))
+
+U6_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6", Seq_Name)) %>% 
+  filter(!grepl("U6__Homo_sapiens", Seq_Name))
+
+SevenSK_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("7SK", Seq_Name)) 
+
+H1_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("H1", Seq_Name)) 
+
+Human_RNU61_Pol_III_Pro_Edit_Scores$Promoter_Class <- "Human_RNU61p"
+U6_Pol_III_Pro_Edit_Scores$Promoter_Class <- "U6"
+SevenSK_Pol_III_Pro_Edit_Scores$Promoter_Class <- "7SK"
+H1_Pol_III_Pro_Edit_Scores$Promoter_Class <- "H1"
+
+Pol_III_Pro_Edit_Scores_Class <- rbind(Human_RNU61_Pol_III_Pro_Edit_Scores, U6_Pol_III_Pro_Edit_Scores, SevenSK_Pol_III_Pro_Edit_Scores, H1_Pol_III_Pro_Edit_Scores)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_Class, aes(x = Mean_BC_Normalized_Edit_Score_Per_iBC, y = Promoter_Class, fill = Promoter_Class)) +
+  geom_density_ridges(stat="binline") +  
+  scale_fill_manual(values = c("#999999", "orange", "black", "#56B4E9")) +
+  theme_classic() 
+
+ggplot(Pol_III_Pro_Edit_Scores_Class, aes(x = Grand_Mean_BC_Normalized_Edit_Score, y = Promoter_Class, fill = Promoter_Class)) +
+  geom_density_ridges(stat="binline") +  
+  scale_fill_manual(values = c("#999999", "orange", "black", "#56B4E9")) +
+  theme_classic() 
+
+##What were the fold changes in edit score relative to hRNU6-1p
+
+Pol_III_Pro_Edit_Scores_Class <- Pol_III_Pro_Edit_Scores_Class %>%
+  mutate(Log2_Fold_Change_Relative_To_hRNU61p = log2(Grand_Mean_BC_Normalized_Edit_Score/mean(Human_RNU61_Pol_III_Pro_Edit_Scores$Grand_Mean_BC_Normalized_Edit_Score)))
+
+ggplot(Pol_III_Pro_Edit_Scores_Class, aes(x = Log2_Fold_Change_Relative_To_hRNU61p)) +
+  geom_histogram() 
+
+
+write_csv(Pol_III_Pro_Edit_Scores_Class, "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig6_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv")
+
+
+##How many were better than human RNU61 p?
+
+Above_hRNU61p <- Pol_III_Pro_Edit_Scores_Class %>% 
+  filter(Grand_Mean_BC_Normalized_Edit_Score > median(Human_RNU61_Pol_III_Pro_Edit_Scores$Grand_Mean_BC_Normalized_Edit_Score))
+
+length(unique(Above_hRNU61p$Pro_Seq))
+
+Above_hRNU61p <- Above_hRNU61p %>% 
+  group_by(Pro_Seq, Replicate) %>% 
+  mutate(N_Unique_iBCs_Above_hRNU61p = n_distinct(iBC_Seq)) %>% 
+  filter(N_Unique_iBCs_Above_hRNU61p > 2)
+
+length(unique(Above_hRNU61p$Pro_Seq))
+
+length(unique(Above_hRNU61p$Pro_Seq))/3566
+
+##How many above hRNU6_1p were ancestral or extant (need to open and run the pol III pro portion of the design code to get the unique/extant promoter sequences)
+
+##Read in orthologous promoters and convert from fasta to dataframe
+
+Ortholog_Pol3_Pro <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/all_Pol3_promoters_cactus_2020v2_20240406.fa", col_names = FALSE)
+
+n_seqs <- length(Ortholog_Pol3_Pro$X1)/2
+
+Ortholog_Pol3_Pro$ID <- rep(1:n_seqs, each = 2)
+
+Names <- Ortholog_Pol3_Pro %>% 
+  filter(grepl(">", X1))
+Seqs <- Ortholog_Pol3_Pro %>% 
+  filter(!grepl(">", X1))
+
+Ortholog_Pol3_Pro <- Names %>% 
+  left_join(Seqs, by = "ID") %>% 
+  select(ID, Seq_Name = X1.x, Pro_Seq = X1.y) 
+
+Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  select(Seq_Name, Pro_Seq)
+
+##Calculate how many unique sequences, duplicates, filter for unique sequences 
+
+length(unique(Ortholog_Pol3_Pro$Pro_Seq))
+
+Dup_Seqs <- Ortholog_Pol3_Pro$Pro_Seq[duplicated(Ortholog_Pol3_Pro$Pro_Seq)]
+
+Dup_Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  filter(Pro_Seq %in% Dup_Seqs)
+
+Distinct_Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Seq_Name, Pro_Seq) 
+
+
+##Seeing how many of final promoters are extant or ancestral
+
+Extant_Ortholog_Pol3_Pro <- Ortholog_Pol3_Pro %>% 
+  filter(!grepl("fullTreeAnc", Seq_Name)) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>%
+  filter(Pro_Seq %in% Distinct_Ortholog_Pol3_Pro$Pro_Seq)  
+
+Distinct_Ortholog_Pol3_Pro %>% 
+  filter(!Pro_Seq %in% Extant_Ortholog_Pol3_Pro$Pro_Seq)
+
+##Then see how many ancestral vs. extant were above standard 
+
+Ancestral_Above_hRNU61p <- Above_hRNU61p %>% 
+   separate(Seq_Name, into = c("Seq_Name", "Garbage"), sep = "_BC_") %>% 
+   filter(!Seq_Name %in% Extant_Ortholog_Pol3_Pro$Seq_Name) %>% 
+   filter(grepl("__", Seq_Name))
+
+Extant_Above_hRNU61p <- Above_hRNU61p %>% 
+   separate(Seq_Name, into = c("Seq_Name", "Garbage"), sep = "_BC_") %>% 
+   filter(Seq_Name %in% Extant_Ortholog_Pol3_Pro$Seq_Name) %>% 
+   filter(grepl("__", Seq_Name))
+
+length(unique(Extant_Above_hRNU61p$Pro_Seq)) 
+
+Saturation_Above_hRNU61p <- Above_hRNU61p %>% 
+   separate(Seq_Name, into = c("Seq_Name", "Garbage"), sep = "_BC_") %>% 
+   filter(!grepl("__", Seq_Name))
+
+length(unique(Extant_Above_hRNU61p$Pro_Seq)) 
+length(unique(Ancestral_Above_hRNU61p$Pro_Seq))
+length(unique(Saturation_Above_hRNU61p$Pro_Seq)) 
+
+
+##What was the median improvement in edit scores for the promoters above standard
+
+
+median((2^Above_hRNU61p$Log2_Fold_Change_Relative_To_hRNU61p))
+
+##How many promoters of each class were better than RNU61p
+
+U6_Above_hRNU61p <- Above_hRNU61p %>% 
+  filter(grepl("U6", Seq_Name))
+length(unique(U6_Above_hRNU61p$Pro_Seq))
+SevenSK_Above_hRNU61p <- Above_hRNU61p %>% 
+  filter(grepl("7SK", Seq_Name))
+length(unique(SevenSK_Above_hRNU61p$Pro_Seq))
+H1_Above_hRNU61p <- Above_hRNU61p %>% 
+  filter(grepl("H1", Seq_Name))
+length(unique(H1_Above_hRNU61p$Pro_Seq))
+
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(Pro_Seq, pBC_Seq, Replicate_2_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(Pro_Seq, pBC_Seq, Replicate_3_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(Pro_Seq, pBC_Seq, Replicate_4_BC_Normalized_Edit_Score = BC_Normalized_Replicate_Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Seq_Name, Pro_Seq.x, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score, Replicate_2_BC_Normalized_Edit_Score, Replicate_3_BC_Normalized_Edit_Score, Replicate_4_BC_Normalized_Edit_Score)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = Replicate_1_BC_Normalized_Edit_Score, y = Replicate_2_BC_Normalized_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = Replicate_1_BC_Normalized_Edit_Score, y = Replicate_3_BC_Normalized_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = Replicate_1_BC_Normalized_Edit_Score, y = Replicate_4_BC_Normalized_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = Replicate_2_BC_Normalized_Edit_Score, y = Replicate_3_BC_Normalized_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = Replicate_2_BC_Normalized_Edit_Score, y = Replicate_4_BC_Normalized_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = Replicate_3_BC_Normalized_Edit_Score, y = Replicate_4_BC_Normalized_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+
+
+##How correlated are the iBCs
+
+BC_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 1) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq, BC_1_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
+BC_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 2) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_2_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
+BC_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 3) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_3_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
+
+Pol_III_Pro_Edit_Scores_By_iBC <- BC_1_Edit_Scores %>% 
+  left_join(BC_2_Edit_Scores, by = "Pro_Seq")
+
+Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  left_join(BC_3_Edit_Scores, by = "Pro_Seq") %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq_1 = pBC_Seq, pBC_Seq_2 = pBC_Seq.x, pBC_Seq_3 = pBC_Seq.y, BC_1_Edit_Score, BC_2_Edit_Score, BC_3_Edit_Score)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = BC_1_Edit_Score, y = BC_2_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = BC_1_Edit_Score, y = BC_3_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = BC_2_Edit_Score, y = BC_3_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+
+
+```
+
+
+
+```{r}
+
+BC_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 1) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq, BC_1_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
+BC_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 2) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_2_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
+BC_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 3) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_3_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
+
+Pol_III_Pro_Edit_Scores_By_iBC <- BC_1_Edit_Scores %>% 
+  left_join(BC_2_Edit_Scores, by = "Pro_Seq")
+
+Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  left_join(BC_3_Edit_Scores, by = "Pro_Seq") %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq_1 = pBC_Seq, pBC_Seq_2 = pBC_Seq.x, pBC_Seq_3 = pBC_Seq.y, BC_1_Edit_Score, BC_2_Edit_Score, BC_3_Edit_Score)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = BC_1_Edit_Score, y = BC_2_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = BC_1_Edit_Score, y = BC_3_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = BC_2_Edit_Score, y = BC_3_Edit_Score)) +
+  geom_point() +
+  scale_x_continuous(trans = 'log2') +
+  scale_y_continuous(trans = 'log2')
+
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+
+
+```
+
+
+```{r}
+##Calculate edit efficiency
+
+FASTQ_Read_Count <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240624_Twist_PolIII_Edit_Data/FASTQ_Counts.txt", col_names = FALSE) %>% 
+  separate(X1, into = c("Sample", "Total_FASTQ_Read_Count"), sep = ":")
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/240624_Twist_PolIII_Edit_Data/Merged_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+iBC_Counts <- iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Garbage", "Sample"), sep = "./") %>% 
+  separate(Sample, into = c("Sample", "iBC_Counts"), sep = ".BC_Count.txt:") %>% 
+  separate(iBC_Counts, into = c("iBC_Counts", "iBC_Seq"), sep = " ")
+
+Edit_Efficiency_DF <- iBC_Counts %>% 
+  left_join(FASTQ_Read_Count, by = "Sample") %>% 
+  type_convert() %>% 
+  group_by(Sample) %>% 
+  mutate(Total_Replicate_Insertion_Count = sum(iBC_Counts)) %>% 
+  ungroup() %>% 
+  mutate(Edit_Efficiency = (Total_Replicate_Insertion_Count/Total_FASTQ_Read_Count)*100)
+  
+
+```
+
+
