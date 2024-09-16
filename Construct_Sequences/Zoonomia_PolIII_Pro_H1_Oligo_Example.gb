@@ -1,0 +1,59 @@
+LOCUS       Zoonomia_PolIII_Pro_H1_O 450 bp ds-DNA     linear       27-AUG-2024
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     primer          1..15
+                     /label="PCR_Handle_15_F"
+                     /note="sequence: GACGGGGAATTAACC"
+                     /ApEinfo_revcolor="#b7e6d7"
+                     /ApEinfo_fwdcolor="#b7e6d7"
+     misc_feature    16..174
+                     /label="Variable_Stuffer_To_259bp"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    175..191
+                     /label="5_prime_BsaI_restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     misc_feature    192..291
+                     /label="H1_Promoter"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    292..311
+                     /label="HEK3_Spacer"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    312..387
+                     /label="pegRNA_Backbone"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    388..397
+                     /label="10bp_RTT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(406..418)
+                     /label="PBS"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    419..423
+                     /label="Partial_Terminator"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    423..435
+                     /label="3_prime_BsaI_Restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     primer          complement(436..450)
+                     /label="PCR_Handle_15_R"
+                     /note="sequence: ATGTTGCCCGTAAGC"
+                     /ApEinfo_revcolor="#c7b0e3"
+                     /ApEinfo_fwdcolor="#c7b0e3"
+ORIGIN
+        1 GACGGGGAAT TAACCGGCAC AAGCTGGAGT ACAACTACAA CAGCCACAAC GTCTATATCA
+       61 TGGCCGACAA GCAGAAGAAC GGCATCAAGG TGAACTTCAA GATCCGCCAC AACATCGAGG
+      121 ACGGCAGCGT GCAGCTCGCC GACCACTACC AGCAGAACAC CCCCATCGGC GACGTAGTGA
+      181 GGTCTCGGTG CAATATTTGC ATGTCGCTAT GTGTTCTGGG AAATCACCAT AAACGTGAAA
+      241 TGTCTTTGGA TTTGGGAATC TTATAAGTTC TGTATGAGGC CACTTTTTCC CGGCCCAGAC
+      301 TGAGCACGTG AGTTTTAGAG CTAGAAATAG CAAGTTAAAA TAAGGCTAGT CCGTTATCAA
+      361 CTTGAAAAAG TGGGACCGAG TCGGTCCTCT GCCATCANNN NNNNNCGTGC TCAGTCTGTT
+      421 TTTGAGACCT CCCTAGCTTA CGGGCAACAT
+//

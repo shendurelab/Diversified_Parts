@@ -1,0 +1,15 @@
+LOCUS       hRNU6-1p_PSE+TATA         75 bp ds-DNA     circular     21-MAR-2024
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    10..29
+                     /label="PSE"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    45..53
+                     /label="TATA_Box"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+ORIGIN
+        1 ATACGATAGC TTACCGTAAC TTGAAAGTAT TTCGATTTCT TGGCTTTATA TATCTTGTGG
+       61 AAAGGACGAA ACACC
+//

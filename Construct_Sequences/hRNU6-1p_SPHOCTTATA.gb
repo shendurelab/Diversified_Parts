@@ -1,0 +1,19 @@
+LOCUS       hRNU6-1p_SPH+OCT+TATA     82 bp ds-DNA     circular     21-MAR-2024
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    9..28
+                     /label="SPH"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    29..36
+                     /label="OCT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    52..60
+                     /label="TATA_Box"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+ORIGIN
+        1 GAGGGCCTAT TTCCCATGAT TCCTTCATAT TTGCATTTTC GATTTCTTGG CTTTATATAT
+       61 CTTGTGGAAA GGACGAAACA CC
+//

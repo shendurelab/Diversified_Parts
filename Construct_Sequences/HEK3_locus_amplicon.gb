@@ -1,0 +1,75 @@
+LOCUS       HEK3_locus_amplicon      322 bp ds-DNA     linear       22-MAR-2024
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    1..29
+                     /label="P5"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          1..72
+                     /label="Seq_Adapter_Dual_Index_PCR2_F"
+                     /note="sequence: AATGATACGGCGACCACCGAGATCTACACNNNNNNNNNNTCGTCGGCAGCGTCAGATGTGTATAAGAGACAG"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    30..39
+                     /label="Index_1"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    40..72
+                     /label="Read1"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          73..102
+                     /label="HEK3_Genomic_Target_PCR1_F"
+                     /note="sequence: GCGTCAGATGTGTATAAGAGACAGGCAAGTAAGcatgcatttgtaggcttgatg"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    73..254
+                     /label="Amplicon (HEK3)"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    146..165
+                     /label="HEK3_Spacer"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(150..162)
+                     /label="PBS"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    163..172
+                     /label="10bp_RTT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    166..168
+                     /label="PAM"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(230..264)
+                     /label="HEK3_Genomic_Target_PCR1_R"
+                     /note="sequence: GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCTGGTGCAGGAGCTGCACATACTAGCC"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(255..322)
+                     /label="Seq_Adapter_Dual_Index_PCR2_R"
+                     /note="sequence: CAAGCAGAAGACGGCATACGAGATNNNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(255..288)
+                     /label="TruSeq_R2"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(289..298)
+                     /label="Index_2"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(299..322)
+                     /label="P7"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+ORIGIN
+        1 AATGATACGG CGACCACCGA GATCTACACN NNNNNNNNNT CGTCGGCAGC GTCAGATGTG
+       61 TATAAGAGAC AGGCAAGTAA Gcatgcattt gtaggcttga tgCTTTTTTT CTGCTTCTCC
+      121 AGCCCTGGCC TGGGTCAATC CTTGGGGCCC AGACTGAGCA CGTGATGGCA GAGGAAAGGA
+      181 AGCCCTGCTT CCTCCAGAGG GCGTCGCAGG ACAGCTTTTC CTAGACAGGG GCTAGTATGT
+      241 GCAGCTCCTG CACCAGATCG GAAGAGCACA CGTCTGAACT CCAGTCACNN NNNNNNNNAT
+      301 CTCGTATGCC GTCTTCTGCT TG
+//

@@ -1,0 +1,23 @@
+LOCUS       Minaturized_H1_Promoter  100 bp ds-DNA     circular     21-MAR-2024
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    4..11
+                     /label="OCT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    13..32
+                     /label="SPH"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    33..50
+                     /label="PSE"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    70..75
+                     /label="TATA_Box"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+ORIGIN
+        1 AATATTTGCA TGTCGCTATG TGTTCTGGGA AATCACCATA AACGTGAAAT GTCTTTGGAT
+       61 TTGGGAATCT TATAAGTTCT GTATGACACC ACTCTTTCCC
+//

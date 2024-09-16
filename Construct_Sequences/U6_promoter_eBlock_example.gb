@@ -1,0 +1,48 @@
+LOCUS       U6_promoter_eBlock_examp 407 bp ds-DNA     linear       12-APR-2024
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    1..17
+                     /label="5_prime_BsaI_restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     misc_feature    18..266
+                     /label="Human_RNU6-1_Promoter"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    267..286
+                     /label="HEK3_Spacer"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    287..362
+                     /label="pegRNA_Backbone"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    363..372
+                     /label="10bp_RTT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(373..377)
+                     /label="5N_pBC"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(378..390)
+                     /label="PBS"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    391..394
+                     /label="Partial_Termination"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    395..407
+                     /label="3_prime_BsaI_Restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+ORIGIN
+        1 TAGTGAGGTC TCGGTGCgag ggcctatttc ccatgattcc ttcatatttg catatacgat
+       61 acaaggctgt tagagagata attagaatta atttgactgt aaacacaaag atattagtac
+      121 aaaatacgtg acgtagaaag taataatttc ttgggtagtt tgcagtttta aaattatgtt
+      181 ttaaaatgga ctatcatatg cttaccgtaa cttgaaagta tttcgatttc ttggctttat
+      241 atatcttgtg gaaaggacga aacaccGGCC CAGACTGAGC ACGTGAGTTT TAGAGCTAGA
+      301 AATAGCAAGT TAAAATAAGG CTAGTCCGTT ATCAACTTGA AAAAGTGGGA CCGAGTCGGT
+      361 CCTCTGCCAT CANNNNNCGT GCTCAGTCTG TTTTTGAGAC CTCCCTA
+//

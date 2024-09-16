@@ -1,0 +1,66 @@
+LOCUS       Diversified_pegRNA_oligo 158 bp ds-DNA     circular     22-MAR-2024
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    1..17
+                     /label="5_prime_BsaI_restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     primer          1..18
+                     /label="pegRNA_Oligo_DS_PCR_F"
+                     /note="sequence: TAGTGAGGTCTCGGTGCG"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    18..37
+                     /label="HEK3_Spacer"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    38..113
+                     /label="pegRNA_Backbone"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    39..43
+                     /label="5N_repeat_replacement_variable_region_1"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(62..66)
+                     /label="5N_antirepeat_replacement_variable_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    86..89
+                     /label="4N_repeat_replacement_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(94..97)
+                     /label="4n_antirepeat_replacement_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    114..123
+                     /label="10bp_RTT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(124..128)
+                     /label="5N_pBC"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(129..141)
+                     /label="PBS"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(135..158)
+                     /label="pegRNA_Oligo_DS_PCR_R"
+                     /note="sequence: TAGGGAGGTCTCAAAAACAGACTG"
+                     /ApEinfo_revcolor="#9eafd2"
+                     /ApEinfo_fwdcolor="#9eafd2"
+     misc_feature    142..145
+                     /label="Partial_Termination"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    146..158
+                     /label="3_prime_BsaI_restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+ORIGIN
+        1 TAGTGAGGTC TCGGTGCGGC CCAGACTGAG CACGTGAGTT TTAGAGCTAG AAATAGCAAG
+       61 TTAAAATAAG GCTAGTCCGT TATCAACTTG AAAAAGTGGG ACCGAGTCGG TCCTCTGCCA
+      121 TCANNNNNCG TGCTCAGTCT GTTTTTGAGA CCTCCCTA
+//
