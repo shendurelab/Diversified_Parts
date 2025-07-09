@@ -21,7 +21,7 @@ As the synthetic biology and genome engineering fields mature and converge, ther
 
 
 
-#Repository Contents
+# Repository Contents
 
 
 This repository contains processed data, analysis code, and visualization code for "Diversified, miniaturized and ancestral parts for mammalian genome engineering and molecular recording". 
