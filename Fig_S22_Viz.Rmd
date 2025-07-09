@@ -1,0 +1,447 @@
+---
+title: "Fig_1_Viz"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(reshape)
+```
+
+
+```{r}
+##Now plotting diversified pegRNAs alternative target edit efficiency 
+
+##Edit efficinecy plot 
+
+Edit_Efficiency <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/Alt_Target_Edit_Efficiency.csv") %>% 
+  filter(grepl("Scaffold", Library))
+
+ggplot(Edit_Efficiency, aes(x = Library, y = Percent_5N_Insertion_Reads, fill = Library)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0, height = 0.05) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(0,7.5), breaks = c(0,2.5,5,7.5)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("DivScaffold_AltTarget_Edit_Efficiency.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+
+```{r}
+##Reading in alternative target data 
+
+DivScaffold_AltTargets <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/DivScaffold_AltTarget_Edit_Scores.csv") 
+
+##Filter for synHEK3 target to correlate with primary screen results 
+
+synHEK3_DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  filter(Target == "HEK3")
+
+##Read in original edit scores
+
+Primary_DivScaffold <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/BB_Edit_Scores_Comparison_Table.csv") %>% 
+  rowwise() %>% 
+  mutate(Median_Human_Edit_Score = median(c(K562, iPSC, HEK293T))) %>% 
+  group_by(Oligo_Number) %>% 
+  mutate(Primary_Mean_Human_Edit_Score = mean(Median_Human_Edit_Score)) %>% 
+  ungroup() %>% 
+  distinct(Oligo_Number, .keep_all = TRUE) %>% 
+  select(Oligo_Number, Scaffold = Backbone_Seq, HEK293T, Primary_Mean_Human_Edit_Score)
+
+synHEK3_DivScaffold_AltTargets <- synHEK3_DivScaffold_AltTargets %>% 
+  left_join(Primary_DivScaffold, by = "Scaffold") %>% 
+  drop_na(Primary_Mean_Human_Edit_Score) 
+
+#Normalize for 8N barcode insertion 
+
+Edit_Scores_8N <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/8N_Edit_Scores.csv") %>% 
+  type_convert() 
+
+Edit_Scores_8N[is.na(Edit_Scores_8N)] <- 0
+  
+Edit_Scores_8N <- Edit_Scores_8N %>% 
+  mutate(Normalized_8N_Edit_Score = (Edit_Score-min(Edit_Score))/(max(Edit_Score)-min(Edit_Score))) %>% 
+  select(pBC_Seq, Normalized_8N_Edit_Score)
+
+synHEK3_DivScaffold_AltTargets <- synHEK3_DivScaffold_AltTargets %>% 
+  left_join(Edit_Scores_8N, by = "pBC_Seq") %>% 
+  mutate(BC_Normalized_Edit_Score_Per_iBC = Mean_Edit_Score_Per_iBC/Normalized_8N_Edit_Score) %>% 
+  group_by(Scaffold) %>% 
+  mutate(Grand_Mean_BC_Normalized_Edit_Score = mean(BC_Normalized_Edit_Score_Per_iBC)) %>%
+  ungroup() 
+
+synHEK3_DivScaffold_AltTargets <- synHEK3_DivScaffold_AltTargets %>% 
+  distinct(Scaffold, .keep_all = TRUE)
+
+##Reorder factors for plotting 
+
+synHEK3_DivScaffold_AltTargets$Variant_Type <- factor(synHEK3_DivScaffold_AltTargets$Variant_Type, levels = c("Extension", "A_U_Flip_Variants", "Replacement", "Standard"))
+
+##Correlation plot of edit scores 
+
+ggplot(synHEK3_DivScaffold_AltTargets, aes(x = log2(Grand_Mean_BC_Normalized_Edit_Score), y = log2(Primary_Mean_Human_Edit_Score), colour = Variant_Type, size = Variant_Type)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("DivScaffold_AltT_Primary_Val_Corr_HEK293T.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+cor.test(log2(synHEK3_DivScaffold_AltTargets$Grand_Mean_BC_Normalized_Edit_Score), log2(synHEK3_DivScaffold_AltTargets$Primary_Mean_Human_Edit_Score))
+cor.test(synHEK3_DivScaffold_AltTargets$Grand_Mean_BC_Normalized_Edit_Score, synHEK3_DivScaffold_AltTargets$Primary_Mean_Human_Edit_Score, method = "spearman")
+
+
+##Correlating between synHEK3 and FANCF
+
+##Reading in alternative target data 
+
+DivScaffold_AltTargets <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/DivScaffold_AltTarget_Cross_Loci_Edit_Scores.csv") 
+
+
+##Reorder factors for plotting 
+
+DivScaffold_AltTargets$Variant_Type <- factor(DivScaffold_AltTargets$Variant_Type, levels = c("Extension", "A_U_Flip_Variants", "Replacement", "Standard"))
+
+##Correlation plot of edit scores 
+
+ggplot(DivScaffold_AltTargets, aes(x = log2(synHEK3_Edit_Score), y = log2(HBB_Edit_Score), colour = Variant_Type, size = Variant_Type)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#999999", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("DivScaffold_AltT_synHEK3_HBB_Corr_HEK293T.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+cor.test(DivScaffold_AltTargets$synHEK3_Edit_Score, DivScaffold_AltTargets$FANCF_Edit_Score)
+cor.test(log2(DivScaffold_AltTargets$synHEK3_Edit_Score), log2(DivScaffold_AltTargets$HBB_Edit_Score)) 
+cor.test(log2(DivScaffold_AltTargets$synHEK3_Edit_Score), log2(DivScaffold_AltTargets$HBB_Edit_Score), method = "spearman")
+
+```
+
+
+```{r}
+##Calculateing correlation between replicates
+
+DivScaffold_AltTargets <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/DivScaffold_AltTarget_Edit_Scores.csv") 
+
+##Filter for synHEK3 target to correlate with primary screen results 
+
+synHEK3_DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  filter(Target == "HEK3")
+
+##Calculate correlation between replicates 
+
+Pol_III_Pro_Edit_Scores <- synHEK3_DivScaffold_AltTargets 
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(Seq_Name, Variant_Type, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_BC_Normalized_Edit_Score = Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Seq_Name, Variant_Type, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score, Replicate_2_BC_Normalized_Edit_Score, Replicate_3_BC_Normalized_Edit_Score, Replicate_4_BC_Normalized_Edit_Score)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_2_BC_Normalized_Edit_Score))) +
+  geom_point() 
+
+##Reorder factors for plotting 
+
+Standard <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Variant_Type == "Standard")
+Replacement <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Variant_Type == "Replacement")
+Extension <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Variant_Type == "Extension")
+A_U_flip <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Variant_Type == "A_U_Flip_Variants")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- rbind(Extension, A_U_flip, Replacement, Standard)
+
+
+Pol_III_Pro_Edit_Scores_By_Replicate$Variant_Type <- factor(Pol_III_Pro_Edit_Scores_By_Replicate$Variant_Type, levels = c("Extension", "A_U_Flip_Variants", "Replacement", "Standard")) 
+
+
+
+##Correlation plot of edit scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_2_BC_Normalized_Edit_Score), colour = Variant_Type, size = Variant_Type)) +
+  geom_point() +
+  scale_color_manual(values=c("#CCA24C", "#999999", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("DivScaffold_AltT_Rep1_Rep2_Corr_HEK293T.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score))
+
+
+```
+
+```{r}
+##Cross loci correlation matrix 
+
+DivScaffold_AltTargets <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/DivScaffold_AltTarget_Cross_Loci_Edit_Scores.csv") 
+
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- DivScaffold_AltTargets %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(log2(Replicate_Edit_Scores_U6_Matrix), use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Pearson_Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  filter(Replicate_X == "synHEK3_Edit_Score")
+
+##Do the same for spearman
+
+Replicate_Edit_Scores_U6_Matrix <- DivScaffold_AltTargets %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(log2(Replicate_Edit_Scores_U6_Matrix), use="pairwise.complete.obs", method = "spearman")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Spearman_Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  filter(Replicate_X == "synHEK3_Edit_Score")
+
+##Add labels and combine for plotting
+
+Spearman_Replicate_Edit_Scores_U6_Corr_DF$Method <- "Spearman"
+Pearson_Replicate_Edit_Scores_U6_Corr_DF$Method <- "Pearson"
+
+Replicate_Edit_Scores_U6_Corr_DF <- rbind(Spearman_Replicate_Edit_Scores_U6_Corr_DF, Pearson_Replicate_Edit_Scores_U6_Corr_DF) %>% 
+  filter(!Replicate_Y == "synHEK3_Edit_Score")
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(fill=Method, x=Corr, y=Replicate_Y)) + 
+  geom_bar(position = position_dodge(width=0.5), stat="identity", width = 0.4) +
+  theme_classic() +
+  scale_fill_manual(values=c("black","#999999")) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.01), limits = c(0,1), breaks = c(0,0.25,0.50,0.75,1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.y = element_blank())
+  ggsave("DivScaffold_AltTarget_synHEK3_Alt_Target_Corr.jpeg", width = 8, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+
+```{r}
+##Then boxplots of different variant classes 
+
+##Read in data 
+
+DivScaffold_AltTargets <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS22_Final_Figure_Datasets/DivScaffold_AltTarget_Edit_Scores.csv")
+
+##Calculate mean edit scores per replicate 
+
+DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  group_by(Scaffold, Replicate, Target) %>% 
+  mutate(Mean_Edit_Score_Per_Replicate = mean(Edit_Score)) %>% 
+  ungroup()
+
+##Reorder factors for plotting 
+
+Standard <- DivScaffold_AltTargets %>% 
+  filter(Variant_Type == "Standard")
+Replacement <- DivScaffold_AltTargets %>% 
+  filter(Variant_Type == "Replacement")
+Extension <- DivScaffold_AltTargets %>% 
+  filter(Variant_Type == "Extension")
+A_U_flip <- DivScaffold_AltTargets %>% 
+  filter(Variant_Type == "A_U_Flip_Variants")
+
+DivScaffold_AltTargets <- rbind(Extension, A_U_flip, Replacement, Standard)
+
+DivScaffold_AltTargets$Variant_Type <- factor(DivScaffold_AltTargets$Variant_Type, levels = c("Extension", "A_U_Flip_Variants", "Replacement", "Standard")) 
+
+##Selecting distinct values for plotting
+
+DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  unite("Scaffold_Number_Target_Rep", Scaffold, Target, Replicate, remove = FALSE) 
+
+DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  distinct(Scaffold_Number_Target_Rep, .keep_all = TRUE) 
+
+##Then plotting each loci
+
+synHEK3_DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  filter(Target == "HEK3")
+
+ggplot(synHEK3_DivScaffold_AltTargets, aes(x = Variant_Type, y = log2(Mean_Edit_Score_Per_Replicate), fill = Variant_Type)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#CCA24C", "#999999", "#56B4E9", "black")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 0.5, colour = "black", width = 0.1, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("DivScaffold_AltTarget_Scaffold_Class_synHEK3_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+EMX1_DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  filter(Target == "EMX1")
+
+ggplot(EMX1_DivScaffold_AltTargets, aes(x = Variant_Type, y = log2(Mean_Edit_Score_Per_Replicate), fill = Variant_Type)) +
+ theme_classic() +
+  scale_fill_manual(values=c("#CCA24C", "#999999", "#56B4E9", "black")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 0.5, colour = "black", width = 0.1, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("DivScaffold_AltTarget_Scaffold_Class_EMX1_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+FANCF_DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  filter(Target == "FANCF")
+
+ggplot(FANCF_DivScaffold_AltTargets, aes(x = Variant_Type, y = log2(Mean_Edit_Score_Per_Replicate), fill = Variant_Type)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#CCA24C", "#999999", "#56B4E9", "black")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 0.5, colour = "black", width = 0.1, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("DivScaffold_AltTarget_Scaffold_Class_FANCF_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+HBB_DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  filter(Target == "HBB")
+
+ggplot(HBB_DivScaffold_AltTargets, aes(x = Variant_Type, y = log2(Mean_Edit_Score_Per_Replicate), fill = Variant_Type)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#CCA24C", "#999999", "#56B4E9", "black")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 0.5, colour = "black", width = 0.1, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("DivScaffold_AltTarget_Scaffold_Class_HBB_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+CLYBL_DivScaffold_AltTargets <- DivScaffold_AltTargets %>% 
+  filter(Target == "CLYBL")
+
+ggplot(CLYBL_DivScaffold_AltTargets, aes(x = Variant_Type, y = log2(Mean_Edit_Score_Per_Replicate), fill = Variant_Type)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#CCA24C", "#999999", "#56B4E9", "black")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 0.5, colour = "black", width = 0.1, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("DivScaffold_AltTarget_Scaffold_Class_CLYBL_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+

@@ -1,132 +1,217 @@
 ---
-title: "Final_Result_Table_Analysis"
+title: "Fig_2_Viz"
 author: "Troy McDiarmid"
-date: "2024-01-13"
+date: "2024-02-13"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
-library(scales)
+
 ```
 
 ```{r}
-##Lmax visualizations
 
-Above_hRNU61p_Combos <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS16_Final_Figure_Datasets/Twist_3k_Pol_III_Pro_Combos.csv")
+##Read in data 
 
-ggplot(Above_hRNU61p_Combos, aes(x = Lmax)) +
-  geom_histogram(adjust=1.5, fill = "black", binwidth = 1) +  
+Pol_III_Pro_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS16_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv")
+
+##How correlated are edit scores for the same promoter paired with different iBCs after barcode normalization?
+
+BC_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 1) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Seq_Name, Promoter_Class, Pro_Seq, pBC_Seq, BC_1_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
+BC_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 2) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_2_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
+BC_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 3) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_3_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
+
+Pol_III_Pro_Edit_Scores_By_iBC <- BC_1_Edit_Scores %>% 
+  left_join(BC_2_Edit_Scores, by = "Pro_Seq")
+
+Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  left_join(BC_3_Edit_Scores, by = "Pro_Seq") %>% 
+  select(Seq_Name, Pro_Seq, Promoter_Class, pBC_Seq_1 = pBC_Seq, pBC_Seq_2 = pBC_Seq.x, pBC_Seq_3 = pBC_Seq.y, BC_1_Edit_Score, BC_2_Edit_Score, BC_3_Edit_Score)
+
+
+##Setting factors
+
+Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "Human_RNU61p")
+U6_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "U6")
+H1_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "H1")
+SevenSK_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "7SK")
+
+Pol_III_Pro_Edit_Scores_By_iBC <- rbind(U6_Pol_III_Pro_Edit_Scores_By_iBC, SevenSK_Pol_III_Pro_Edit_Scores_By_iBC, H1_Pol_III_Pro_Edit_Scores_By_iBC, Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC)
+
+
+
+Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class <- factor(Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class, levels = c("U6", "7SK", "H1", "Human_RNU61p"))
+
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_2_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(2,2,2,6)) +
+  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
   theme_classic() +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  scale_y_continuous(breaks = c(0,50000, 100000)) +
   theme(axis.ticks.length=unit(.2, "cm")) +
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
-  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
-  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
-  ggsave("Above_hRNU61p_Combos_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_BC1_BC2_Normalized_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
   
-ggplot(Above_hRNU61p_Combos, aes(x = A_BRC_Lmax)) +
-  geom_histogram(adjust=1.5, fill = "black", binwidth = 1) +  
+
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(2,2,2,6)) +
+  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
   theme_classic() +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  scale_y_continuous(breaks = c(0,100000, 200000), labels=scientific_format(digits=1), limits = c(0,200000)) +
   theme(axis.ticks.length=unit(.2, "cm")) +
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
-  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
-  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
-  ggsave("Above_hRNU61p_Combos_RC_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_BC1_BC3_Normalized_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
   
   
-##Identifying promoters with edit scores above hRNU6-1p with problematic interactions (Lmax >= 40)
-
-Lmax_Above_40_Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
-  filter(Lmax > 39) 
-
-length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_A)) 
-length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_B)) 
-
-##Promoters with no problematic interactions 
-
-No_Problem_Promoters <- Above_hRNU61p_Combos %>% 
-  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B) %>% 
-  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B)
-
-length(unique(No_Problem_Promoters$Name_A)) 
-length(unique(No_Problem_Promoters$Name_B))
-
-
-##Then identify a maximal subset of promoters that can be used and satisfy Lmax < 40 
-
-Lmax_Above_40_Above_hRNU61p_Combos <- Above_hRNU61p_Combos %>% 
-  filter(Lmax > 39) %>% 
-  group_by(Name_A) %>% 
-  mutate(n_AB_problematic_interactions = n()) %>% 
-  ungroup() %>% 
-  group_by(Name_B) %>% 
-  mutate(n_BA_problematic_interactions = n()) %>% 
-  ungroup() %>% 
-  filter(n_AB_problematic_interactions > 1) %>% 
-  filter(n_BA_problematic_interactions > 1)
-
-Lmax_Under_40_Above_hRNU61p_Promoters <- Above_hRNU61p_Combos %>% 
-  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B) %>% 
-  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_B)
-
-Lmax_Above_40_Above_hRNU61p_Combos <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
-  filter(Lmax > 39) 
-
-length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_A)) 
-length(unique(Lmax_Above_40_Above_hRNU61p_Combos$Name_B))
-
-Lmax_Under_40_Above_hRNU61p_Promoters <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
-  filter(!Name_A %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_A) %>% 
-  filter(!Name_B %in% Lmax_Above_40_Above_hRNU61p_Combos$Name_A)
-
-length(unique(Lmax_Under_40_Above_hRNU61p_Promoters$Name_A)) 
-length(unique(Lmax_Under_40_Above_hRNU61p_Promoters$Name_B))
-
-List_of_Lmax_Under_40_Above_hRNU61p_Promoters_A <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
-  select(Name = Name_A)
-List_of_Lmax_Under_40_Above_hRNU61p_Promoters_B <- Lmax_Under_40_Above_hRNU61p_Promoters %>% 
-  select(Name = Name_B)
-
-List_of_Lmax_Under_40_Above_hRNU61p_Promoters <- rbind(List_of_Lmax_Under_40_Above_hRNU61p_Promoters_A, List_of_Lmax_Under_40_Above_hRNU61p_Promoters_B)
-
-List_of_Lmax_Under_40_Above_hRNU61p_Promoters <- List_of_Lmax_Under_40_Above_hRNU61p_Promoters %>%
-  distinct(Name)
-
-##Plotting
-
-ggplot(Lmax_Under_40_Above_hRNU61p_Promoters, aes(x = Lmax)) +
-  geom_histogram(adjust=1.5, fill = "#56B4E9", binwidth = 1) +  
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_2_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(2,2,2,6)) +
+  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
   theme_classic() +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  scale_y_continuous(breaks = c(0,2000,4000), labels=scientific_format(digits=1)) +
   theme(axis.ticks.length=unit(.2, "cm")) +
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
-  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
-  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
-  ggsave("Lmax_Under_40_Above_hRNU61p_Promoters_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_BC2_BC3_Normalized_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
   
-  
-ggplot(Lmax_Under_40_Above_hRNU61p_Promoters, aes(x = A_BRC_Lmax)) +
-  geom_histogram(adjust=1.5, fill = "#56B4E9", binwidth = 1) +  
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  scale_y_continuous(breaks = c(0,4000,8000), labels=scientific_format(digits=1)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  scale_x_continuous(breaks = c(0,50,100,150,200,250), limits = c(0,255)) +
-  theme(text = element_text(family="Arial", colour = "black", size = 44)) 
-  ggsave("Lmax_Under_40_Above_hRNU61p_Promoters_RC_Lmax_Dist.jpeg", width = 16, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+
 
 ```
+
+```{r}
+
+##How correlated are edit scores for the same promoter paired with different iBCs before barcode normalization? 
+
+BC_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 1) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Seq_Name, Promoter_Class, Pro_Seq, pBC_Seq, BC_1_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
+BC_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 2) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_2_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
+BC_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(BC_Number == 3) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq, pBC_Seq, BC_3_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
+
+Pol_III_Pro_Edit_Scores_By_iBC <- BC_1_Edit_Scores %>% 
+  left_join(BC_2_Edit_Scores, by = "Pro_Seq")
+
+Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  left_join(BC_3_Edit_Scores, by = "Pro_Seq") %>% 
+  select(Seq_Name, Pro_Seq, Promoter_Class, pBC_Seq_1 = pBC_Seq, pBC_Seq_2 = pBC_Seq.x, pBC_Seq_3 = pBC_Seq.y, BC_1_Edit_Score, BC_2_Edit_Score, BC_3_Edit_Score)
+
+
+##Setting factors
+
+Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "Human_RNU61p")
+U6_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "U6")
+H1_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "H1")
+SevenSK_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
+  filter(Promoter_Class == "7SK")
+
+Pol_III_Pro_Edit_Scores_By_iBC <- rbind(U6_Pol_III_Pro_Edit_Scores_By_iBC, SevenSK_Pol_III_Pro_Edit_Scores_By_iBC, H1_Pol_III_Pro_Edit_Scores_By_iBC, Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC)
+
+
+
+Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class <- factor(Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class, levels = c("U6", "7SK", "H1", "Human_RNU61p"))
+
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_2_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(2,2,2,6)) +
+  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_BC1_BC2_Raw_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(2,2,2,6)) +
+  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_BC1_BC3_Raw_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_2_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
+  geom_point(stroke = NA) +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
+  scale_size_manual(values=c(2,2,2,6)) +
+  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("3k_PolIII_BC2_BC3_Raw_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+  
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
+
+
+
+```
+

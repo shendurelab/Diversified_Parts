@@ -1,68 +1,78 @@
 ---
-title: "Fig_2_Viz"
+title: "Fig_S11_Viz"
 author: "Troy McDiarmid"
-date: "2024-02-13"
+date: "2024-02-18"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
+
 library(tidyverse)
+library(reshape)
 
 ```
 
 ```{r}
+##Adding scatter plots for mESC correlations
 
-##Read in data 
+##Remake the correlation matrix using new HEK293T-synHEK3 data
 
-Pol_III_Pro_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS14_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv")
+HEK293T_synHEK3_Replicate_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS14_Final_Figure_Datasets/AllU6_HEK293T_synHEK3_Edit_Scores_by_Replicate.csv")  %>% 
+  select(Name = Seq_Name, HEK293T_Rep_1_Normalized_Edit_Score = Replicate_1_BC_Normalized_Edit_Score, HEK293T_Rep_2_Normalized_Edit_Score = Replicate_2_BC_Normalized_Edit_Score, HEK293T_Rep_3_Normalized_Edit_Score = Replicate_3_BC_Normalized_Edit_Score, HEK293T_Rep_4_Normalized_Edit_Score = Replicate_4_BC_Normalized_Edit_Score)
+  
+  
+##Read in replicate data
 
-##How correlated are edit scores for the same promoter paired with different iBCs after barcode normalization?
+Replicate_Edit_Scores_U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS14_Final_Figure_Datasets/AllU6_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table.csv")
 
-BC_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
-  filter(BC_Number == 1) %>% 
-  distinct(Pro_Seq, .keep_all = TRUE) %>% 
-  select(Seq_Name, Promoter_Class, Pro_Seq, pBC_Seq, BC_1_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
-BC_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
-  filter(BC_Number == 2) %>% 
-  distinct(Pro_Seq, .keep_all = TRUE) %>% 
-  select(Pro_Seq, pBC_Seq, BC_2_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
-BC_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
-  filter(BC_Number == 3) %>% 
-  distinct(Pro_Seq, .keep_all = TRUE) %>% 
-  select(Pro_Seq, pBC_Seq, BC_3_Edit_Score = Mean_BC_Normalized_Edit_Score_Per_iBC)
+##Remove old HEK239T data and replace with new 
 
-Pol_III_Pro_Edit_Scores_By_iBC <- BC_1_Edit_Scores %>% 
-  left_join(BC_2_Edit_Scores, by = "Pro_Seq")
+Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
+  select(!HEK293T_Rep_1_Normalized_Edit_Score:HEK293T_Rep_2_Normalized_Edit_Score)
 
-Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  left_join(BC_3_Edit_Scores, by = "Pro_Seq") %>% 
-  select(Seq_Name, Pro_Seq, Promoter_Class, pBC_Seq_1 = pBC_Seq, pBC_Seq_2 = pBC_Seq.x, pBC_Seq_3 = pBC_Seq.y, BC_1_Edit_Score, BC_2_Edit_Score, BC_3_Edit_Score)
+Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
+  left_join(HEK293T_synHEK3_Replicate_Edit_Scores, by = "Name")
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
 
 
-##Setting factors
+##Convert NAs to zeros
 
-Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "Human_RNU61p")
-U6_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "U6")
-H1_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "H1")
-SevenSK_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "7SK")
-
-Pol_III_Pro_Edit_Scores_By_iBC <- rbind(U6_Pol_III_Pro_Edit_Scores_By_iBC, SevenSK_Pol_III_Pro_Edit_Scores_By_iBC, H1_Pol_III_Pro_Edit_Scores_By_iBC, Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC)
+Replicate_Edit_Scores_U6  <- Replicate_Edit_Scores_U6  %>% replace(is.na(.), 0)
 
 
+##Add colour labels and reordering factor for plotting
 
-Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class <- factor(Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class, levels = c("U6", "7SK", "H1", "Human_RNU61p"))
+hRNU61_Promoter <- Replicate_Edit_Scores_U6 %>% 
+  filter(Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
 
-ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_2_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
-  geom_point(stroke = NA) +
-  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
-  scale_size_manual(values=c(2,2,2,6)) +
-  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
+SynU6_Promoters <- Replicate_Edit_Scores_U6 %>% 
+  filter(grepl("Syn", Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- Replicate_Edit_Scores_U6 %>% 
+  filter(!grepl("Syn", Name)) %>% 
+  filter(!Name %in% c("Human_Weissman_RNU6-1", "Weissman_mU6"))
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+mU6_Promoter <- Replicate_Edit_Scores_U6 %>% 
+  filter(Name == "Weissman_mU6")
+mU6_Promoter$Promoter_Lib <- "Weissman_mU6"
+
+Replicate_Edit_Scores_U6 <- rbind(SynU6_Promoters, DivU6_Promoters, mU6_Promoter, hRNU61_Promoter)
+
+Replicate_Edit_Scores_U6$Promoter_Lib <- factor(Replicate_Edit_Scores_U6$Promoter_Lib, levels = c("Synthetic", "Diverse", "Weissman_mU6", "hRNU61"))
+
+ggplot(Replicate_Edit_Scores_U6, aes(x = log2(HEK293T_Rep_1_Normalized_Edit_Score), y = log2(HEK293T_Rep_2_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
   theme_classic() +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
@@ -70,16 +80,14 @@ ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(B
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
   theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("3k_PolIII_BC1_BC2_Normalized_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  ggsave("HEK293T_Rep1_HEK293TsynHEK3_Rep2_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
   
-
-ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
-  geom_point(stroke = NA) +
-  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
-  scale_size_manual(values=c(2,2,2,6)) +
-  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
+ggplot(Replicate_Edit_Scores_U6, aes(x = log2(HEK293T_Rep_1_Normalized_Edit_Score), y = log2(HEK293T_Rep_3_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
   theme_classic() +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
@@ -87,16 +95,14 @@ ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(B
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
   theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("3k_PolIII_BC1_BC3_Normalized_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  ggsave("HEK293T_Rep1_HEK293TsynHEK3_Rep3_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
   
-  
-ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_2_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
-  geom_point(stroke = NA) +
-  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
-  scale_size_manual(values=c(2,2,2,6)) +
-  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-5,0,5)) +
+ggplot(Replicate_Edit_Scores_U6, aes(x = log2(HEK293T_Rep_1_Normalized_Edit_Score), y = log2(HEK293T_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
   theme_classic() +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
@@ -104,114 +110,72 @@ ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_2_Edit_Score), y = log2(B
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
   theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("3k_PolIII_BC2_BC3_Normalized_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  ggsave("HEK293T_Rep1_HEK293TsynHEK3_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(Replicate_Edit_Scores_U6, aes(x = log2(HEK293T_Rep_2_Normalized_Edit_Score), y = log2(HEK293T_Rep_3_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("HEK293T_Rep2_HEK293TsynHEK3_Rep3_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(Replicate_Edit_Scores_U6, aes(x = log2(HEK293T_Rep_2_Normalized_Edit_Score), y = log2(HEK293T_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("HEK293T_Rep2_HEK293TsynHEK3_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+ggplot(Replicate_Edit_Scores_U6, aes(x = log2(HEK293T_Rep_3_Normalized_Edit_Score), y = log2(HEK293T_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-6,6.5)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("HEK293T_Rep3_HEK293TsynHEK3_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+
+cor.test(Replicate_Edit_Scores_U6$HEK293T_Rep_1_Normalized_Edit_Score, Replicate_Edit_Scores_U6$HEK293T_Rep_2_Normalized_Edit_Score)
+
+cor.test(Replicate_Edit_Scores_U6$HEK293T_Rep_1_Normalized_Edit_Score, Replicate_Edit_Scores_U6$HEK293T_Rep_3_Normalized_Edit_Score)
+
+cor.test(Replicate_Edit_Scores_U6$HEK293T_Rep_1_Normalized_Edit_Score, Replicate_Edit_Scores_U6$HEK293T_Rep_4_Normalized_Edit_Score)
+
+cor.test(Replicate_Edit_Scores_U6$HEK293T_Rep_2_Normalized_Edit_Score, Replicate_Edit_Scores_U6$HEK293T_Rep_3_Normalized_Edit_Score)
+
+cor.test(Replicate_Edit_Scores_U6$HEK293T_Rep_2_Normalized_Edit_Score, Replicate_Edit_Scores_U6$HEK293T_Rep_4_Normalized_Edit_Score)
+
+cor.test(Replicate_Edit_Scores_U6$HEK293T_Rep_3_Normalized_Edit_Score, Replicate_Edit_Scores_U6$HEK293T_Rep_4_Normalized_Edit_Score)
 
   
-cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score)
-cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
-cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
-
 
 ```
 
-```{r}
-
-##How correlated are edit scores for the same promoter paired with different iBCs before barcode normalization? 
-
-BC_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
-  filter(BC_Number == 1) %>% 
-  distinct(Pro_Seq, .keep_all = TRUE) %>% 
-  select(Seq_Name, Promoter_Class, Pro_Seq, pBC_Seq, BC_1_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
-BC_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
-  filter(BC_Number == 2) %>% 
-  distinct(Pro_Seq, .keep_all = TRUE) %>% 
-  select(Pro_Seq, pBC_Seq, BC_2_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
-BC_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
-  filter(BC_Number == 3) %>% 
-  distinct(Pro_Seq, .keep_all = TRUE) %>% 
-  select(Pro_Seq, pBC_Seq, BC_3_Edit_Score = Mean_Raw_Edit_Score_Per_iBC)
-
-Pol_III_Pro_Edit_Scores_By_iBC <- BC_1_Edit_Scores %>% 
-  left_join(BC_2_Edit_Scores, by = "Pro_Seq")
-
-Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  left_join(BC_3_Edit_Scores, by = "Pro_Seq") %>% 
-  select(Seq_Name, Pro_Seq, Promoter_Class, pBC_Seq_1 = pBC_Seq, pBC_Seq_2 = pBC_Seq.x, pBC_Seq_3 = pBC_Seq.y, BC_1_Edit_Score, BC_2_Edit_Score, BC_3_Edit_Score)
 
 
-##Setting factors
-
-Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "Human_RNU61p")
-U6_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "U6")
-H1_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "H1")
-SevenSK_Pol_III_Pro_Edit_Scores_By_iBC <- Pol_III_Pro_Edit_Scores_By_iBC %>% 
-  filter(Promoter_Class == "7SK")
-
-Pol_III_Pro_Edit_Scores_By_iBC <- rbind(U6_Pol_III_Pro_Edit_Scores_By_iBC, SevenSK_Pol_III_Pro_Edit_Scores_By_iBC, H1_Pol_III_Pro_Edit_Scores_By_iBC, Human_RNU61_Pol_III_Pro_Edit_Scores_By_iBC)
-
-
-
-Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class <- factor(Pol_III_Pro_Edit_Scores_By_iBC$Promoter_Class, levels = c("U6", "7SK", "H1", "Human_RNU61p"))
-
-ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_2_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
-  geom_point(stroke = NA) +
-  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
-  scale_size_manual(values=c(2,2,2,6)) +
-  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("3k_PolIII_BC1_BC2_Raw_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
-
-ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_1_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
-  geom_point(stroke = NA) +
-  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
-  scale_size_manual(values=c(2,2,2,6)) +
-  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("3k_PolIII_BC1_BC3_Raw_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
-  
-ggplot(Pol_III_Pro_Edit_Scores_By_iBC, aes(x = log2(BC_2_Edit_Score), y = log2(BC_3_Edit_Score), colour = Promoter_Class, size = Promoter_Class, alpha = Promoter_Class)) +
-  geom_point(stroke = NA) +
-  scale_color_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "black")) +
-  scale_size_manual(values=c(2,2,2,6)) +
-  scale_alpha_manual(values=c(0.8,0.8,0.8,1)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-7.5,-2.5,2.5)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("3k_PolIII_BC2_BC3_Raw_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-  
-cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score)
-cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_1_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
-cor.test(Pol_III_Pro_Edit_Scores_By_iBC$BC_2_Edit_Score, Pol_III_Pro_Edit_Scores_By_iBC$BC_3_Edit_Score)
-
-
-
-```
 

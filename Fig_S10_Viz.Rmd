@@ -1,227 +1,186 @@
 ---
-title: "Fig_S10_Viz"
+title: "Fig_S9_Viz"
 author: "Troy McDiarmid"
 date: "2024-02-18"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
+
 library(tidyverse)
-library("DNABarcodes")
-if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-library(scales)
-library("Biostrings") 
-library(ggridges)
+library(reshape)
+
 ```
 
 ```{r}
-##Making heatmaps for BC1
+##Read in edit efficiency data for barcode pool 1, plot. 
 
-Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
-  filter(BC_Pool == 1) %>% 
-  filter(Variant_Type == "Standard")
-
-MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
-  filter(BC_Pool == 1) %>% 
-  filter(!Variant_Type == "Standard") %>% 
-  group_by(ID_Number) %>% 
-  mutate(Median_K562 = median(K562)) %>% 
-  mutate(Median_HEK293T = median(HEK293T)) %>% 
-  mutate(Median_iPSC = median(iPSC)) %>% 
-  ungroup()
-
-MW <- MW %>% 
-  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
-  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
-  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
-  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
-  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC))) 
-
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = K562_Log2_Fold_Change_Relative_To_Standard)) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
-                         values = rescale(c(-5,-1,5)),
-                         guide = "colorbar", limits=c(-5,5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_K562_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = HEK293T_Log2_Fold_Change_Relative_To_Standard)) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
-                         values = rescale(c(-5,0,5)),
-                         guide = "colorbar", limits=c(-5,5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_HEK293T_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = iPSC_Log2_Fold_Change_Relative_To_Standard)) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
-                         values = rescale(c(-5,0,5)),
-                         guide = "colorbar", limits=c(-4.5, 4.5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_iPSC_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-```
-
-
-
-```{r}
-##Making heatmaps for BC2
-
-Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
-  filter(BC_Pool == 2) %>% 
-  filter(Variant_Type == "Standard")
-
-MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
-  filter(BC_Pool == 2) %>% 
-  filter(!Variant_Type == "Standard") %>% 
-  group_by(ID_Number) %>% 
-  mutate(Median_K562 = median(K562)) %>% 
-  mutate(Median_HEK293T = median(HEK293T)) %>% 
-  mutate(Median_iPSC = median(iPSC)) %>% 
-  ungroup()
-
-MW <- MW %>% 
-  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
-  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
-  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
-  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
-  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC))) 
-
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = K562_Log2_Fold_Change_Relative_To_Standard)) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
-                         values = rescale(c(-5,3.25,5)),
-                         guide = "colorbar", limits=c(-5,5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_K562_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = HEK293T_Log2_Fold_Change_Relative_To_Standard)) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
-                         values = rescale(c(-5,1,5)),
-                         guide = "colorbar", limits=c(-5,5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_HEK293T_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = iPSC_Log2_Fold_Change_Relative_To_Standard)) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
-                         values = rescale(c(-5,0,5)),
-                         guide = "colorbar", limits=c(-4.5, 4.5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_iPSC_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-```
-
-```{r}
-##Making the heatmaps for BC1
-
-##Reading in data
-
-MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
-  filter(!Variant_Type == "Standard") %>% 
+Edit_Efficiency_MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Efficiency_Comparison_Table.csv") %>% 
   filter(BC_Pool == 1)
 
-MW <- MW %>% 
-  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
-  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) 
 
-##Edit score heatmaps for each cell context 
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(K562))) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_continuous(limits=c(-5, 5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_K562_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(HEK293T))) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_continuous(limits=c(-5, 5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_HEK293T_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+ggplot(Edit_Efficiency_MW, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =7) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 21)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_MW_BC_Pool_1.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
 
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(iPSC))) +
-  theme_void() +
-  geom_tile() +
-  scale_fill_continuous(limits=c(-5, 5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "")
-ggsave("MW_iPSC_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+##Read in edit efficiency data for barcode pool 2, plot. 
+
+Edit_Efficiency_MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Efficiency_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 2)
+
+
+ggplot(Edit_Efficiency_MW, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
+  geom_point(size =8) +
+  theme_classic() +
+  scale_x_continuous(limits=c(0, 21)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
+ggsave("Edit_Efficiency_MW_BC_Pool_2.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
 
 ```
 
 
 ```{r}
+##Reading in table
 
-##Making the heatmaps for BC2
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") 
 
-##Reading in data
+##Select the relevant columns
 
-MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
-  filter(!Variant_Type == "Standard") %>% 
-  filter(BC_Pool == 2)
+MW_Matrix <- MW %>% 
+  select(K562:iPSC) 
 
-MW <- MW %>% 
-  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
-  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) 
+##Convert to matrix and correlate
 
-##Edit score heatmaps for each cell context 
+MW_Matrix <- as.matrix(MW_Matrix)
 
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(K562))) +
-  theme_void() +
+MW_Corr_Matrix <- cor(MW_Matrix)
+
+
+##Pivoting data longer for plotting
+
+MW_Corr_DF <- melt(MW_Corr_Matrix) 
+
+MW_Corr_DF <- MW_Corr_DF %>% 
+  select(Cell_Type_X = X1, Cell_Type_Y = X2, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+MW_Corr_DF$Cell_Type_X <- ordered(MW_Corr_DF$Cell_Type_X, levels = c("K562", "HEK293T", "iPSC"))
+
+MW_Corr_DF$Cell_Type_Y <- ordered(MW_Corr_DF$Cell_Type_Y, levels = c("iPSC", "HEK293T", "K562"))
+
+##Making correlation heatmap 
+
+ggplot(MW_Corr_DF, aes(x = Cell_Type_X, y = Cell_Type_Y, fill = Corr)) +
+  geom_tile() 
+  ggsave("MW_Cell_Context_Corr_Heatmap_Legend.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(MW_Corr_DF, aes(x = Cell_Type_X, y = Cell_Type_Y, fill = Corr)) +
   geom_tile() +
-  scale_fill_continuous(limits=c(-5, 5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_K562_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(HEK293T))) +
   theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 10) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("MW_Cell_Context_Corr_Heatmap.jpeg", width = 5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+
+```{r}
+##Individual barcodes in 6x6 individual heatmaps 
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS10_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") 
+
+##Spread out variables so each barcode is it's own variable 
+
+iPSC_BC_Correlation <- MW %>% 
+  select(ID_Number, BC_Pool, iPSC) %>% 
+  filter(iPSC > 0)
+iPSC_BC_Correlation <- iPSC_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = iPSC) 
+iPSC_BC_Correlation <- iPSC_BC_Correlation %>% 
+  dplyr::rename(iPSC_BC1 = `1`, iPSC_BC2 = `2`)
+
+K562_BC_Correlation <- MW %>% 
+  select(ID_Number, BC_Pool, K562) %>% 
+  filter(K562 > 0)
+K562_BC_Correlation <- K562_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = K562) 
+K562_BC_Correlation <- K562_BC_Correlation %>% 
+  dplyr::rename(K562_BC1 = `1`, K562_BC2 = `2`)
+
+HEK293T_BC_Correlation <- MW %>% 
+  select(ID_Number, BC_Pool, HEK293T) %>% 
+  filter(HEK293T > 0)
+HEK293T_BC_Correlation <- HEK293T_BC_Correlation %>% 
+  pivot_wider(names_from = BC_Pool, values_from = HEK293T) 
+HEK293T_BC_Correlation <- HEK293T_BC_Correlation %>% 
+  dplyr::rename(HEK293T_BC1 = `1`, HEK293T_BC2 = `2`)
+
+MW_BC1_BC2 <- iPSC_BC_Correlation %>% 
+  left_join(K562_BC_Correlation, by = "ID_Number")
+
+MW_BC1_BC2 <- MW_BC1_BC2 %>% 
+  left_join(HEK293T_BC_Correlation, by = "ID_Number")
+
+##Creating corr matrix to look at range of correlation coefficinents 
+
+MW_Results_Matrix <- MW_BC1_BC2 %>% 
+  select(iPSC_BC1, iPSC_BC2, K562_BC1, K562_BC2, HEK293T_BC1, HEK293T_BC2) 
+
+MW_Results_Matrix <- as.matrix(MW_Results_Matrix)
+
+MW_Results_Corr_Matrix <- cor(MW_Results_Matrix, use = "complete.obs")
+
+range(MW_Results_Corr_Matrix, na.rm = TRUE)
+
+
+##Pivoting data longer for plotting
+
+MW_Corr_DF <- melt(MW_Results_Corr_Matrix) 
+
+MW_Corr_DF <- MW_Corr_DF %>% 
+  select(Cell_Type_X = X1, Cell_Type_Y = X2, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+MW_Corr_DF$Cell_Type_X <- ordered(MW_Corr_DF$Cell_Type_X, levels = c("K562_BC1", "K562_BC2", "HEK293T_BC1", "HEK293T_BC2", "iPSC_BC1", "iPSC_BC2"))
+
+MW_Corr_DF$Cell_Type_Y <- ordered(MW_Corr_DF$Cell_Type_Y, levels = c("iPSC_BC2", "iPSC_BC1", "HEK293T_BC2", "HEK293T_BC1", "K562_BC2", "K562_BC1"))
+
+##Making correlation heatmap 
+
+ggplot(MW_Corr_DF, aes(x = Cell_Type_X, y = Cell_Type_Y, fill = Corr)) +
+  geom_tile() 
+  ggsave("MW_Cell_Context_Individual_Barcode_Corr_Heatmap_Legend.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(MW_Corr_DF, aes(x = Cell_Type_X, y = Cell_Type_Y, fill = Corr)) +
   geom_tile() +
-  scale_fill_continuous(limits=c(-5, 5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "") 
-ggsave("MW_HEK293T_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-
-ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(iPSC))) +
   theme_void() +
-  geom_tile() +
-  scale_fill_continuous(limits=c(-5, 5)) +
-  theme(axis.ticks.length=unit(0, "cm")) + 
-  theme(legend.position = "none")
-  labs(title = "", x = "", y = "")
-ggsave("MW_iPSC_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  geom_text(aes(label = Corr), color = "white", size = 10) +
+  scale_fill_continuous(limits=c(0, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 10))
+ggsave("MW_Cell_Context_Inidividual_Barcode_Corr_Heatmap.jpeg", width = 7, height = 5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
 ```
 

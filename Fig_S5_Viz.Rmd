@@ -1,114 +1,114 @@
 ---
-title: "Top_U6_Promoter_Validations"
+title: "Fig_S4_Viz"
 author: "Troy McDiarmid"
-date: "2024-03-19"
+date: "2024-01-13"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
-library("DNABarcodes")
-if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-library(scales)
-library("Biostrings")
-
-```
-
-
-```{r}
-##Reading in datasets 
-
-SubU6_Edit_Stats_To_Write <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/SubU6_Edit_Stats.csv")
-TopU6_Edit_Stats_To_Write <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/TopU6_Edit_Stats.csv")
-Edit_Efficiency_To_Write <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/TopU6_SubU6_Edit_Efficiency.csv")
-
 ```
 
 
 
+
 ```{r}
-##Making correlation between SubU6 and original iPSC edit scores. 
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/U6_Edit_Scores_Comparison_Table.csv") 
+
+##Removing the four sequences that did not meet Lmax < 40 
+
+U6_Promoters <- U6_Promoters %>% 
+  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+
 
 ##Add colour labels
 
-hRNU61_Promoter <- SubU6_Edit_Stats_To_Write %>% 
-  filter(Name == "Human_Weissman_RNU6-1")
-hRNU61_Promoter$Promoter_Lib <- "hRNU61"
-
-SynU6_Promoters <- SubU6_Edit_Stats_To_Write %>% 
+SynU6_Promoters <- U6_Promoters %>% 
   filter(grepl("Syn", Name))
 SynU6_Promoters$Promoter_Lib <- "Synthetic"
 
-DivU6_Promoters <- SubU6_Edit_Stats_To_Write %>% 
-  filter(!grepl("Syn", Name)) %>% 
-  filter(!Name == "Human_Weissman_RNU6-1")
+DivU6_Promoters <- U6_Promoters %>% 
+  filter(!grepl("Syn", Name))
 DivU6_Promoters$Promoter_Lib <- "Diverse"
 
+U6_Promoters <- rbind(DivU6_Promoters, SynU6_Promoters)
 
-U6_Promoters <- rbind(SynU6_Promoters, DivU6_Promoters, hRNU61_Promoter)
+##Ordering factors for plotting
 
-U6_Promoters$Promoter_Lib <- factor(U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+U6_Promoters$Promoter_Lib <- ordered(U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse"))
 
+##Comparing synthetic vs. diverse U6 promoters across contexts 
 
+wilcox.test(K562 ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(mESC ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(HEK293T ~ Promoter_Lib, data = U6_Promoters)
+wilcox.test(iPSC ~ Promoter_Lib, data = U6_Promoters)
 
-##Correlation plot of edit scores 
+##Plotting
 
-ggplot(U6_Promoters, aes(x = log2(Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score), y = log2(Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
-  geom_point() +
-  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
-  scale_size_manual(values=c(6, 6, 8)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+ggplot(U6_Promoters, aes(x = Promoter_Lib, y = log2(K562), fill = Promoter_Lib)) +
   theme_classic() +
+  scale_fill_manual(values=c("#D2D5D5", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0.05, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-7,7), breaks = c(-6,-3, 0, 3, 6)) +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
   theme(axis.ticks.length=unit(.2, "cm")) +
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 27), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("Subset_U6_iPSC_Original_iPSC_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("K562_Diverse_Synthetic_Comparison.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
   
-cor.test(U6_Promoters$Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score, y = U6_Promoters$Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score)
-cor.test(U6_Promoters$Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score, y = U6_Promoters$Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score, method = "spearman")
-
-
-
-##Making plot comparing edit efifciency between subset and top-performing U6 promoters 
-
-
-ggplot(Edit_Efficiency_To_Write, aes(x = Edit_Efficiency, y = fct_relevel(Library, "TopU6", "SubU6"))) +
-  geom_point(size = 7) +
+  
+ggplot(U6_Promoters, aes(x = Promoter_Lib, y = log2(HEK293T), fill = Promoter_Lib)) +
   theme_classic() +
-  scale_x_continuous(limits=c(0, 35)) +
+  scale_fill_manual(values=c("#D2D5D5", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0.05, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-7,7), breaks = c(-6,-3, 0, 3, 6)) +
   theme(axis.line = element_line(colour = 'black', size = 0.8)) +
   theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
   theme(axis.ticks.length=unit(.2, "cm")) +
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 25)) 
-ggsave("Edit_Efficiency_SubU6_TopU6.jpeg", width = 8, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-
-##Making plot comparing TopU6 promoters 
-
-TopU6_Edit_Stats_To_Write <- TopU6_Edit_Stats_To_Write %>% 
-  group_by(Name) %>% 
-  mutate(Max_iPSC_BC_Normalized_Edit_Score = max(iPSC_BC_Normalized_Edit_Score))
-
-ggplot(TopU6_Edit_Stats_To_Write, aes(x = log2(iPSC_BC_Normalized_Edit_Score), y = fct_reorder(Name, Max_iPSC_BC_Normalized_Edit_Score), colour = Name)) +
-  geom_point(size = 5) +
-  scale_colour_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "black", "#56B4E9", "#56B4E9")) +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("HEK293T_Diverse_Synthetic_Comparison.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+ggplot(U6_Promoters, aes(x = Promoter_Lib, y = log2(iPSC), fill = Promoter_Lib)) +
   theme_classic() +
-  scale_x_continuous(position = "top", lim = c(0, 4), labels = scales::number_format(accuracy = 0.1)) +
-  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
-  theme(axis.text.y=element_blank()) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.7)) +
+  scale_fill_manual(values=c("#D2D5D5", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0.05, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-7,7), breaks = c(-6,-3, 0, 3, 6)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
   theme(axis.ticks.length=unit(.2, "cm")) +
   labs(title = "", x = "", y = "") +
   theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 25))
-ggsave("TopU6_Boxplot.jpeg", width = 6, height = 12, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("iPSC_Diverse_Synthetic_Comparison.jpeg", width = 7, height = 9, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
 
 ```
+
+
+```{r}
+
+##Comparing variance between synthetically and evolutionarily diversified U6 promoters 
+
+library(car)
+
+var.test(K562 ~ Promoter_Lib, data = U6_Promoters)
+var.test(iPSC ~ Promoter_Lib, data = U6_Promoters)
+var.test(HEK293T ~ Promoter_Lib, data = U6_Promoters)
+
+
+```
+
+
+
 

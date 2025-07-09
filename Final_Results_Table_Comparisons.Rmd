@@ -269,7 +269,7 @@ cor.test(U6_Promoters$mESC, U6_Promoters$Raw_mESC)
 
 ##Reading in table
 
-BB <- read_csv("/Users/troymcdiarmid/Downloads/BB_Filtered_Edit_Scores_Comparison_Table.csv") 
+BB <- read_csv("/Users/troymcdiarmid/Desktop/BB_Filtered_Edit_Scores_Comparison_Table.csv") 
 
 ##Removing the two backbones that did not satisfy Lmax < 40
 
@@ -717,7 +717,7 @@ Above_Standard_Parts <- Above_Standard_Parts_BC1 %>%
 
 
 
-##Finding how many within 10% of standard accross both BC and cell contexts 
+##Finding how many within five-fold of standard accross both BC and cell contexts 
 
 ##BC pool 1
 
@@ -728,10 +728,10 @@ Standard_BC_Pool_1 <- MW %>%
 MW_BC_Pool1 <- MW %>% 
   filter(BC_Pool == "1")
 
-MW_BC_Pool1_Within_10p_Standard <- MW_BC_Pool1 %>% 
-  filter(K562 > (0.9*(median(Standard_BC_Pool_1$K562)))) %>% 
-  filter(HEK293T > (0.9*(median(Standard_BC_Pool_1$HEK293T)))) %>% 
-  filter(iPSC > (0.9*(median(Standard_BC_Pool_1$iPSC))))
+MW_BC_Pool1_Within_5x_Standard <- MW_BC_Pool1 %>% 
+  filter(K562 > (0.2*(median(Standard_BC_Pool_1$K562)))) %>% 
+  filter(HEK293T > (0.2*(median(Standard_BC_Pool_1$HEK293T)))) %>% 
+  filter(iPSC > (0.2*(median(Standard_BC_Pool_1$iPSC))))
 
 #BC pool 2
 
@@ -742,24 +742,24 @@ Standard_BC_Pool_2 <- MW %>%
 MW_BC_Pool2 <- MW %>% 
   filter(BC_Pool == "2")
 
-MW_BC_Pool2_Within_10p_Standard <- MW_BC_Pool2 %>% 
-  filter(K562 > (0.9*(median(Standard_BC_Pool_2$K562)))) %>% 
-  filter(HEK293T > (0.9*(median(Standard_BC_Pool_2$HEK293T)))) %>% 
-  filter(iPSC > (0.9*(median(Standard_BC_Pool_2$iPSC))))
+MW_BC_Pool2_Within_5x_Standard <- MW_BC_Pool2 %>% 
+  filter(K562 > (0.2*(median(Standard_BC_Pool_2$K562)))) %>% 
+  filter(HEK293T > (0.2*(median(Standard_BC_Pool_2$HEK293T)))) %>% 
+  filter(iPSC > (0.2*(median(Standard_BC_Pool_2$iPSC))))
 
-##Within 10p of median of standard across barcodes and contexts
+##Within Within 5x of median of standard across barcodes and contexts
 
-Within_10p_Standard <- MW_BC_Pool1_Within_10p_Standard %>% 
-  filter(ID_Number %in% MW_BC_Pool2_Within_10p_Standard$ID_Number) %>% 
+Within_5x_Standard <- MW_BC_Pool1_Within_5x_Standard %>% 
+  filter(ID_Number %in% MW_BC_Pool2_Within_5x_Standard$ID_Number) %>% 
   filter(!Variant_Type == "Standard") %>% 
   filter(!Variant_Type == "R:AR")
 
-ggplot(Within_10p_Standard, aes(x = Variant_Position, y = K562)) +
+ggplot(Within_5x_Standard, aes(x = Variant_Position, y = K562)) +
   geom_point() +
   xlim(0,235) +
-  ylim(0,max(Within_10p_Standard$K562+1))
+  ylim(0,max(Within_5x_Standard$K562+1))
 
-##Finding how many within two fold of standard across both BC and cell contexts 
+##Finding how many within within 50x of standard across both BC and cell contexts 
 
 ##BC pool 1
 
@@ -770,10 +770,10 @@ Standard_BC_Pool_1 <- MW %>%
 MW_BC_Pool1 <- MW %>% 
   filter(BC_Pool == "1")
 
-MW_BC_Pool1_Within_2x_Standard <- MW_BC_Pool1 %>% 
-  filter(K562 > (0.5*(median(Standard_BC_Pool_1$K562)))) %>% 
-  filter(HEK293T > (0.5*(median(Standard_BC_Pool_1$HEK293T)))) %>% 
-  filter(iPSC > (0.5*(median(Standard_BC_Pool_1$iPSC))))
+MW_BC_Pool1_Within_50x_Standard <- MW_BC_Pool1 %>% 
+  filter(K562 > (0.02*(median(Standard_BC_Pool_1$K562)))) %>% 
+  filter(HEK293T > (0.02*(median(Standard_BC_Pool_1$HEK293T)))) %>% 
+  filter(iPSC > (0.02*(median(Standard_BC_Pool_1$iPSC))))
 
 #BC pool 2
 
@@ -784,53 +784,53 @@ Standard_BC_Pool_2 <- MW %>%
 MW_BC_Pool2 <- MW %>% 
   filter(BC_Pool == "2")
 
-MW_BC_Pool2_Within_2x_Standard <- MW_BC_Pool2 %>% 
-  filter(K562 > (0.5*(median(Standard_BC_Pool_2$K562)))) %>% 
-  filter(HEK293T > (0.5*(median(Standard_BC_Pool_2$HEK293T)))) %>% 
-  filter(iPSC > (0.5*(median(Standard_BC_Pool_2$iPSC))))
+MW_BC_Pool2_Within_50x_Standard <- MW_BC_Pool2 %>% 
+  filter(K562 > (0.02*(median(Standard_BC_Pool_2$K562)))) %>% 
+  filter(HEK293T > (0.02*(median(Standard_BC_Pool_2$HEK293T)))) %>% 
+  filter(iPSC > (0.02*(median(Standard_BC_Pool_2$iPSC))))
 
-##Within 10p of median of standard across barcodes and contexts
+##Within 5x of median of standard across barcodes and contexts
 
-Within_2x_Standard <- MW_BC_Pool1_Within_2x_Standard %>% 
-  filter(ID_Number %in% MW_BC_Pool2_Within_2x_Standard$ID_Number) %>% 
+Within_50x_Standard <- MW_BC_Pool1_Within_50x_Standard %>% 
+  filter(ID_Number %in% MW_BC_Pool2_Within_50x_Standard$ID_Number) %>% 
   filter(!Variant_Type == "Standard") %>% 
   filter(!Variant_Type == "R:AR")
 
-ggplot(Within_2x_Standard, aes(x = Variant_Position, y = K562)) +
+ggplot(Within_50x_Standard, aes(x = Variant_Position, y = K562)) +
   geom_point() +
   xlim(0,235) +
-  ylim(0,max(Within_10p_Standard$K562+1))
+  ylim(0,max(Within_50x_Standard$K562+1))
 
 
 ##Rewriting table
 
-##Adding within 2X standard column
+##Adding within 50x standard column
 
-MW_Within_2x_Standard <- MW %>% 
-  filter(ID_Number %in% Within_2x_Standard$ID_Number)
+MW_Within_50x_Standard <- MW %>% 
+  filter(ID_Number %in% Within_50x_Standard$ID_Number)
 
-MW_Within_2x_Standard$Within_2x_Standard <- "TRUE"
-
-MW_Other <- MW %>% 
-  filter(!ID_Number %in% Within_2x_Standard$ID_Number)
-
-MW_Other$Within_2x_Standard <- "FALSE"
-
-MW <- rbind(MW_Within_2x_Standard, MW_Other)
-
-##Adding within 10% standard column
-
-MW_Within_10p_Standard <- MW %>% 
-  filter(ID_Number %in% Within_10p_Standard$ID_Number)
-
-MW_Within_10p_Standard$Within_10_Percent_Standard <- "TRUE"
+MW_Within_50x_Standard$Within_50x_Standard <- "TRUE"
 
 MW_Other <- MW %>% 
-  filter(!ID_Number %in% Within_10p_Standard$ID_Number)
+  filter(!ID_Number %in% Within_50x_Standard$ID_Number)
 
-MW_Other$Within_10_Percent_Standard <- "FALSE"
+MW_Other$Within_50x_Standard <- "FALSE"
 
-MW <- rbind(MW_Within_10p_Standard, MW_Other)
+MW <- rbind(MW_Within_50x_Standard, MW_Other)
+
+##Adding within 5x standard column
+
+MW_Within_5x_Standard <- MW %>% 
+  filter(ID_Number %in% Within_5x_Standard$ID_Number)
+
+MW_Within_5x_Standard$Within_5x_Standard <- "TRUE"
+
+MW_Other <- MW %>% 
+  filter(!ID_Number %in% Within_5x_Standard$ID_Number)
+
+MW_Other$Within_5x_Standard <- "FALSE"
+
+MW <- rbind(MW_Within_5x_Standard, MW_Other)
 
 
 ##Adding above standard column 

@@ -1,0 +1,284 @@
+---
+title: "Fig_S18_Viz"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(reshape)
+```
+
+```{r}
+##Correlate new and primary edit scores 
+
+##Read in the edit data 
+
+Pol_III_Pro_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS18_Final_Figure_Datasets/Zoo_pBC_rBC_iBC_Data.csv") %>% 
+  filter(Grand_Mean_BC_Normalized_synHEK3_Edit_Score > 0) 
+
+##Add promoter class colour labels 
+
+##Histogram of different promoter classes  
+
+Human_RNU61_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6__Homo_sapiens", Seq_Name))
+
+U6_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("U6", Seq_Name)) %>% 
+  filter(!grepl("U6__Homo_sapiens", Seq_Name))
+
+SevenSK_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("7SK", Seq_Name)) 
+
+H1_Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(grepl("H1", Seq_Name)) 
+
+Human_RNU61_Pol_III_Pro_Edit_Scores$Promoter_Class <- "Human_RNU61p"
+U6_Pol_III_Pro_Edit_Scores$Promoter_Class <- "U6"
+SevenSK_Pol_III_Pro_Edit_Scores$Promoter_Class <- "7SK"
+H1_Pol_III_Pro_Edit_Scores$Promoter_Class <- "H1"
+
+Pol_III_Pro_Edit_Scores_Class <- rbind(U6_Pol_III_Pro_Edit_Scores, SevenSK_Pol_III_Pro_Edit_Scores, H1_Pol_III_Pro_Edit_Scores, Human_RNU61_Pol_III_Pro_Edit_Scores)
+
+
+
+##Reorder factors for plotting 
+
+Five_N_pBC_rBC_iBC_Data_Corr$Promoter_Lib <- factor(Five_N_pBC_rBC_iBC_Data_Corr$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+
+##Plot and correlate new edit scores with old edit scores
+
+
+ggplot(Pol_III_Pro_Edit_Scores_Class, aes(x = log2(Grand_Mean_BC_Normalized_synHEK3_Edit_Score), y = log2(Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score), colour = Promoter_Class, size = Promoter_Class)) +
+  geom_point() +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "black", "#56B4E9")) +
+  scale_size_manual(values=c(1, 1, 4, 1)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-8,-4,0,4)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-8,-4,0,4)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("Zoo_pBCrBCiBC_Primary_vs_Replicate_Edit_Score_Corr_K562.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+cor.test(Pol_III_Pro_Edit_Scores_Class$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_Class$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_Class$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_Class$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score, method = "spearman")
+cor.test(log2(Pol_III_Pro_Edit_Scores_Class$Grand_Mean_BC_Normalized_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_Class$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score))
+
+##Plot transcription score and edit score correlations for new data
+
+ggplot(Pol_III_Pro_Edit_Scores_Class, aes(x = log2(Grand_Mean_BC_Normalized_synHEK3_Edit_Score), y = log2(Grand_Mean_Transcription_Score), colour = Promoter_Class, size = Promoter_Class)) +
+  geom_point() +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "black", "#56B4E9")) +
+  scale_size_manual(values=c(2, 2, 4, 2)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-8,-4,0,4)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-10,5), breaks = c(-8,-4,0,4)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("Zoo_pBCrBCiBC_Transcription_vs_Edit_Score_Corr_K562.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+cor.test(Pol_III_Pro_Edit_Scores_Class$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_Class$Grand_Mean_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_Class$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_Class$Grand_Mean_Transcription_Score, method = "spearman")
+cor.test(log2(Pol_III_Pro_Edit_Scores_Class$Grand_Mean_BC_Normalized_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_Class$Grand_Mean_Transcription_Score))
+
+
+```
+
+
+
+
+```{r} 
+##Calculate and average replicate edit score across the 3 8N iBCs 
+
+Pol_III_Pro_Edit_Scores <- Pol_III_Pro_Edit_Scores_Class %>% 
+  group_by(Pro_Seq, Replicate) %>% 
+  mutate(Mean_Replicate_synHEK3_Edit_Score = mean(BC_Normalized_synHEK3_Edit_Score)) %>% 
+  mutate(Mean_Replicate_Transcription_Score = mean(Transcription_Score)) %>% 
+  ungroup() %>% 
+  select(Promoter_Class, Pro_Seq, Replicate, pBC_Seq, Mean_Replicate_synHEK3_Edit_Score, Mean_Replicate_Transcription_Score)
+
+
+##Calculate correlation between replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(Promoter_Class, Pro_Seq, pBC_Seq, Replicate_1_Transcription_Score = Mean_Replicate_Transcription_Score, Replicate_1_synHEK3_Edit_Score = Mean_Replicate_synHEK3_Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_Transcription_Score = Mean_Replicate_Transcription_Score, Replicate_2_synHEK3_Edit_Score = Mean_Replicate_synHEK3_Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_Transcription_Score = Mean_Replicate_Transcription_Score, Replicate_3_synHEK3_Edit_Score = Mean_Replicate_synHEK3_Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_Transcription_Score = Mean_Replicate_Transcription_Score, Replicate_4_synHEK3_Edit_Score = Mean_Replicate_synHEK3_Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Promoter_Class, Pro_Seq, pBC_Seq, Replicate_1_Transcription_Score, Replicate_2_Transcription_Score, Replicate_3_Transcription_Score, Replicate_4_Transcription_Score, Replicate_1_synHEK3_Edit_Score, Replicate_2_synHEK3_Edit_Score, Replicate_3_synHEK3_Edit_Score, Replicate_4_synHEK3_Edit_Score)
+
+##Filter for distinct pBC_Seqs
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  distinct(Pro_Seq, .keep_all = TRUE)
+
+
+##Make an example correlation plot for editing
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_synHEK3_Edit_Score), y = log2(Replicate_2_synHEK3_Edit_Score), colour = Promoter_Class, size = Promoter_Class)) +
+  geom_point() +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "black", "#56B4E9")) +
+  scale_size_manual(values=c(1, 1, 4, 1)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-8,-4,0,4)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-8,-4,0,4)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("Zoo_pBCrBCiBC_Rep1_vs_Rep2_Edit_Score_Corr_K562.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score, method = "spearman")
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score))
+
+##Make an example correlation plot for transcription
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_Transcription_Score), y = log2(Replicate_2_Transcription_Score), colour = Promoter_Class, size = Promoter_Class)) +
+  geom_point() +
+  scale_color_manual(values=c("#56B4E9", "#56B4E9", "black", "#56B4E9")) +
+  scale_size_manual(values=c(1, 1, 4, 1)) +
+  scale_alpha_manual(values=c(0.6,0.6,0.6,1)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-8,-4,0,4)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), breaks = c(-8,-4,0,4)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("Zoo_pBCrBCiBC_Rep1_vs_Rep2_Transcription_Score_Corr_K562.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score, method = "spearman")
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score))
+
+```
+
+```{r}
+##Make a correlation matrix for edit scores 
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  select(Replicate_1_BC = Replicate_1_synHEK3_Edit_Score, Replicate_2_BC = Replicate_2_synHEK3_Edit_Score, Replicate_3_BC = Replicate_3_synHEK3_Edit_Score, Replicate_4_BC = Replicate_4_synHEK3_Edit_Score) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix, use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("Replicate_1_BC", "Replicate_2_BC", "Replicate_3_BC", "Replicate_4_BC"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("Replicate_4_BC", "Replicate_3_BC", "Replicate_2_BC", "Replicate_1_BC"))
+
+##Making correlation heatmap 
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("Zoo_Edit_Score_Replicate_Heatmap.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Make a correlation matrix for transcription scores 
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  select(Replicate_1_BC = Replicate_1_Transcription_Score, Replicate_2_BC = Replicate_2_Transcription_Score, Replicate_3_BC = Replicate_3_Transcription_Score, Replicate_4_BC = Replicate_4_Transcription_Score) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix, use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("Replicate_1_BC", "Replicate_2_BC", "Replicate_3_BC", "Replicate_4_BC"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("Replicate_4_BC", "Replicate_3_BC", "Replicate_2_BC", "Replicate_1_BC"))
+
+##Making correlation heatmap 
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("Zoo_Transcription_Replicate_Heatmap.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+

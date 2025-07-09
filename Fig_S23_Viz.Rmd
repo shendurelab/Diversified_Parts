@@ -1,0 +1,310 @@
+---
+title: "Fig_1_Viz"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(reshape)
+```
+
+```{r}
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS23_Final_Figure_Datasets/AllU6AltTarget_Edit_Scores.csv") 
+
+##Replicate corelation expampl
+
+##Calculate correlation between replicates 
+
+Pol_III_Pro_Edit_Scores <- U6_Promoters 
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(Seq_Name, Target, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_BC_Normalized_Edit_Score = Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Seq_Name, Target, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score, Replicate_2_BC_Normalized_Edit_Score, Replicate_3_BC_Normalized_Edit_Score, Replicate_4_BC_Normalized_Edit_Score)
+
+##Filter for the relevant target, correlate and plot matrix 
+
+Pol_III_Pro_Edit_Scores_By_Replicate_2 <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Target == "HEK3")
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Pol_III_Pro_Edit_Scores_By_Replicate_2 %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix, use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("Replicate_1_BC", "Replicate_2_BC", "Replicate_3_BC", "Replicate_4_BC"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("Replicate_4_BC", "Replicate_3_BC", "Replicate_2_BC", "Replicate_1_BC"))
+
+##Making correlation heatmap 
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+  ggsave("U6_AltT_synHEK3_Replicate_Heatmap_Legend.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_AltT_synHEK3_Replicate_Heatmap.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+```{r}
+
+##Filter for the relevant target, correlate and plot matrix 
+
+Pol_III_Pro_Edit_Scores_By_Replicate_2 <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Target == "EMX1")
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Pol_III_Pro_Edit_Scores_By_Replicate_2 %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix, use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("Replicate_1_BC", "Replicate_2_BC", "Replicate_3_BC", "Replicate_4_BC"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("Replicate_4_BC", "Replicate_3_BC", "Replicate_2_BC", "Replicate_1_BC"))
+
+##Making correlation heatmap 
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_AltT_EMX1_Replicate_Heatmap.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+
+```{r}
+
+##Filter for the relevant target, correlate and plot matrix 
+
+Pol_III_Pro_Edit_Scores_By_Replicate_2 <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Target == "HBB")
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Pol_III_Pro_Edit_Scores_By_Replicate_2 %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix, use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("Replicate_1_BC", "Replicate_2_BC", "Replicate_3_BC", "Replicate_4_BC"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("Replicate_4_BC", "Replicate_3_BC", "Replicate_2_BC", "Replicate_1_BC"))
+
+##Making correlation heatmap 
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_AltT_HBB_Replicate_Heatmap.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+
+
+```{r}
+
+##Filter for the relevant target, correlate and plot matrix 
+
+Pol_III_Pro_Edit_Scores_By_Replicate_2 <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Target == "CLYBL")
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Pol_III_Pro_Edit_Scores_By_Replicate_2 %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix, use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("Replicate_1_BC", "Replicate_2_BC", "Replicate_3_BC", "Replicate_4_BC"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("Replicate_4_BC", "Replicate_3_BC", "Replicate_2_BC", "Replicate_1_BC"))
+
+##Making correlation heatmap 
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_AltT_CLYBL_Replicate_Heatmap.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+```
+
+
+```{r}
+##Filter for the relevant target, correlate and plot matrix 
+
+Pol_III_Pro_Edit_Scores_By_Replicate_2 <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(Target == "FANCF")
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- Pol_III_Pro_Edit_Scores_By_Replicate_2 %>% 
+  select(-1, -2, -3) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix, use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("Replicate_1_BC", "Replicate_2_BC", "Replicate_3_BC", "Replicate_4_BC"))
+
+Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("Replicate_4_BC", "Replicate_3_BC", "Replicate_2_BC", "Replicate_1_BC"))
+
+##Making correlation heatmap 
+
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
+  geom_tile() +
+  theme_void() +
+  geom_text(aes(label = Corr), color = "white", size = 8.5) +
+  scale_fill_continuous(limits=c(0.5, 1)) +
+  theme(axis.ticks.length=unit(0, "cm")) +
+  labs(title = "", x = "", y = "") + 
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
+ggsave("U6_AltT_FANCF_Replicate_Heatmap.jpeg", width = 5.5, height = 4, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
+

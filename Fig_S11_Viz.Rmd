@@ -1,255 +1,301 @@
 ---
-title: "Fig_S11_Viz"
+title: "Fig_S10_Viz"
 author: "Troy McDiarmid"
 date: "2024-02-18"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-
 library(tidyverse)
-library(reshape)
-
+library("DNABarcodes")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+library(scales)
+library("Biostrings") 
+library(ggridges)
 ```
 
 ```{r}
-##Read in edit efficiency data 
+##Making heatmaps for BC1
 
-Edit_Efficiency_U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/AllU6_Edit_Efficiency_Comparison_Table.csv") 
+Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1) %>% 
+  filter(Variant_Type == "Standard")
 
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  group_by(ID_Number) %>% 
+  mutate(Median_K562 = median(K562)) %>% 
+  mutate(Median_HEK293T = median(HEK293T)) %>% 
+  mutate(Median_iPSC = median(iPSC)) %>% 
+  ungroup()
 
-ggplot(Edit_Efficiency_U6, aes(x = Edit_Efficiency_Percent, y = fct_relevel(Cell_Type, "K562", "HEK293T", "iPSC"))) +
-  geom_point(size =7) +
-  theme_classic() +
-  scale_x_continuous(limits=c(0, 45)) +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 30)) 
-ggsave("Edit_Efficiency_U6_mESC.jpeg", width = 10, height = 6, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-
-```
-
-
-
-
-```{r}
-##Read in replicate data
-
-Replicate_Edit_Scores_U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/AllU6_pBC_Filtered_iBC_Normalized_Replicate_Edit_Scores_Comparison_Table.csv") 
-
-##Removing the four sequences that did not meet Lmax < 40 
-
-Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
-  filter(!Name %in% c("Salmo_salar_RNU6-8_ENSSSAG00000015687", "Callorhinchus_milii_RNU6-8_ENSCMIG00000009541", "Rhinolophus_ferrumequinum_ENSRFEG00010003483", "Weissman_sU6-2"))
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
+  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
+  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
+  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC))) 
 
 
-##Convert NAs to zeros
-
-Replicate_Edit_Scores_U6  <- Replicate_Edit_Scores_U6  %>% replace(is.na(.), 0)
-
-##Select the relevant columns
-
-Replicate_Edit_Scores_U6_Matrix <- Replicate_Edit_Scores_U6 %>% 
-  select(-1, -2, -3) 
-
-##Convert to matrix and correlate
-
-Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
-
-Replicate_Edit_Scores_U6_Corr_Matrix <- cor(Replicate_Edit_Scores_U6_Matrix)
-
-
-##Pivoting data longer for plotting
-
-Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
-
-Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
-  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
-  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
-  select(-Garbage, !Garbagee)
-
-Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
-  select(Replicate_X, Replicate_Y, Corr = value) %>% 
-  mutate(Corr = round(Corr, digits = 2))
-
-Replicate_Edit_Scores_U6_Corr_DF$Replicate_X <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_X, levels = c("K562_Rep_1", "K562_Rep_2", "K562_Rep_3", "HEK293T_Rep_1", "HEK293T_Rep_2", "HEK293T_Rep_3", "HEK293T_Rep_4", "HEK293T_Rep_5", "HEK293T_Rep_6", "HEK293T_Rep_7", "HEK293T_Rep_8", "iPSC_Rep_1", "iPSC_Rep_2", "iPSC_Rep_3", "iPSC_Rep_4", "mESC_Rep_1", "mESC_Rep_2", "mESC_Rep_3", "mESC_Rep_4"))
-
-Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y <- ordered(Replicate_Edit_Scores_U6_Corr_DF$Replicate_Y, levels = c("mESC_Rep_4", "mESC_Rep_3", "mESC_Rep_2", "mESC_Rep_1", "iPSC_Rep_4", "iPSC_Rep_3", "iPSC_Rep_2", "iPSC_Rep_1", "HEK293T_Rep_8", "HEK293T_Rep_7", "HEK293T_Rep_6", "HEK293T_Rep_5", "HEK293T_Rep_4", "HEK293T_Rep_3", "HEK293T_Rep_2", "HEK293T_Rep_1", "K562_Rep_3", "K562_Rep_2", "K562_Rep_1"))
-
-##Making correlation heatmap 
-
-ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
-  geom_tile() 
-  ggsave("U6_Replicate_Heatmap_Legend_mESC.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-
-
-ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(x = Replicate_X, y = Replicate_Y, fill = Corr)) +
-  geom_tile() +
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = K562_Log2_Fold_Change_Relative_To_Standard)) +
   theme_void() +
-  geom_text(aes(label = Corr), color = "white", size = 5) +
-  scale_fill_continuous(limits=c(0, 1), breaks = c(0.0, 0.5, 1.0)) +
-  theme(axis.ticks.length=unit(0, "cm")) +
-  labs(title = "", x = "", y = "") + 
-  theme(axis.text = element_text(family="Arial", colour = "black", size = 12))
-ggsave("U6_Replicate_Heatmap_mESC.jpeg", width = 10, height = 8, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,-1,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
-##Assess the correlation range
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = HEK293T_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
-Replicate_Edit_Scores_U6_Corr_Matrix[Replicate_Edit_Scores_U6_Corr_Matrix == 1] <- NA
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = iPSC_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-4.5, 4.5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_iPSC_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+```
 
-range(Replicate_Edit_Scores_U6_Corr_Matrix, na.rm = TRUE)
+
+
+```{r}
+##Making heatmaps for BC2
+
+Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 2) %>% 
+  filter(Variant_Type == "Standard")
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 2) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  group_by(ID_Number) %>% 
+  mutate(Median_K562 = median(K562)) %>% 
+  mutate(Median_HEK293T = median(HEK293T)) %>% 
+  mutate(Median_iPSC = median(iPSC)) %>% 
+  ungroup()
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
+  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
+  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
+  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC))) 
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = K562_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,3.25,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = HEK293T_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,1,5)),
+                         guide = "colorbar", limits=c(-5,5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = iPSC_Log2_Fold_Change_Relative_To_Standard)) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_gradientn(colours = c("#55AFF4","white","red"), 
+                         values = rescale(c(-5,0,5)),
+                         guide = "colorbar", limits=c(-4.5, 4.5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_iPSC_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+```
+
+```{r}
+##Making the heatmaps for BC1
+
+##Reading in data
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 1)
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) 
+
+##Edit score heatmaps for each cell context 
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(K562))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(HEK293T))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(iPSC))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "")
+ggsave("MW_iPSC_BC_1_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
 ```
 
 
 ```{r}
-##Adding scatter plots for mESC correlations
 
-##First add colour label 
+##Making the heatmaps for BC2
 
-mESC_Replicate_Edit_Scores_U6 <- Replicate_Edit_Scores_U6 %>% 
-  select(Name, Promoter_Lib = Colour_Lib, mESC_Rep_1_Normalized_Edit_Score:mESC_Rep_3_Normalized_Edit_Score)
+##Reading in data
 
-##Set low edit scores to zero. 
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  filter(BC_Pool == 2)
 
-mESC_Replicate_Edit_Scores_U6 <- mESC_Replicate_Edit_Scores_U6 %>% mutate(across(where(is.numeric), function(x) ifelse(x < 0.005, 0, x)))
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) 
 
-##Add colour labels and reordering factor for plotting
+##Edit score heatmaps for each cell context 
 
-hRNU61_Promoter <- mESC_Replicate_Edit_Scores_U6 %>% 
-  filter(Name == "Human_Weissman_RNU6-1")
-hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(K562))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_K562_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
-SynU6_Promoters <- mESC_Replicate_Edit_Scores_U6 %>% 
-  filter(grepl("Syn", Name))
-SynU6_Promoters$Promoter_Lib <- "Synthetic"
-
-DivU6_Promoters <- mESC_Replicate_Edit_Scores_U6 %>% 
-  filter(!grepl("Syn", Name)) %>% 
-  filter(!Name %in% c("Human_Weissman_RNU6-1", "Weissman_mU6"))
-DivU6_Promoters$Promoter_Lib <- "Diverse"
-
-mU6_Promoter <- mESC_Replicate_Edit_Scores_U6 %>% 
-  filter(Name == "Weissman_mU6")
-mU6_Promoter$Promoter_Lib <- "Weissman_mU6"
-
-mESC_Replicate_Edit_Scores_U6 <- rbind(SynU6_Promoters, DivU6_Promoters, mU6_Promoter, hRNU61_Promoter)
-
-mESC_Replicate_Edit_Scores_U6$Promoter_Lib <- factor(mESC_Replicate_Edit_Scores_U6$Promoter_Lib, levels = c("Synthetic", "Diverse", "Weissman_mU6", "hRNU61"))
-
-ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_1_Normalized_Edit_Score), y = log2(mESC_Rep_2_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
-  geom_point() +
-  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
-  scale_size_manual(values=c(4, 4, 6, 6)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("mESC_Rep1_mESC_Rep2_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
-ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_1_Normalized_Edit_Score), y = log2(mESC_Rep_3_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
-  geom_point() +
-  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
-  scale_size_manual(values=c(4, 4, 6, 6)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("mESC_Rep1_mESC_Rep3_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
-ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_1_Normalized_Edit_Score), y = log2(mESC_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
-  geom_point() +
-  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
-  scale_size_manual(values=c(4, 4, 6, 6)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("mESC_Rep1_mESC_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
-ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_2_Normalized_Edit_Score), y = log2(mESC_Rep_3_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
-  geom_point() +
-  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
-  scale_size_manual(values=c(4, 4, 6, 6)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("mESC_Rep2_mESC_Rep3_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
-ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_2_Normalized_Edit_Score), y = log2(mESC_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
-  geom_point() +
-  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
-  scale_size_manual(values=c(4, 4, 6, 6)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("mESC_Rep2_mESC_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
-  
-ggplot(mESC_Replicate_Edit_Scores_U6, aes(x = log2(mESC_Rep_3_Normalized_Edit_Score), y = log2(mESC_Rep_4_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
-  geom_point() +
-  scale_color_manual(values=c("#D2D5D5", "#56B4E9","#B20DB2", "black")) +
-  scale_size_manual(values=c(4, 4, 6, 6)) +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
-  theme_classic() +
-  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
-  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
-  theme(axis.ticks.length=unit(.2, "cm")) +
-  labs(title = "", x = "", y = "") +
-  theme(legend.position = "none") +
-  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
-  ggsave("mESC_Rep3_mESC_Rep4_Corr.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
-  
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(HEK293T))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "") 
+ggsave("MW_HEK293T_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
 
-cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_1_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_2_Normalized_Edit_Score)
-
-cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_1_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_3_Normalized_Edit_Score)
-
-cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_1_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_4_Normalized_Edit_Score)
-
-cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_2_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_3_Normalized_Edit_Score)
-
-cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_2_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_4_Normalized_Edit_Score)
-
-cor.test(mESC_Replicate_Edit_Scores_U6$mESC_Rep_3_Normalized_Edit_Score, mESC_Replicate_Edit_Scores_U6$mESC_Rep_4_Normalized_Edit_Score)
-
-  
+ggplot(MW, aes(x = Variant_Position, fct_relevel(SNV_Change, "T", "G", "C", "A", "Deletion"), fill = log2(iPSC))) +
+  theme_void() +
+  geom_tile() +
+  scale_fill_continuous(limits=c(-5, 5)) +
+  theme(axis.ticks.length=unit(0, "cm")) + 
+  theme(legend.position = "none")
+  labs(title = "", x = "", y = "")
+ggsave("MW_iPSC_BC_2_Heatmap.jpeg", width = 38, height = 2.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
 
 ```
 
+```{r}
+##Making average deletion effect and average variant effect lines 
+
+Standard <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(Variant_Type == "Standard") %>% 
+  filter(!Variant_Position %in% c(213,214,215,216,217,223,224,225,226,227))
+
+MW <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS11_Final_Figure_Datasets/MW_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(!Variant_Position %in% c(213,214,215,216,217,223,224,225,226,227)) %>% 
+  filter(!Variant_Type == "Standard") %>% 
+  group_by(ID_Number) %>% 
+  mutate(Median_K562 = median(K562)) %>% 
+  mutate(Median_HEK293T = median(HEK293T)) %>% 
+  mutate(Median_iPSC = median(iPSC)) %>% 
+  ungroup() 
+
+MW <- MW %>% 
+  separate(Variant_Type, into = c("Standard_Nucleotide", "SNV_Change"), remove = FALSE) %>% 
+  mutate(SNV_Change = replace_na(SNV_Change, "Deletion")) %>% 
+  mutate(K562_Log2_Fold_Change_Relative_To_Standard = log2(Median_K562/median(Standard$K562))) %>% 
+  mutate(HEK293T_Log2_Fold_Change_Relative_To_Standard = log2(Median_HEK293T/median(Standard$HEK293T))) %>%
+  mutate(iPSC_Log2_Fold_Change_Relative_To_Standard = log2(Median_iPSC/median(Standard$iPSC))) %>%  mutate(K562_Fold_Change_Relative_To_Standard = Median_K562/median(Standard$K562)) %>% 
+  mutate(HEK293T_Fold_Change_Relative_To_Standard = Median_HEK293T/median(Standard$HEK293T)) %>%
+  mutate(iPSC_Fold_Change_Relative_To_Standard = Median_iPSC/median(Standard$iPSC)) 
+
+MW <- MW %>% 
+  rowwise() %>% 
+  mutate(Cross_Context_Median_Log2_Fold_Change_Relative_To_Standard = log2(median(K562_Fold_Change_Relative_To_Standard:iPSC_Fold_Change_Relative_To_Standard)+0.01)) 
 
 
+##Deletions
+
+MW_Del <- MW %>% 
+  filter(Variant_Type == "Deletion") 
+  
+ggplot(MW_Del, aes(x = Variant_Position, Cross_Context_Median_Log2_Fold_Change_Relative_To_Standard)) +
+  geom_line(stat = "summary_bin", binwidth = 1, size = 2) +
+  geom_hline(yintercept=0, linetype='dashed', col = '#999999', size = 1.5) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 1)) +
+  theme(axis.ticks = element_line(colour = "black", size = 1)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(limits = c(1,235), expand = c(0,0)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 1.0), limits = c(-7,3)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 42)) 
+ggsave("MW_Deletion_Line_Graph.jpeg", width = 38, height = 5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+##Plotting average effects and effects of specific variants
+
+MW_No_Del <- MW %>% 
+  filter(!Variant_Type == "Deletion") %>% 
+  group_by(Variant_Position) %>% 
+  mutate(Cross_Context_Median_Log2_Fold_Change_Relative_To_Standard_Per_Position = median(Cross_Context_Median_Log2_Fold_Change_Relative_To_Standard)) %>% 
+  ungroup()
+
+
+ggplot(MW_No_Del, aes(x = Variant_Position, y = Cross_Context_Median_Log2_Fold_Change_Relative_To_Standard_Per_Position)) +
+  geom_line(stat = "summary_bin", binwidth = 1, size = 2) +
+  geom_hline(yintercept=0, linetype='dashed', col = '#999999', size = 1.5) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 1)) +
+  theme(axis.ticks = element_line(colour = "black", size = 1)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  scale_x_continuous(limits = c(1,235), expand = c(0,0)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 1.0), limits = c(-7,3)) +
+  theme(text = element_text(family="Arial", colour = "black", size = 42)) 
+ggsave("MW_SNV_Line_Graph.jpeg", width = 38, height = 5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+```
 

@@ -1,0 +1,104 @@
+---
+title: "Fig_2_Viz"
+author: "Troy McDiarmid"
+date: "2024-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+```
+
+
+
+```{r}
+##Histograms of assembly junctions for diversified vs. repetitive parts 
+
+Diversified <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS26_Final_Figure_Datasets/diverse_succesful_jxns_per_read.tsv") %>% 
+  select(-1)
+
+Repetitive <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS26_Final_Figure_Datasets/not_diverse_succesful_jxns_per_read.tsv") %>% 
+  select(-1)
+
+Diversified$Part_Class <- "Diversified"
+Repetitive$Part_Class <- "Repetitive"
+
+AssemblyJs <- rbind(Diversified, Repetitive)
+
+Diversified <- Diversified %>% 
+  group_by(Success_Count) %>% 
+  count()
+
+Repetitive <- Repetitive %>% 
+  group_by(Success_Count) %>% 
+  count()
+
+Diversified$Part_Class <- "Diversified"
+Repetitive$Part_Class <- "Repetitive"
+
+
+AssemblyJs_2 <- rbind(Diversified, Repetitive) 
+
+
+ggplot(AssemblyJs_2, aes(x = Success_Count, y = n, colour = Part_Class, fill = Part_Class)) +
+  geom_bar(position = position_dodge2(width = 1, preserve = "single"), stat = "identity", alpha = 0, lwd = 2, width = 0.75) +
+  scale_color_manual(values=c("#56B4E9", "black")) +
+  scale_fill_manual(values=c("#56B4E9", "black")) +
+  #geom_vline(xintercept=8.5, linetype='dashed', col = 'black') +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.9)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.9)) +
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9), labels = scales::number_format(accuracy = 1.0)) +
+  scale_y_continuous(trans='log10', limits = c(1,500), breaks = c(1,10,100), labels = scales::number_format(accuracy = 1.0)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 26)) 
+  ggsave("Diversified_vs_Repeitive_Assembly_Histo.jpeg", width = 12, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Proportion reads carying complete assembly junctions 
+
+  
+AssemblyJs_2p <- AssemblyJs_2 %>% 
+  ungroup() %>% 
+  group_by(Part_Class) %>% 
+  mutate(Proportion_Reads = (n/sum(n)*100)) %>% 
+  ungroup
+
+##Filter for correct assemblys   
+  
+Diversified_Correct_AssemblyJs_2p <- AssemblyJs_2p %>% 
+  filter(Success_Count == 9)
+
+Repetitive_Correct_AssemblyJs_2p <- AssemblyJs_2p %>% 
+  filter(Success_Count == 9)
+
+Repetitive_Correct_AssemblyJs_2p$Proportion_Reads <- 0
+Repetitive_Correct_AssemblyJs_2p$Part_Class <- "Repetitive"
+
+Correct_AssemblyJs_2p <- rbind(Diversified_Correct_AssemblyJs_2p, Repetitive_Correct_AssemblyJs_2p)
+
+  
+ggplot(Correct_AssemblyJs_2p, aes(x = Part_Class, y = Proportion_Reads, colour = Part_Class, fill = Part_Class)) +
+  geom_bar(position = "identity", stat = "identity", alpha = 0, lwd = 2, width = 0.5) +
+  scale_color_manual(values=c("#56B4E9", "black")) +
+  scale_fill_manual(values=c("#56B4E9", "black")) +
+  #geom_vline(xintercept=8.5, linetype='dashed', col = 'black') +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.9)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.9)) +
+  scale_y_continuous(limits = c(0,1.5), breaks = c(0,0.5,1,1.5), labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 26)) 
+  ggsave("Diversified_vs_Repeitive_Assembly_Proportion.jpeg", width = 5, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+
+
+```
+
+
