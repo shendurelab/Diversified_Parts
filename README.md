@@ -20,6 +20,10 @@ As the synthetic biology and genome engineering fields mature and converge, ther
 
 
 
+
+#Repository Contents
+
+
 This repository contains processed data, analysis code, and visualization code for "Diversified, miniaturized and ancestral parts for mammalian genome engineering and molecular recording". 
 
 An example script used to extract sequence barcode counts from raw data (FASTQ files) is provided. Raw sequencing data have been uploaded on Sequencing Read Archive (SRA) with associated BioProject ID PRJNA1161643 (https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1161643). 
