@@ -1,0 +1,1416 @@
+---
+title: "Revision_Oligo_Lib_Plexity"
+author: "Troy McDiarmid"
+date: "2025-02-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library("DNABarcodes")
+library("Biostrings")
+library(ggridges)
+
+```
+
+
+```{r}
+##Calculating abundance for R2 for HEK3 targeting constructs
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250220_AllU6_DivScaffold_Alt_Target_Plexity/AllU6_Alt_Target_pBC_Abundance/Merged_HEK3_Plasmid_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Calculating abundance for R2 for HBB targeting constructs
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250220_AllU6_DivScaffold_Alt_Target_Plexity/AllU6_Alt_Target_pBC_Abundance/Merged_HBB_Plasmid_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HBB_pBC_Counts <- pBC_Counts
+
+##Calculating abundance for R2 for FANCF targeting constructs
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250220_AllU6_DivScaffold_Alt_Target_Plexity/AllU6_Alt_Target_pBC_Abundance/Merged_FANCF_Plasmid_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+FANCF_pBC_Counts <- pBC_Counts
+
+##Calculating abundance for R2 for EMX1 targeting constructs
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250220_AllU6_DivScaffold_Alt_Target_Plexity/AllU6_Alt_Target_pBC_Abundance/Merged_EMX1_Plasmid_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+EMX1_pBC_Counts <- pBC_Counts
+
+##Calculating abundance for R2 for CLYBL targeting constructs
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250220_AllU6_DivScaffold_Alt_Target_Plexity/AllU6_Alt_Target_pBC_Abundance/Merged_CLYBL_Plasmid_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+CLYBL_pBC_Counts <- pBC_Counts
+
+##Bind them all together
+
+pBC_Counts <- rbind(HEK3_pBC_Counts, HBB_pBC_Counts, FANCF_pBC_Counts, EMX1_pBC_Counts, CLYBL_pBC_Counts)
+
+pBC_Counts_Parsed <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "RC_pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, RC_pBC_Seq)
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+pBC_Counts_Parsed$pBC_Seq <- sapply(pBC_Counts_Parsed$RC_pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Write to disk to avoid running RC function again
+
+write_csv(pBC_Counts_Parsed, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250220_AllU6_DivScaffold_Alt_Target_Plexity/AllU6_Alt_Target_pBC_Abundance/pBC_Counts_Parsed.csv")
+
+```
+
+```{r}
+##Read in Parsed pBC counts
+
+pBC_Counts_Parsed <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250220_AllU6_DivScaffold_Alt_Target_Plexity/AllU6_Alt_Target_pBC_Abundance/pBC_Counts_Parsed.csv")
+
+##How many reads are there total
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed %>% 
+  type_convert() 
+
+sum(pBC_Counts_Parsed_Calc$pBC_Read_Count)
+
+##Calculate pBC frequency 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) 
+
+##Calculate pBC frequency 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) 
+
+pBC_Counts_Parsed_Distinct <- pBC_Counts_Parsed_Calc %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(pBC_Read_Count = sum(pBC_Read_Count)) %>% 
+  ungroup() %>% 
+  distinct(pBC_Seq, .keep_all = TRUE) %>% 
+  select(Library, pBC_Seq, pBC_Read_Count, pBC_Freq)
+
+
+##Plot
+
+ggplot(pBC_Counts_Parsed_Distinct, aes(x = pBC_Freq)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+
+ggplot(pBC_Counts_Parsed_Distinct, aes(x = pBC_Read_Count)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  scale_x_log10()
+
+##Read in the plasmid library and merge on barcodes to see if the abundant barcodes are the ones we ordered/programmed
+
+pBC_Order <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241230_U6p_Alt_Target_By_Element.csv") 
+
+pBC_Abundance <- pBC_Counts_Parsed_Distinct %>% 
+  left_join(pBC_Order, by = "pBC_Seq")
+
+Ordered <- pBC_Abundance %>% 
+  filter(pBC_Seq %in% pBC_Order$pBC_Seq)
+Not_Ordered <- pBC_Abundance %>% 
+  filter(!pBC_Seq %in% Ordered$pBC_Seq)
+
+Ordered$Ordered_8N <- "Ordered_8N_pBC"
+Not_Ordered$Ordered_8N <- "Not_Ordered_8N_pBC"
+
+pBC_Abundance <- rbind(Ordered, Not_Ordered)
+
+ggplot(pBC_Abundance, aes(x = pBC_Freq, fill = Ordered_8N)) +
+  geom_histogram() +  
+  scale_fill_manual(values = c("#999999", "#56B4E9")) +
+  theme_classic() 
+
+ggplot(pBC_Abundance, aes(x = pBC_Freq, fill = Ordered_8N)) +
+  geom_histogram() +  
+  scale_fill_manual(values = c("#999999", "#56B4E9")) +
+  theme_classic() +
+  scale_x_log10()
+
+ggplot(pBC_Abundance, aes(x = pBC_Read_Count, fill = Ordered_8N)) +
+  geom_histogram() +  
+  scale_fill_manual(values = c("#999999", "#56B4E9")) +
+  theme_classic() +
+  scale_x_log10()
+
+ggplot(pBC_Abundance, aes(x = pBC_Read_Count, fill = Target)) +
+  geom_histogram() +  
+  theme_classic() +
+  scale_x_log10() 
+
+##Looking per target
+
+ggplot(pBC_Abundance, aes(x = pBC_Read_Count, y = Target, fill = Target)) +
+  geom_density_ridges() +  
+  theme_classic() +
+  scale_x_log10()
+
+ggplot(pBC_Abundance, aes(x = pBC_Read_Count, y = Target, fill = Target)) +
+  geom_density_ridges() +  
+  theme_classic() 
+
+```
+
+```{r}
+
+##Looking at how many constructs we can say we confidently cloned 
+
+Cloned_Constructs <- pBC_Abundance %>% filter(pBC_Read_Count > 1000)
+
+Cloned_Constructs <- Cloned_Constructs %>% 
+  filter(Ordered_8N == "Ordered_8N_pBC") 
+
+ggplot(Cloned_Constructs, aes(x = Target)) +
+  geom_bar() +  
+  theme_classic() 
+
+##Looking at number of reads per target 
+
+Cloned_Constructs <- Cloned_Constructs %>% 
+  group_by(Target) %>% 
+  mutate(Total_Reads_Per_Target = sum(pBC_Read_Count)) %>% 
+  ungroup() 
+
+ggplot(Cloned_Constructs, aes(x = Target, y = Total_Reads_Per_Target)) +
+  geom_point() 
+
+##Looking at length per target 
+
+ggplot(Cloned_Constructs, aes(x = Target, y = U6p_pegRNA_BC_Length)) +
+  geom_point() 
+
+##How many barcodes per construct 
+
+HEK3_Cloned_Constructs <- Cloned_Constructs %>% 
+  filter(Target == "HEK3")
+
+length(unique(HEK3_Cloned_Constructs$Pro_Seq_Name))
+
+HEK3_Cloned_Constructs_BCs_Per_Construct <- HEK3_Cloned_Constructs %>% 
+  group_by(Pro_Seq_Name) %>% 
+  count() 
+
+ggplot(HEK3_Cloned_Constructs_BCs_Per_Construct, aes(x = n)) +
+  geom_histogram() +
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10), limits = c(0,10))
+
+FANCF_Cloned_Constructs <- Cloned_Constructs %>% 
+  filter(Target == "FANCF")
+
+length(unique(FANCF_Cloned_Constructs$Pro_Seq_Name))
+
+FANCF_Cloned_Constructs_BCs_Per_Construct <- FANCF_Cloned_Constructs %>% 
+  group_by(Pro_Seq_Name) %>% 
+  count()
+
+ggplot(FANCF_Cloned_Constructs_BCs_Per_Construct, aes(x = n)) +
+  geom_histogram() +
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10), limits = c(0,10))
+
+HBB_Cloned_Constructs <- Cloned_Constructs %>% 
+  filter(Target == "HBB")
+
+length(unique(HBB_Cloned_Constructs$Pro_Seq_Name))
+
+HBB_Cloned_Constructs_BCs_Per_Construct <- HBB_Cloned_Constructs %>% 
+  group_by(Pro_Seq_Name) %>% 
+  count()
+
+ggplot(HBB_Cloned_Constructs_BCs_Per_Construct, aes(x = n)) +
+  geom_histogram() +
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10), limits = c(0,10))
+
+
+CLYBL_Cloned_Constructs <- Cloned_Constructs %>% 
+  filter(Target == "CLYBL")
+
+length(unique(CLYBL_Cloned_Constructs$Pro_Seq_Name))
+
+CLYBL_Cloned_Constructs_BCs_Per_Construct <- CLYBL_Cloned_Constructs %>% 
+  group_by(Pro_Seq_Name) %>% 
+  count()
+
+ggplot(CLYBL_Cloned_Constructs_BCs_Per_Construct, aes(x = n)) +
+  geom_histogram() +
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10), limits = c(0,10))
+
+EMX1_Cloned_Constructs <- Cloned_Constructs %>% 
+  filter(Target == "EMX1")
+
+length(unique(EMX1_Cloned_Constructs$Pro_Seq_Name))
+
+EMX1_Cloned_Constructs_BCs_Per_Construct <- EMX1_Cloned_Constructs %>% 
+  group_by(Pro_Seq_Name) %>% 
+  count()
+
+ggplot(EMX1_Cloned_Constructs_BCs_Per_Construct, aes(x = n)) +
+  geom_histogram() +
+  scale_x_continuous(breaks = c(0,1,2,3,4,5,6,7,8,9,10), limits = c(0,10))
+
+```
+
+
+
+
+```{r}
+##Calculating iBC abundance for R1 for HEK3 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data_Round_1_Analysis/AltTarget_iBC_Counts/Merged_synHEK3_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+synHEK3_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for HBB targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data_Round_1_Analysis/AltTarget_iBC_Counts/Merged_HBB_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+HBB_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for EMX1 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data_Round_1_Analysis/AltTarget_iBC_Counts/Merged_EMX1_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+EMX1_iBC_Counts <- iBC_Counts
+
+
+```
+
+
+```{r}
+##Individually parse reads for each amplicon 
+
+synHEK3_iBC_Counts_Parsed <- synHEK3_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, pBC_Seq) %>% 
+  filter(grepl("synHEK3", Library)) %>% 
+  type_convert()
+
+
+HBB_iBC_Counts_Parsed <- HBB_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("HBB", Library)) %>% 
+  type_convert()
+
+EMX1_iBC_Counts_Parsed <- EMX1_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("EMX1", Library)) %>% 
+  type_convert()
+
+##Reverse compliment the R1 for synHEK3 to get the iBC_seq (synHEK3 is reverse orientation)
+
+synHEK3_iBC_Counts_Parsed$iBC_Seq <- sapply(synHEK3_iBC_Counts_Parsed$pBC_Seq , function(x) as.character(reverseComplement(DNAString(x))))
+
+##Reverse compliment the R1 for HBB and EMX1 to get the pBC_seq 
+
+HBB_iBC_Counts_Parsed$pBC_Seq <- sapply(HBB_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+EMX1_iBC_Counts_Parsed$pBC_Seq <- sapply(EMX1_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Select relevant columns for each
+
+synHEK3_iBC_Counts_Parsed <- synHEK3_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+HBB_iBC_Counts_Parsed <- HBB_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+EMX1_iBC_Counts_Parsed <- EMX1_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+
+##Bind them all together
+
+iBC_Counts_Parsed <- rbind(synHEK3_iBC_Counts_Parsed, HBB_iBC_Counts_Parsed, EMX1_iBC_Counts_Parsed)
+
+
+##Write to disk to avoid running RC function again
+
+write_csv(iBC_Counts_Parsed, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/iBC_Counts_Parsed.csv")
+
+
+```
+
+
+
+```{r}
+##Parse the iBC counts for the second round of sequencing which has all 5 of the loci 
+
+##Calculating iBC abundance for R1 for HEK3 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_synHEK3_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+synHEK3_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for HBB targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_HBB_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+HBB_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for EMX1 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_EMX1_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+EMX1_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for EMX1 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_FANCF_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+FANCF_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for EMX1 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_CLYBL_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+CLYBL_iBC_Counts <- iBC_Counts
+```
+
+
+```{r}
+
+##Individually parse reads for each amplicon 
+
+synHEK3_iBC_Counts_Parsed <- synHEK3_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, pBC_Seq) %>% 
+  filter(grepl("synHEK3", Library)) %>% 
+  type_convert()
+
+HBB_iBC_Counts_Parsed <- HBB_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("HBB", Library)) %>% 
+  type_convert()
+
+EMX1_iBC_Counts_Parsed <- EMX1_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("EMX1", Library)) %>% 
+  type_convert()
+
+FANCF_iBC_Counts_Parsed <- FANCF_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("FANCF", Library)) %>% 
+  type_convert()
+
+CLYBL_iBC_Counts_Parsed <- CLYBL_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("CLYBL", Library)) %>% 
+  type_convert()
+
+##Reverse compliment the R1 for synHEK3 to get the iBC_seq (synHEK3 is reverse orientation)
+
+synHEK3_iBC_Counts_Parsed$iBC_Seq <- sapply(synHEK3_iBC_Counts_Parsed$pBC_Seq , function(x) as.character(reverseComplement(DNAString(x))))
+
+##Reverse compliment the R1 for HBB, EMX1, FANCF, and CLYBL to get the pBC_seq 
+
+HBB_iBC_Counts_Parsed$pBC_Seq <- sapply(HBB_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+EMX1_iBC_Counts_Parsed$pBC_Seq <- sapply(EMX1_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+FANCF_iBC_Counts_Parsed$pBC_Seq <- sapply(FANCF_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+CLYBL_iBC_Counts_Parsed$pBC_Seq <- sapply(CLYBL_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Select relevant columns for each
+
+synHEK3_iBC_Counts_Parsed <- synHEK3_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+HBB_iBC_Counts_Parsed <- HBB_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+EMX1_iBC_Counts_Parsed <- EMX1_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+FANCF_iBC_Counts_Parsed <- FANCF_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+CLYBL_iBC_Counts_Parsed <- CLYBL_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+
+##Bind them all together
+
+iBC_Counts_Parsed_2 <- rbind(synHEK3_iBC_Counts_Parsed, HBB_iBC_Counts_Parsed, EMX1_iBC_Counts_Parsed, FANCF_iBC_Counts_Parsed, CLYBL_iBC_Counts_Parsed)
+
+
+##Write to disk to avoid running RC function again
+
+write_csv(iBC_Counts_Parsed_2, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/iBC_Counts_Parsed.csv")
+
+
+```
+
+
+```{r}
+##Parse the iBC counts for the third round of sequencing which has all 5 of the loci 
+
+##Calculating iBC abundance for R1 for HEK3 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_synHEK3_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+synHEK3_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for HBB targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_HBB_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+HBB_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for EMX1 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_EMX1_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+EMX1_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for EMX1 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_FANCF_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+FANCF_iBC_Counts <- iBC_Counts
+
+##Calculating iBC abundance for R1 for EMX1 targeting constructs
+
+iBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/Merged_CLYBL_Insertion_BC_Counts.txt", col_names = c("iBC_Counts")) 
+
+iBC_Counts$iBC_Counts <- gsub(':     ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':    ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':   ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(':  ', ':', iBC_Counts$iBC_Counts)
+iBC_Counts$iBC_Counts <- gsub(': ', ':', iBC_Counts$iBC_Counts)
+
+CLYBL_iBC_Counts <- iBC_Counts
+```
+
+
+```{r}
+
+##Individually parse reads for each amplicon 
+
+synHEK3_iBC_Counts_Parsed <- synHEK3_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, pBC_Seq) %>% 
+  filter(grepl("synHEK3", Library)) %>% 
+  type_convert()
+
+HBB_iBC_Counts_Parsed <- HBB_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("HBB", Library)) %>% 
+  type_convert()
+
+EMX1_iBC_Counts_Parsed <- EMX1_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("EMX1", Library)) %>% 
+  type_convert()
+
+FANCF_iBC_Counts_Parsed <- FANCF_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("FANCF", Library)) %>% 
+  type_convert()
+
+CLYBL_iBC_Counts_Parsed <- CLYBL_iBC_Counts %>% 
+  separate(iBC_Counts, into = c("Meta_Data", "iBC_Read_Count"), sep = ":") %>% 
+  separate(iBC_Read_Count, into = c("iBC_Read_Count", "iBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, iBC_Read_Count, iBC_Seq) %>% 
+  filter(grepl("CLYBL", Library)) %>% 
+  type_convert()
+
+##Reverse compliment the R1 for synHEK3 to get the iBC_seq (synHEK3 is reverse orientation)
+
+synHEK3_iBC_Counts_Parsed$iBC_Seq <- sapply(synHEK3_iBC_Counts_Parsed$pBC_Seq , function(x) as.character(reverseComplement(DNAString(x))))
+
+##Reverse compliment the R1 for HBB, EMX1, FANCF, and CLYBL to get the pBC_seq 
+
+HBB_iBC_Counts_Parsed$pBC_Seq <- sapply(HBB_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+EMX1_iBC_Counts_Parsed$pBC_Seq <- sapply(EMX1_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+FANCF_iBC_Counts_Parsed$pBC_Seq <- sapply(FANCF_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+CLYBL_iBC_Counts_Parsed$pBC_Seq <- sapply(CLYBL_iBC_Counts_Parsed$iBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Select relevant columns for each
+
+synHEK3_iBC_Counts_Parsed <- synHEK3_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+HBB_iBC_Counts_Parsed <- HBB_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+EMX1_iBC_Counts_Parsed <- EMX1_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+FANCF_iBC_Counts_Parsed <- FANCF_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+CLYBL_iBC_Counts_Parsed <- CLYBL_iBC_Counts_Parsed %>% 
+  select(Library, pBC_Seq, iBC_Seq, iBC_Read_Count)
+
+
+##Bind them all together
+
+iBC_Counts_Parsed_3 <- rbind(synHEK3_iBC_Counts_Parsed, HBB_iBC_Counts_Parsed, EMX1_iBC_Counts_Parsed, FANCF_iBC_Counts_Parsed, CLYBL_iBC_Counts_Parsed)
+
+
+##Fix the rep_22 to rep_2 label change needed for running out of primers in one well of the index plate. 
+
+iBC_Counts_Parsed_3 <- iBC_Counts_Parsed_3 %>% 
+  mutate(Library = str_replace(Library, "_22", "_2")) 
+  
+iBC_Counts_Parsed_3 <- iBC_Counts_Parsed_3 %>% 
+  group_by(Library, pBC_Seq) %>% 
+  mutate(iBC_Read_Count = sum(iBC_Read_Count)) %>% 
+  distinct(Library, .keep_all = TRUE) %>% 
+  ungroup()
+  
+
+##Write to disk to avoid running RC function again
+
+write_csv(iBC_Counts_Parsed_3, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/iBC_Counts_Parsed.csv")
+
+
+```
+
+```{r}
+
+##Combine all three rounds of sequencing data into one file, sum the reads and unique the rows 
+
+iBC_Counts_Parsed_F <- rbind(iBC_Counts_Parsed, iBC_Counts_Parsed_2, iBC_Counts_Parsed_3)
+
+iBC_Counts_Parsed_F <- iBC_Counts_Parsed_F %>% 
+  group_by(Library, iBC_Seq) %>% 
+  mutate(iBC_Read_Count = sum(iBC_Read_Count)) %>% 
+  unite("Libary_iBC_Seq_Rep", c("Library", "iBC_Seq"), remove = FALSE) %>% 
+  distinct(Libary_iBC_Seq_Rep, .keep_all = TRUE) %>% 
+  select(!Libary_iBC_Seq_Rep) 
+
+iBC_Counts_Parsed <- iBC_Counts_Parsed_F %>% 
+  ungroup()
+
+```
+
+
+
+
+```{r}
+##Calculate total edited reads and edit frequency for each replicate 
+
+iBC_Counts_Parsed_Calc <- iBC_Counts_Parsed %>% 
+  group_by(Library) %>% 
+  mutate(Total_Replicate_Edited_Read_Count = sum(iBC_Read_Count)) %>% 
+  mutate(iBC_Freq = (iBC_Read_Count/Total_Replicate_Edited_Read_Count)*100)
+
+
+```
+
+```{r}
+##Read in and add FASTQ counts from the first round of sequencing 
+
+FASTQ_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/FASTQ_Counts.txt", col_names = c("FASTQ_Counts")) 
+
+FASTQ_Counts$FASTQ_Counts <- gsub(':     ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':    ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':   ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':  ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(': ', ':', FASTQ_Counts$FASTQ_Counts)
+
+FASTQ_Counts_Parsed <- FASTQ_Counts %>% 
+  separate(FASTQ_Counts, into = c("Meta_Data", "FASTQ_Read_Count"), sep = ":") %>% 
+  separate(Meta_Data, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, FASTQ_Read_Count)
+
+##Second round
+
+FASTQ_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/FASTQ_Counts.txt", col_names = c("FASTQ_Counts")) 
+
+FASTQ_Counts$FASTQ_Counts <- gsub(':     ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':    ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':   ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':  ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(': ', ':', FASTQ_Counts$FASTQ_Counts)
+
+FASTQ_Counts_Parsed_2 <- FASTQ_Counts %>% 
+  separate(FASTQ_Counts, into = c("Meta_Data", "FASTQ_Read_Count"), sep = ":") %>% 
+  separate(Meta_Data, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, FASTQ_Read_Count)
+
+##Third round
+
+FASTQ_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AltTarget_iBC_Counts/FASTQ_Counts.txt", col_names = c("FASTQ_Counts")) 
+
+FASTQ_Counts$FASTQ_Counts <- gsub(':     ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':    ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':   ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(':  ', ':', FASTQ_Counts$FASTQ_Counts)
+FASTQ_Counts$FASTQ_Counts <- gsub(': ', ':', FASTQ_Counts$FASTQ_Counts)
+
+FASTQ_Counts_Parsed_3 <- FASTQ_Counts %>% 
+  separate(FASTQ_Counts, into = c("Meta_Data", "FASTQ_Read_Count"), sep = ":") %>% 
+  separate(Meta_Data, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, FASTQ_Read_Count)
+
+##Fix the rep_22 to rep_2 label change needed for running out of primers in one well of the index plate. 
+
+FASTQ_Counts_Parsed_3 <- FASTQ_Counts_Parsed_3 %>% 
+  mutate(Library = str_replace(Library, "_22", "_2")) 
+  
+FASTQ_Counts_Parsed_3 <- FASTQ_Counts_Parsed_3 %>% 
+  type_convert() %>% 
+  group_by(Library) %>% 
+  mutate(FASTQ_Read_Count = sum(FASTQ_Read_Count)) %>% 
+  distinct(Library, .keep_all = TRUE) %>% 
+  ungroup()
+  
+
+##Join the two FASTQ counts together 
+
+FASTQ_Counts_Parsed_F <- rbind(FASTQ_Counts_Parsed, FASTQ_Counts_Parsed_2, FASTQ_Counts_Parsed_3) 
+
+FASTQ_Counts_Parsed_F <- FASTQ_Counts_Parsed_F %>% 
+  type_convert() %>% 
+  group_by(Library) %>% 
+  mutate(FASTQ_Read_Count = sum(FASTQ_Read_Count)) %>% 
+  distinct(Library, .keep_all = TRUE) %>% 
+  ungroup()
+
+FASTQ_Counts_Parsed <- FASTQ_Counts_Parsed_F 
+
+
+##Select relevant columns from parsed and calculated iBC counts
+
+iBC_Counts_Efficiency <- iBC_Counts_Parsed_Calc %>% 
+  select(Library, Total_Replicate_Edited_Read_Count) %>% 
+  distinct(Library, .keep_all = TRUE)
+
+##Join together and calculate edit efficiency 
+
+Edit_Efficiency <- FASTQ_Counts_Parsed %>%
+  left_join(iBC_Counts_Efficiency, by = "Library") %>% 
+  type_convert()
+  
+Edit_Efficiency <- Edit_Efficiency %>% 
+  mutate(Percent_5N_Insertion_Reads = (Total_Replicate_Edited_Read_Count/FASTQ_Read_Count)*100) 
+
+##Plot 
+
+Edit_Efficiency <- Edit_Efficiency %>% 
+  separate(Library, into = c("Library", "Rep"), sep = "_Rep_")
+
+ggplot(Edit_Efficiency, aes(x = Library, y = Percent_5N_Insertion_Reads)) +
+  geom_point() +
+  ylim(0,12)
+
+write_csv(Edit_Efficiency, "/Users/troymcdiarmid/Downloads/Alt_Target_Edit_Efficiency.csv")
+
+```
+
+```{r}
+##Calculate edit scores for AllU6 synHEK3 constructs 
+
+##First isolate sublibrary and join with pBC_Abundance DF 
+
+AllU6AltTarget_Edit_Scores <- iBC_Counts_Parsed_Calc %>% 
+  filter(grepl("AllU6AltTarget_iBC_synHEK3", Library)) 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  left_join(pBC_Abundance, by = "pBC_Seq")
+
+
+##Filter for ordered barcodes and correct target
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  drop_na(Seq_Name) %>% 
+  filter(Target == "HEK3")
+
+##Check the length is correct, there should be a max of 60 constructs recovered per target
+
+length(unique(AllU6AltTarget_Edit_Scores$Seq_Name))
+
+length(unique(AllU6AltTarget_Edit_Scores$Pro_Seq))
+
+##Calculate edit scores 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  mutate(Edit_Score = iBC_Freq / pBC_Freq)
+
+##Calculate mean edit score per iBC
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  separate(Library.x, into = c("iBC_Libary", "Replicate"), sep = "_Rep_") %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Edit_Score_Per_iBC = mean(Edit_Score)) %>% 
+  ungroup()
+
+##Calculate grand mean edit score 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_Edit_Score = mean(Mean_Edit_Score_Per_iBC)) %>% 
+  ungroup()
+
+##Correlate mean edit scores with original edit scores   
+
+ggplot(AllU6AltTarget_Edit_Scores, aes(x = log2(U6_Median_Human_Edit_Score), y = log2(Grand_Mean_Edit_Score))) +
+  geom_point() 
+
+cor.test(AllU6AltTarget_Edit_Scores$U6_Median_Human_Edit_Score, AllU6AltTarget_Edit_Scores$Grand_Mean_Edit_Score)
+cor.test(log2(AllU6AltTarget_Edit_Scores$U6_Median_Human_Edit_Score), log2(AllU6AltTarget_Edit_Scores$Grand_Mean_Edit_Score)) 
+cor.test(log2(AllU6AltTarget_Edit_Scores$U6_Median_Human_Edit_Score), log2(AllU6AltTarget_Edit_Scores$Grand_Mean_Edit_Score), method = "spearman")
+
+
+##Assign synHEK3 for later comparisons
+
+synHEK3_AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores
+
+```
+
+
+```{r}
+
+##Calculate edit scores for AllU6 EMX1 constructs 
+
+##First isolate sublibrary and join with pBC_Abundance DF 
+
+AllU6AltTarget_Edit_Scores <- iBC_Counts_Parsed_Calc %>% 
+  filter(grepl("AllU6AltTarget_iBC_EMX1", Library)) 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  left_join(pBC_Abundance, by = "pBC_Seq")
+
+
+##Filter for ordered barcodes and correct target
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  drop_na(Seq_Name) %>% 
+  filter(Target == "EMX1")
+
+##Check the length is correct, there should be a max of 60 constructs recovered per target
+
+length(unique(AllU6AltTarget_Edit_Scores$Seq_Name))
+
+length(unique(AllU6AltTarget_Edit_Scores$Pro_Seq))
+
+##Calculate edit scores 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  mutate(Edit_Score = iBC_Freq / pBC_Freq)
+
+##Calculate mean edit score per iBC
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  separate(Library.x, into = c("iBC_Libary", "Replicate"), sep = "_Rep_") %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Edit_Score_Per_iBC = mean(Edit_Score)) %>% 
+  ungroup()
+
+##Calculate grand mean edit score 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_Edit_Score = mean(Mean_Edit_Score_Per_iBC)) %>% 
+  ungroup()
+
+##Correlate mean edit scores with original edit scores   
+
+ggplot(AllU6AltTarget_Edit_Scores, aes(x = log2(U6_Median_Human_Edit_Score), y = log2(Grand_Mean_Edit_Score))) +
+  geom_point()
+
+cor.test(log2(AllU6AltTarget_Edit_Scores$U6_Median_Human_Edit_Score), log2(AllU6AltTarget_Edit_Scores$Grand_Mean_Edit_Score), method = "pearson") 
+
+##Assign EMX1 for later comparisons
+
+EMX1_AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores
+
+```
+
+
+
+```{r}
+
+##Calculate edit scores for AllU6 HBB constructs 
+
+##First isolate sublibrary and join with pBC_Abundance DF 
+
+AllU6AltTarget_Edit_Scores <- iBC_Counts_Parsed_Calc %>% 
+  filter(grepl("AllU6AltTarget_iBC_HBB", Library)) 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  left_join(pBC_Abundance, by = "pBC_Seq")
+
+
+##Filter for ordered barcodes and correct target
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  drop_na(Seq_Name) %>% 
+  filter(Target == "HBB")
+
+##Check the length is correct, there should be a max of 60 constructs recovered per target
+
+length(unique(AllU6AltTarget_Edit_Scores$Seq_Name))
+
+length(unique(AllU6AltTarget_Edit_Scores$Pro_Seq))
+
+##Calculate edit scores 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  mutate(Edit_Score = iBC_Freq / pBC_Freq)
+
+
+##Calculate mean edit score per iBC
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  separate(Library.x, into = c("iBC_Libary", "Replicate"), sep = "_Rep_") %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Edit_Score_Per_iBC = mean(Edit_Score)) %>% 
+  ungroup()
+
+##Calculate grand mean edit score 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_Edit_Score = mean(Mean_Edit_Score_Per_iBC)) %>% 
+  ungroup()
+
+##Correlate mean edit scores with original edit scores   
+
+ggplot(AllU6AltTarget_Edit_Scores, aes(x = log2(U6_Median_Human_Edit_Score), y = log2(Grand_Mean_Edit_Score))) +
+  geom_point()
+
+cor.test(log2(AllU6AltTarget_Edit_Scores$U6_Median_Human_Edit_Score), log2(AllU6AltTarget_Edit_Scores$Grand_Mean_Edit_Score), method = "pearson") 
+
+##Assign HBB for later comparisons
+
+HBB_AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores
+
+```
+
+
+
+```{r}
+
+##Calculate edit scores for AllU6 FANCF constructs 
+
+##First isolate sublibrary and join with pBC_Abundance DF 
+
+AllU6AltTarget_Edit_Scores <- iBC_Counts_Parsed_Calc %>% 
+  filter(grepl("AllU6AltTarget_iBC_FANCF", Library)) 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  left_join(pBC_Abundance, by = "pBC_Seq")
+
+
+##Filter for ordered barcodes and correct target
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  drop_na(Seq_Name) %>% 
+  filter(Target == "FANCF")
+
+##Check the length is correct, there should be a max of 60 constructs recovered per target
+
+length(unique(AllU6AltTarget_Edit_Scores$Seq_Name))
+
+length(unique(AllU6AltTarget_Edit_Scores$Pro_Seq))
+
+##Calculate edit scores 
+
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  mutate(Edit_Score = iBC_Freq / pBC_Freq)
+
+
+##Calculate mean edit score per iBC
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  separate(Library.x, into = c("iBC_Libary", "Replicate"), sep = "_Rep_") %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Edit_Score_Per_iBC = mean(Edit_Score)) %>% 
+  ungroup()
+
+##Calculate grand mean edit score 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_Edit_Score = mean(Mean_Edit_Score_Per_iBC)) %>% 
+  ungroup()
+
+##Correlate mean edit scores with original edit scores   
+
+ggplot(AllU6AltTarget_Edit_Scores, aes(x = log2(U6_Median_Human_Edit_Score), y = log2(Grand_Mean_Edit_Score))) +
+  geom_point()
+
+cor.test(log2(AllU6AltTarget_Edit_Scores$U6_Median_Human_Edit_Score), log2(AllU6AltTarget_Edit_Scores$Grand_Mean_Edit_Score), method = "pearson") 
+
+##Assign FANCF for later comparisons
+
+FANCF_AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores
+
+```
+
+
+```{r}
+
+##Calculate edit scores for AllU6 CLYBL constructs 
+
+##First isolate sublibrary and join with pBC_Abundance DF 
+
+AllU6AltTarget_Edit_Scores <- iBC_Counts_Parsed_Calc %>% 
+  filter(grepl("AllU6AltTarget_iBC_CLYBL", Library)) 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  left_join(pBC_Abundance, by = "pBC_Seq")
+
+
+##Filter for ordered barcodes and correct target
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  drop_na(Seq_Name) %>% 
+  filter(Target == "CLYBL")
+
+##Check the length is correct, there should be a max of 60 constructs recovered per target
+
+length(unique(AllU6AltTarget_Edit_Scores$Seq_Name))
+
+length(unique(AllU6AltTarget_Edit_Scores$Pro_Seq))
+
+##Calculate edit scores 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  mutate(Edit_Score = iBC_Freq / pBC_Freq)
+
+
+##Calculate mean edit score per iBC
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  separate(Library.x, into = c("iBC_Libary", "Replicate"), sep = "_Rep_") %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Edit_Score_Per_iBC = mean(Edit_Score)) %>% 
+  ungroup()
+
+##Calculate grand mean edit score 
+
+AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores %>%
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_Edit_Score = mean(Mean_Edit_Score_Per_iBC)) %>% 
+  ungroup()
+
+##Correlate mean edit scores with original edit scores   
+
+ggplot(AllU6AltTarget_Edit_Scores, aes(x = log2(U6_Median_Human_Edit_Score), y = log2(Grand_Mean_Edit_Score))) +
+  geom_point()
+
+cor.test(log2(AllU6AltTarget_Edit_Scores$U6_Median_Human_Edit_Score), log2(AllU6AltTarget_Edit_Scores$Grand_Mean_Edit_Score), method = "pearson") 
+
+##Assign CLYBL for later comparisons
+
+CLYBL_AllU6AltTarget_Edit_Scores <- AllU6AltTarget_Edit_Scores
+
+```
+
+
+```{r}
+##Which promoters are missing from the other loci? 
+
+synHEK3_AllU6AltTarget_Edit_Scores %>% 
+  filter(!Pro_Seq %in% HBB_AllU6AltTarget_Edit_Scores$Pro_Seq) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq_Name)
+
+synHEK3_AllU6AltTarget_Edit_Scores %>% 
+  filter(!Pro_Seq %in% EMX1_AllU6AltTarget_Edit_Scores$Pro_Seq) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq_Name)
+
+synHEK3_AllU6AltTarget_Edit_Scores %>% 
+  filter(!Pro_Seq %in% FANCF_AllU6AltTarget_Edit_Scores$Pro_Seq) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq_Name)
+
+synHEK3_AllU6AltTarget_Edit_Scores %>% 
+  filter(!Pro_Seq %in% CLYBL_AllU6AltTarget_Edit_Scores$Pro_Seq) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Pro_Seq_Name)
+
+##How do the edit scores correlate accross loci 
+
+synHEK3_Cross_Loci_Corr_Edit_Scores <- synHEK3_AllU6AltTarget_Edit_Scores %>% 
+  select(Pro_Seq_Name, Pro_Seq, synHEK3_Edit_Score = Grand_Mean_Edit_Score)
+HBB_Cross_Loci_Corr_Edit_Scores <- HBB_AllU6AltTarget_Edit_Scores %>% 
+  select(Pro_Seq, HBB_Edit_Score = Grand_Mean_Edit_Score)
+EMX1_Cross_Loci_Corr_Edit_Scores <- EMX1_AllU6AltTarget_Edit_Scores %>% 
+  select(Pro_Seq, EMX1_Edit_Score = Grand_Mean_Edit_Score)
+FANCF_Cross_Loci_Corr_Edit_Scores <- FANCF_AllU6AltTarget_Edit_Scores %>% 
+  select(Pro_Seq, FANCF_Edit_Score = Grand_Mean_Edit_Score)
+CLYBL_Cross_Loci_Corr_Edit_Scores <- CLYBL_AllU6AltTarget_Edit_Scores %>% 
+  select(Pro_Seq, CLYBL_Edit_Score = Grand_Mean_Edit_Score)
+
+AllU6_AltTarget_Cross_Loci_Edit_Scores <- synHEK3_Cross_Loci_Corr_Edit_Scores %>% 
+  left_join(HBB_Cross_Loci_Corr_Edit_Scores, by = "Pro_Seq") %>% 
+  left_join(EMX1_Cross_Loci_Corr_Edit_Scores, by = "Pro_Seq") %>% 
+  left_join(FANCF_Cross_Loci_Corr_Edit_Scores, by = "Pro_Seq") %>%
+  left_join(CLYBL_Cross_Loci_Corr_Edit_Scores, by = "Pro_Seq") %>%
+  distinct(Pro_Seq, .keep_all = TRUE)
+
+
+ggplot(AllU6_AltTarget_Cross_Loci_Edit_Scores, aes(x = log2(synHEK3_Edit_Score), y = log2(HBB_Edit_Score))) +
+  geom_point() 
+
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$HBB_Edit_Score), method = "pearson")
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$HBB_Edit_Score), method = "spearman")
+
+ggplot(AllU6_AltTarget_Cross_Loci_Edit_Scores, aes(x = log2(synHEK3_Edit_Score), y = log2(EMX1_Edit_Score))) +
+  geom_point() 
+
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$EMX1_Edit_Score), method = "pearson")
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$EMX1_Edit_Score), method = "spearman")
+
+ggplot(AllU6_AltTarget_Cross_Loci_Edit_Scores, aes(x = log2(synHEK3_Edit_Score), y = log2(FANCF_Edit_Score))) +
+  geom_point() 
+
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$FANCF_Edit_Score), method = "pearson")
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$FANCF_Edit_Score), method = "spearman")
+
+ggplot(AllU6_AltTarget_Cross_Loci_Edit_Scores, aes(x = log2(synHEK3_Edit_Score), y = log2(CLYBL_Edit_Score))) +
+  geom_point() 
+
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$CLYBL_Edit_Score), method = "pearson")
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$CLYBL_Edit_Score), method = "spearman")
+
+
+```
+
+```{r}
+##Create and write the data sets to disk 
+
+AllU6AltTarget_Edit_Scores_To_Write <- rbind(synHEK3_AllU6AltTarget_Edit_Scores, HBB_AllU6AltTarget_Edit_Scores, EMX1_AllU6AltTarget_Edit_Scores, FANCF_AllU6AltTarget_Edit_Scores, CLYBL_AllU6AltTarget_Edit_Scores)
+
+write_csv(AllU6AltTarget_Edit_Scores_To_Write, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AllU6AltTarget_Edit_Scores.csv")
+
+
+write_csv(AllU6_AltTarget_Cross_Loci_Edit_Scores, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AllU6_AltTarget_Cross_Loci_Edit_Scores.csv")
+
+```
+
+
+
+
+```{r}
+##Calculate correlation between replicates 
+
+Pol_III_Pro_Edit_Scores <- synHEK3_AllU6AltTarget_Edit_Scores 
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(Seq_Name, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_BC_Normalized_Edit_Score = Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Seq_Name, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score, Replicate_2_BC_Normalized_Edit_Score, Replicate_3_BC_Normalized_Edit_Score, Replicate_4_BC_Normalized_Edit_Score)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_2_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_3_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_BC_Normalized_Edit_Score), y = log2(Replicate_3_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score))) +
+  geom_point()  
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score))
+
+```
+
+
+```{r}
+##Calculate correlation between replicates 
+
+Pol_III_Pro_Edit_Scores <- EMX1_AllU6AltTarget_Edit_Scores 
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(Seq_Name, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_BC_Normalized_Edit_Score = Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Seq_Name, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score, Replicate_2_BC_Normalized_Edit_Score, Replicate_3_BC_Normalized_Edit_Score, Replicate_4_BC_Normalized_Edit_Score)
+
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_2_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_3_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_BC_Normalized_Edit_Score), y = log2(Replicate_3_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_BC_Normalized_Edit_Score), y = log2(Replicate_4_BC_Normalized_Edit_Score))) +
+  geom_point() 
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_BC_Normalized_Edit_Score))
+
+```
+
+
+```{r}
+##Look at the top promoters 
+
+ggplot(synHEK3_AllU6AltTarget_Edit_Scores, aes(x = Grand_Mean_Edit_Score, y = reorder(Pro_Seq_Name, Grand_Mean_Edit_Score))) +
+  geom_point()
+
+ggplot(synHEK3_AllU6AltTarget_Edit_Scores, aes(x = U6_Median_Human_Edit_Score, y = reorder(Pro_Seq_Name, U6_Median_Human_Edit_Score))) +
+  geom_point()
+
+ggplot(synHEK3_AllU6AltTarget_Edit_Scores, aes(x = U6_Median_Human_Edit_Score, y = reorder(Pro_Seq_Name, Grand_Mean_Edit_Score))) +
+  geom_point()
+
+```
+
+```{r}
+##See how many outperformed the standard 
+
+ AllU6_AltTarget_Cross_Loci_Edit_Scores <- read_csv ("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/AllU6_AltTarget_Cross_Loci_Edit_Scores.csv")
+
+Human_RNU61p_Cross_Loci_Scores <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1")
+
+Top_Promoters <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(synHEK3_Edit_Score > Human_RNU61p_Cross_Loci_Scores$synHEK3_Edit_Score) %>% 
+  filter(HBB_Edit_Score > Human_RNU61p_Cross_Loci_Scores$HBB_Edit_Score) %>%
+  filter(EMX1_Edit_Score > Human_RNU61p_Cross_Loci_Scores$EMX1_Edit_Score) %>%
+  filter(CLYBL_Edit_Score > Human_RNU61p_Cross_Loci_Scores$CLYBL_Edit_Score) %>% 
+  filter(FANCF_Edit_Score > Human_RNU61p_Cross_Loci_Scores$FANCF_Edit_Score)
+
+
+```
+

@@ -1,0 +1,513 @@
+---
+title: "pBC_rBC_iBC_Analysis"
+author: "Troy McDiarmid"
+date: "2025-04-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library("DNABarcodes")
+library("Biostrings")
+library(ggridges)
+
+```
+
+
+```{r}
+##Calculating abundance for R1 for pBC
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/5N_pBCrBCiBC_Counts/Merged_5N_pBC_rBC_iBCHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+pBC_Counts_Parsed <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "RC_pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, RC_pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+pBC_Counts_Parsed$pBC_Seq <- sapply(pBC_Counts_Parsed$RC_pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+```
+
+
+```{r}
+##Also read in the synHEK3 iBC counts
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/5N_pBCrBCiBC_Counts/Merged_5N_iBCsynHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+synHEK3_iBC_Counts_Parsed <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "RC_pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, RC_pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+synHEK3_iBC_Counts_Parsed$pBC_Seq <- sapply(synHEK3_iBC_Counts_Parsed$RC_pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+
+```
+
+```{r}
+##Seperate out into the relvant libraries and combine
+
+FiveN_pBC_Counts_Parsed <- pBC_Counts_Parsed %>% 
+  filter(grepl("pBC", Library)) %>% 
+  select(!RC_pBC_Seq) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+FiveN_rBC_Counts_Parsed <- pBC_Counts_Parsed %>% 
+  filter(grepl("rBC", Library)) %>%
+  mutate(rBC_Seq = pBC_Seq) %>% 
+  dplyr::rename(rBC_Read_Count = pBC_Read_Count) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+FiveN_iBC_Counts_Parsed <- pBC_Counts_Parsed %>% 
+  filter(grepl("iBC_HEK3", Library)) %>% 
+  dplyr::rename(iBC_Seq = RC_pBC_Seq, iBCHEK3_Read_Count = pBC_Read_Count) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+FiveN_synHEK3iBC_Counts_Parsed <- synHEK3_iBC_Counts_Parsed %>% 
+  filter(grepl("iBC_synHEK3", Library)) %>% 
+  dplyr::rename(iBCsynHEK3_Seq = pBC_Seq, pBC_Seq = RC_pBC_Seq, iBCsynHEK3_Read_Count = pBC_Read_Count) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+
+##Join them all together
+
+FiveN_Counts_Parsed <- FiveN_pBC_Counts_Parsed %>% 
+  left_join(FiveN_rBC_Counts_Parsed, by = "pBC_Seq_Rep")
+
+FiveN_Counts_Parsed <- FiveN_Counts_Parsed %>% 
+  left_join(FiveN_iBC_Counts_Parsed, by = "pBC_Seq_Rep")
+
+FiveN_Counts_Parsed <- FiveN_Counts_Parsed %>% 
+  left_join(FiveN_synHEK3iBC_Counts_Parsed, by = "pBC_Seq_Rep")
+
+FiveN_Counts_Parsed <- FiveN_Counts_Parsed %>%
+  select(Library = Library.x, Replicate = Replicate.x, pBC_Seq = pBC_Seq.x, rBC_Seq, iBC_Seq, pBC_Read_Count, rBC_Read_Count, iBCHEK3_Read_Count, iBCsynHEK3_Read_Count) %>% 
+  type_convert()
+
+
+```
+
+
+
+```{r}
+##Convert NAs to zeros 
+
+pBC_Counts_Parsed_Calc <- FiveN_Counts_Parsed %>% 
+  mutate(pBC_Read_Count = replace_na(pBC_Read_Count, 0)) %>% 
+  mutate(rBC_Read_Count = replace_na(rBC_Read_Count, 0)) %>% 
+  mutate(iBCHEK3_Read_Count = replace_na(iBCHEK3_Read_Count, 0))
+
+##Calculate pBC, rBC, iBC frequency 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  type_convert() %>% 
+  group_by(Replicate) %>% 
+  mutate(pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  mutate(rBC_Freq = (rBC_Read_Count/(sum(rBC_Read_Count)))*100) %>% 
+  mutate(iBCHEK3_Freq = (iBCHEK3_Read_Count/(sum(iBCHEK3_Read_Count)))*100) %>%
+  mutate(iBCsynHEK3_Freq = (iBCsynHEK3_Read_Count/(sum(iBCsynHEK3_Read_Count)))*100) %>% 
+  ungroup()
+
+##Calculate the transcription and edit scores 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  mutate(Transcription_Score = rBC_Freq/pBC_Freq) %>% 
+  mutate(HEK3_Edit_Score = iBCHEK3_Freq/pBC_Freq) %>% 
+  mutate(synHEK3_Edit_Score = iBCsynHEK3_Freq/pBC_Freq)
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Transcription_Score = mean(Transcription_Score)) %>% 
+  mutate(Mean_HEK3_Edit_Score = mean(HEK3_Edit_Score)) %>% 
+  mutate(Mean_synHEK3_Edit_Score = mean(synHEK3_Edit_Score)) %>% 
+  ungroup() 
+
+##Add a column indicating if a sequence contains a 4bp homopolymer
+
+pBC_Counts_Parsed_Calc_Ts <- pBC_Counts_Parsed_Calc %>% 
+  filter(grepl("TTTT", pBC_Seq))  
+
+length(unique(pBC_Counts_Parsed_Calc_Ts$pBC_Seq))
+  
+pBC_Counts_Parsed_Calc_Ts$Four_bp_Homopolymer <- "TTTT"
+
+pBC_Counts_Parsed_Calc_As <- pBC_Counts_Parsed_Calc %>% 
+  filter(grepl("AAAA", pBC_Seq))  
+
+length(unique(pBC_Counts_Parsed_Calc_Ts$pBC_Seq))
+  
+pBC_Counts_Parsed_Calc_As$Four_bp_Homopolymer <- "AAAA"
+
+pBC_Counts_Parsed_Calc_Gs <- pBC_Counts_Parsed_Calc %>% 
+  filter(grepl("GGGG", pBC_Seq))  
+
+length(unique(pBC_Counts_Parsed_Calc_Ts$pBC_Seq))
+  
+pBC_Counts_Parsed_Calc_Gs$Four_bp_Homopolymer <- "GGGG"
+
+pBC_Counts_Parsed_Calc_Cs <- pBC_Counts_Parsed_Calc %>% 
+  filter(grepl("CCCC", pBC_Seq))  
+
+length(unique(pBC_Counts_Parsed_Calc_Ts$pBC_Seq))
+  
+pBC_Counts_Parsed_Calc_Cs$Four_bp_Homopolymer <- "CCCC"
+
+pBC_Counts_Parsed_Calc_No_Homopolymers <- pBC_Counts_Parsed_Calc %>% 
+  filter(!grepl("TTTT", pBC_Seq)) %>% 
+  filter(!grepl("AAAA", pBC_Seq)) %>% 
+  filter(!grepl("CCCC", pBC_Seq)) %>% 
+  filter(!grepl("GGGG", pBC_Seq)) 
+
+pBC_Counts_Parsed_Calc_No_Homopolymers$Four_bp_Homopolymer <- "No_4bp_Homopolymers"
+
+pBC_Counts_Parsed_Calc <- rbind(pBC_Counts_Parsed_Calc_Ts, pBC_Counts_Parsed_Calc_As, pBC_Counts_Parsed_Calc_Gs, pBC_Counts_Parsed_Calc_Cs, pBC_Counts_Parsed_Calc_No_Homopolymers)
+
+
+##Rename DF and write to csv
+
+Five_N_pBC_rBC_iBC_Data <- pBC_Counts_Parsed_Calc %>% 
+  mutate(rBC_Seq = pBC_Seq)
+
+write_csv(Five_N_pBC_rBC_iBC_Data, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/5N_pBCrBCiBC_Counts/Five_N_pBC_rBC_iBC_Data.csv")
+
+```
+
+
+
+
+
+```{r}
+##Read in data 
+
+Five_N_pBC_rBC_iBC_Data <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/5N_pBCrBCiBC_Counts/Five_N_pBC_rBC_iBC_Data.csv")
+
+##Plot frequency correlations
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(iBCHEK3_Freq), y = log2(rBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(iBCHEK3_Freq), y = log2(pBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(iBCsynHEK3_Freq), y = log2(pBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(pBC_Freq), y = log2(rBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(iBCsynHEK3_Freq), y = log2(rBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(iBCsynHEK3_Freq), y = log2(iBCHEK3_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(Five_N_pBC_rBC_iBC_Data$pBC_Freq, Five_N_pBC_rBC_iBC_Data$rBC_Freq)
+cor.test(Five_N_pBC_rBC_iBC_Data$pBC_Freq, Five_N_pBC_rBC_iBC_Data$iBCsynHEK3_Freq)
+cor.test(Five_N_pBC_rBC_iBC_Data$pBC_Freq, Five_N_pBC_rBC_iBC_Data$iBCHEK3_Freq)
+cor.test(Five_N_pBC_rBC_iBC_Data$rBC_Freq, Five_N_pBC_rBC_iBC_Data$iBCsynHEK3_Freq)
+cor.test(Five_N_pBC_rBC_iBC_Data$rBC_Freq, Five_N_pBC_rBC_iBC_Data$iBCHEK3_Freq)
+cor.test(Five_N_pBC_rBC_iBC_Data$iBCHEK3_Freq, Five_N_pBC_rBC_iBC_Data$iBCsynHEK3_Freq)
+
+##Plot transcription and edit score correlations along with homopolymer effects 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(Mean_synHEK3_Edit_Score), y = log2(Mean_Transcription_Score), colour = Four_bp_Homopolymer)) +
+  scale_color_manual(values=c("#999999", "#999999", "#999999", "#999999", "#999999")) +
+  geom_point() +  
+  theme_classic() 
+
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(Mean_synHEK3_Edit_Score), y = log2(Mean_Transcription_Score), colour = Four_bp_Homopolymer)) +
+  scale_color_manual(values=c("#999999", "#999999", "#999999", "#999999", "#56B4E9")) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = log2(Mean_HEK3_Edit_Score), y = log2(Mean_Transcription_Score), colour = Four_bp_Homopolymer)) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(Five_N_pBC_rBC_iBC_Data$Mean_Transcription_Score, Five_N_pBC_rBC_iBC_Data$Mean_synHEK3_Edit_Score)
+cor.test(log2(Five_N_pBC_rBC_iBC_Data$Mean_Transcription_Score), log2(Five_N_pBC_rBC_iBC_Data$Mean_synHEK3_Edit_Score))
+cor.test(Five_N_pBC_rBC_iBC_Data$Mean_Transcription_Score, Five_N_pBC_rBC_iBC_Data$Mean_synHEK3_Edit_Score, method = "spearman")
+
+
+##Plot homopolymer effects 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(y = log2(Mean_synHEK3_Edit_Score), x = Four_bp_Homopolymer, colour = Four_bp_Homopolymer)) +
+  scale_color_manual(values=c("#999999", "#999999", "#999999", "#999999", "#56B4E9")) +
+  geom_boxplot() +
+  geom_point() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(y = log2(Mean_HEK3_Edit_Score), x = Four_bp_Homopolymer, colour = Four_bp_Homopolymer)) +
+  geom_boxplot() +
+  geom_point() 
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(y = log2(Mean_Transcription_Score), x = Four_bp_Homopolymer, colour = Four_bp_Homopolymer)) +
+  geom_boxplot() +
+  geom_point() 
+
+##Look at distribution of reads
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = pBC_Read_Count)) +
+  geom_histogram() 
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = pBC_Read_Count)) +
+  geom_histogram() +
+  scale_x_log10()
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = rBC_Read_Count)) +
+  geom_histogram() 
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = rBC_Read_Count)) +
+  geom_histogram() +
+  scale_x_log10()
+
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = iBCsynHEK3_Read_Count)) +
+  geom_histogram() 
+ggplot(Five_N_pBC_rBC_iBC_Data, aes(x = iBCsynHEK3_Read_Count)) +
+  geom_histogram() +
+  scale_x_log10()
+
+
+```
+
+```{r}
+##Calculate correlation between replicates 
+
+Pol_III_Pro_Edit_Scores <- Five_N_pBC_rBC_iBC_Data 
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(pBC_Seq, Replicate_1_Transcription_Score = Transcription_Score, Replicate_1_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_1_synHEK3_Edit_Score = synHEK3_Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_Transcription_Score = Transcription_Score, Replicate_2_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_2_synHEK3_Edit_Score = synHEK3_Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_Transcription_Score = Transcription_Score, Replicate_3_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_3_synHEK3_Edit_Score = synHEK3_Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_Transcription_Score = Transcription_Score, Replicate_4_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_4_synHEK3_Edit_Score = synHEK3_Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(pBC_Seq, Replicate_1_Transcription_Score, Replicate_2_Transcription_Score, Replicate_3_Transcription_Score, Replicate_4_Transcription_Score, Replicate_1_HEK3_Edit_Score, Replicate_2_HEK3_Edit_Score, Replicate_3_HEK3_Edit_Score, Replicate_4_HEK3_Edit_Score, Replicate_1_synHEK3_Edit_Score, Replicate_2_synHEK3_Edit_Score, Replicate_3_synHEK3_Edit_Score, Replicate_4_synHEK3_Edit_Score)
+
+##Plot correlation in transcription scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_Transcription_Score), y = log2(Replicate_2_Transcription_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_Transcription_Score), y = log2(Replicate_3_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_Transcription_Score), y = log2(Replicate_4_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_Transcription_Score), y = log2(Replicate_3_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_Transcription_Score), y = log2(Replicate_4_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_Transcription_Score), y = log2(Replicate_4_Transcription_Score))) +
+  geom_point()
+
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score))
+
+##Plot correlation in HEK3 edit scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_HEK3_Edit_Score), y = log2(Replicate_2_HEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_HEK3_Edit_Score), y = log2(Replicate_3_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_HEK3_Edit_Score), y = log2(Replicate_4_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_HEK3_Edit_Score), y = log2(Replicate_3_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_HEK3_Edit_Score), y = log2(Replicate_4_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_HEK3_Edit_Score), y = log2(Replicate_4_HEK3_Edit_Score))) +
+  geom_point()
+
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score))
+
+
+##Plot correlation in synHEK3 edit scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_synHEK3_Edit_Score), y = log2(Replicate_2_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_synHEK3_Edit_Score), y = log2(Replicate_3_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_synHEK3_Edit_Score), y = log2(Replicate_4_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_synHEK3_Edit_Score), y = log2(Replicate_3_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_synHEK3_Edit_Score), y = log2(Replicate_4_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_synHEK3_Edit_Score), y = log2(Replicate_4_synHEK3_Edit_Score))) +
+  geom_point() 
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score))
+
+```
+
+
+
+```{r}
+
+##Reading in Choi's insertion data and calcutig and editing score for each barcode to control for i's strength. This is from his REGEX pipeline which produced different results than the earlier alignment based pipeline.  
+
+setwd("/Users/troymcdiarmid/Documents/U6_pro_series/")
+
+Fivemer_insert_efficiency_REGEX <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Choi_data/HEK3_5N_editScore.csv")
+
+Fivemer_insert_efficiency_REGEX <- Fivemer_insert_efficiency_REGEX %>% 
+  mutate(Edit_Score_5N = 2^EditScoreAverage)
+
+Normalized_Fivemer_insert_efficiency_REGEX <- Fivemer_insert_efficiency_REGEX %>% 
+  mutate(Normalized_5N_Edit_Score = (Edit_Score_5N-min(Edit_Score_5N))/(max(Edit_Score_5N)-min(Edit_Score_5N))) 
+
+Normalized_Fivemer_insert_efficiency_REGEX$Plasmid_BC_Seq <- sapply(Normalized_Fivemer_insert_efficiency_REGEX$Insert, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+ggplot(Normalized_Fivemer_insert_efficiency_REGEX, aes(y = Edit_Score_5N, x = Plasmid_BC_Seq)) +
+  geom_point(color="#56B4E9") +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks.y = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.25, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 24))  
+ggsave("5mer_Prime_efficiency_point_REGEX.jpeg", width = 10, height = 5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/")
+
+ggplot(Normalized_Fivemer_insert_efficiency_REGEX, aes(x = Edit_Score_5N)) +
+  geom_histogram(color="#56B4E9", fill="#56B4E9") +  
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.7)) +
+  theme(axis.ticks.y = element_line(colour = "black", size = 0.7)) +
+  theme(axis.ticks.length=unit(.25, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(axis.text = element_text(family="Arial", colour = "black", size = 24)) 
+ggsave("5mer_Prime_efficiency_REGEX.jpeg", width = 7, height = 5.5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/")
+
+write_csv(Normalized_Fivemer_insert_efficiency_REGEX, "/Users/troymcdiarmid/Documents/U6_pro_series/Choi_data/Normalized_Fivemer_insert_efficiency_REGEX.csv")
+
+```
+
+```{r}
+##Comparion new edit scores with old 
+
+Normalized_Fivemer_insert_efficiency_REGEX <- Normalized_Fivemer_insert_efficiency_REGEX %>% dplyr::rename(pBC_Seq = Plasmid_BC_Seq)
+
+
+Five_N_pBC_rBC_iBC_Data_F <- Five_N_pBC_rBC_iBC_Data %>% 
+  select(pBC_Seq, Mean_HEK3_Edit_Score, Mean_synHEK3_Edit_Score) %>% 
+  distinct(pBC_Seq, .keep_all = TRUE)
+
+Five_N_pBC_rBC_iBC_Data_F <- Five_N_pBC_rBC_iBC_Data_F %>% 
+  left_join(Normalized_Fivemer_insert_efficiency_REGEX, by = "pBC_Seq")
+
+ggplot(Five_N_pBC_rBC_iBC_Data_F, aes(x = log2(Mean_HEK3_Edit_Score), y = log2(Edit_Score_5N))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(Five_N_pBC_rBC_iBC_Data_F$Mean_HEK3_Edit_Score, Five_N_pBC_rBC_iBC_Data_F$Edit_Score_5N)
+
+
+ggplot(Five_N_pBC_rBC_iBC_Data_F, aes(x = log2(Mean_synHEK3_Edit_Score), y = log2(Edit_Score_5N))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(Five_N_pBC_rBC_iBC_Data_F$Mean_synHEK3_Edit_Score, Five_N_pBC_rBC_iBC_Data_F$Edit_Score_5N)
+
+cor.test(log2(Five_N_pBC_rBC_iBC_Data_F$Mean_synHEK3_Edit_Score), log2(Five_N_pBC_rBC_iBC_Data_F$Edit_Score_5N))
+
+cor.test(log2(Five_N_pBC_rBC_iBC_Data_F$Mean_synHEK3_Edit_Score), log2(Five_N_pBC_rBC_iBC_Data_F$Edit_Score_5N), method = "spearman")
+
+```
+

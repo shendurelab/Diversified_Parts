@@ -1,0 +1,1784 @@
+---
+title: "Revisions_Oligo_Design"
+author: "Troy McDiarmid"
+date: "2024-12-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library("DNABarcodes")
+library("Biostrings") 
+```
+
+```{r}
+##First designing U6p-pegRNAs targeting other sites (HBB, FANCF, EMX1, CLYBL1 and HEK3 control)
+
+set.seed(5)
+
+##First get top 5 promoters 
+
+U6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/U6_Edit_Scores_Comparison_Table.csv")
+
+Top_U6_Promoters <- U6 %>% 
+  rowwise() %>% 
+  mutate(Median_Human_Edit_Score = median(K562:iPSC))
+
+Top_U6_Promoters <- Top_U6_Promoters %>% 
+  arrange(-Median_Human_Edit_Score) %>% 
+  head(5) %>% 
+  select(Name, U6_Promoter_Seq, U6_Median_Human_Edit_Score = Median_Human_Edit_Score)
+
+##Then select another 5 that had a broad range of activity levels in both the primary screen and subu6 validation screen (edit scores of approx. 0.1, 0.5, 1, 5, 10)
+
+SubU6 <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/FigS5_Final_Figure_Datasets/SubU6_Edit_Stats.csv")
+
+ggplot(SubU6, aes(x = Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score)) +   geom_histogram()
+
+ggplot(SubU6, aes(x = log2(Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score))) +   geom_histogram()
+
+SubU6_Subset <- SubU6 %>% 
+  filter(Name %in% c("Callorhinchus_milii_RNU6-8_ENSCMIG00000009578", "SynU61-2", "Scleropages_formosus_RNU6-8_ENSSFOG00015026611",   "Numida_meleagris_RNU6-2_ENSNMEG00000003235", "Weissman_bU6-2"))
+
+ggplot(SubU6_Subset, aes(x = log2(Recloned_Subset_Mean_iPSC_BC_Normalized_Edit_Score), y = log2(Primary_Screen_Mean_Barcode_Normalized_iPSC_Edit_Score))) + geom_point()
+
+##Add to selection of top U6 promoters
+
+U6 <- read_csv("/Users/troymcdiarmid/Downloads/U6_Edit_Scores_Comparison_Table.csv")
+
+SubU6_Subset <- U6 %>% 
+  rowwise() %>% 
+  mutate(Median_Human_Edit_Score = median(K562:iPSC))
+
+SubU6_Subset <- SubU6_Subset %>% 
+  arrange(-Median_Human_Edit_Score) %>% 
+  filter(Name %in% c("Callorhinchus_milii_RNU6-8_ENSCMIG00000009578", "SynU61-2", "Scleropages_formosus_RNU6-8_ENSSFOG00015026611",   "Numida_meleagris_RNU6-2_ENSNMEG00000003235", "Weissman_bU6-2")) %>% 
+  select(Name, U6_Promoter_Seq, U6_Median_Human_Edit_Score = Median_Human_Edit_Score)
+
+Top_U6_Promoters <- rbind(Top_U6_Promoters, SubU6_Subset) %>% 
+  type_convert() 
+
+##Then get 10 promoters from the Zoonomia screen. Top 3, 2 others better than hNRU6-1p and 5 from a broad range (Top 3, log2 1, 0.5, -0.5, -1, -2, -4, -8)
+
+Zoonomia_PolIII_Pro <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/Pol_III_Pro_Edit_Scores_Class.csv")
+
+Zoonomia_PolIII_Pro_Select <- Zoonomia_PolIII_Pro %>% 
+  filter(Seq_Name %in% c(">7SK__fullTreeAnc55__fullTreeAnc55refChr9856:2250-2505()_BC_1", ">RNU6_7__fullTreeAnc5_20240405.fa__fullTreeAnc5refChr25893:5-307()_RC_BC_1", ">U6__fullTreeAnc160__fullTreeAnc160refChr2759:1886336-1886574()_RC_BC_2", ">U6__Giraffa_tippelskirchi__LVKQ01S008640.1:139024-139253()_BC_3", ">U6__Monodon_monoceros__MonMon_M_scaffold_3174:19301-19535()_BC_3", ">U6__fullTreeAnc75__fullTreeAnc75refChr7633:112983-113215()_BC_1", ">RNU6_7__fullTreeAnc238_20240405.fa__fullTreeAnc238refChr9145:10311-10610()_RC_BC_1", ">RNU6_8__Cercocebus_atys_20240405.fa__KQ010217.1:2346502-2346810()_BC_1", ">RNU6_9__Delphinapterus_leucas_20240405.fa__KZ290250.1:506585-506983()_BC_1", ">RNU6_9__Tonatia_saurophila_20240405.fa__TonSau_scaffold_9071:22929-23315()_BC_3"))
+
+Zoonomia_PolIII_Pro_Select_F <- Zoonomia_PolIII_Pro_Select %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(Name = Seq_Name, U6_Promoter_Seq = Pro_Seq, U6_Median_Human_Edit_Score = Grand_Mean_BC_Normalized_Edit_Score) 
+
+##Bind them together
+
+Top_U6_Promoters <- rbind(Top_U6_Promoters, Zoonomia_PolIII_Pro_Select_F) %>% 
+  type_convert() 
+
+##Then get EMX1 and FANCF spacers, RTT, PBS, etc. from Table S6 from Koeppel et al., 2024 NBT (https://www.nature.com/articles/s41587-023-01678-y#Sec33)
+
+Koeppel_pegRNAs <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/41587_2023_1678_MOESM3_ESM.csv") %>% 
+  dplyr::select(1:7)
+
+##Recreate the HEK3 targeting constructs for control 
+
+Top_U6_Promoters_TOI <- Top_U6_Promoters 
+
+Top_U6_Promoters_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+Top_U6_Promoters_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGGTGC"
+Top_U6_Promoters_TOI$Target <- "HEK3"
+Top_U6_Promoters_TOI$Spacer <- "GGCCCAGACTGAGCACGTGA"
+Top_U6_Promoters_TOI$Scaffold <-  "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Top_U6_Promoters_TOI$Homology_Arm <- "TCTGCCATCA"
+Top_U6_Promoters_TOI$PBS <- "CGTGCTCAGTCTG"
+Top_U6_Promoters_TOI$Partial_Term <- "TTTT"
+Top_U6_Promoters_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+Top_U6_Promoters_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+Top_U6_Promoters_HEK3 <- Top_U6_Promoters_TOI
+
+
+##Create the HBB targeting constructs based on predict2.0 output and Adamson lab PE7 paper Table S7 
+
+Top_U6_Promoters_TOI <- Top_U6_Promoters 
+
+Top_U6_Promoters_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+Top_U6_Promoters_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGGTGC"
+Top_U6_Promoters_TOI$Target <- "HBB"
+Top_U6_Promoters_TOI$Spacer <- "GCATGGTGCACCTGACTCCTG"
+Top_U6_Promoters_TOI$Scaffold <-  "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Top_U6_Promoters_TOI$Homology_Arm <- "AGACTTCTCCTCAG"
+Top_U6_Promoters_TOI$PBS <- "GAGTCAGGTGCACCA"
+Top_U6_Promoters_TOI$Partial_Term <- "TTTT"
+Top_U6_Promoters_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+Top_U6_Promoters_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+Top_U6_Promoters_HBB <- Top_U6_Promoters_TOI
+
+##Create the CLYBL targeting constructs
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "CLYBL")
+
+Top_U6_Promoters_TOI <- Top_U6_Promoters 
+
+Top_U6_Promoters_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+Top_U6_Promoters_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGGTGC"
+Top_U6_Promoters_TOI$Target <- pegRNA_TOI$target
+Top_U6_Promoters_TOI$Spacer <- pegRNA_TOI$spacer
+Top_U6_Promoters_TOI$Scaffold <- "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Top_U6_Promoters_TOI$Homology_Arm <- pegRNA_TOI$ha
+Top_U6_Promoters_TOI$PBS <- pegRNA_TOI$pbs
+Top_U6_Promoters_TOI$Partial_Term <- "TTTT"
+Top_U6_Promoters_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+Top_U6_Promoters_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+Top_U6_Promoters_CLYBL <- Top_U6_Promoters_TOI
+
+##Create the FANCF targeting constructs - note the FANCF homology arm was shortened to avoid a BsbI site present in the long Koeppel construct
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "FANCF")
+
+Top_U6_Promoters_TOI <- Top_U6_Promoters 
+
+Top_U6_Promoters_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+Top_U6_Promoters_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGGTGC"
+Top_U6_Promoters_TOI$Target <- pegRNA_TOI$target
+Top_U6_Promoters_TOI$Spacer <- pegRNA_TOI$spacer
+Top_U6_Promoters_TOI$Scaffold <- "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Top_U6_Promoters_TOI$Homology_Arm <- "GGAAAAGCGATCCAGGT"
+Top_U6_Promoters_TOI$PBS <- pegRNA_TOI$pbs
+Top_U6_Promoters_TOI$Partial_Term <- "TTTT"
+Top_U6_Promoters_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+Top_U6_Promoters_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+Top_U6_Promoters_FANCF <- Top_U6_Promoters_TOI
+
+
+##Create the EMX1 targeting constructs
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "EMX1")
+
+Top_U6_Promoters_TOI <- Top_U6_Promoters 
+
+Top_U6_Promoters_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+Top_U6_Promoters_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGGTGC"
+Top_U6_Promoters_TOI$Target <- pegRNA_TOI$target
+Top_U6_Promoters_TOI$Spacer <- pegRNA_TOI$spacer
+Top_U6_Promoters_TOI$Scaffold <- "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Top_U6_Promoters_TOI$Homology_Arm <- pegRNA_TOI$ha
+Top_U6_Promoters_TOI$PBS <- pegRNA_TOI$pbs
+Top_U6_Promoters_TOI$Partial_Term <- "TTTT"
+Top_U6_Promoters_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+Top_U6_Promoters_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+Top_U6_Promoters_EMX1 <- Top_U6_Promoters_TOI
+
+##Bind them all together
+
+Top_U6_Promoters_Alt_Target_F <- rbind(Top_U6_Promoters_HEK3, Top_U6_Promoters_HBB, Top_U6_Promoters_CLYBL, Top_U6_Promoters_EMX1, Top_U6_Promoters_FANCF)
+
+
+##Adding the barcodes 
+
+Top_8N_BCs <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/Pooled_Edit_Scores.csv") %>% 
+  filter(Edit_Score > 0.5) %>% 
+  filter(!(grepl("GGTCTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGACC", pBC_Seq))) %>% 
+  filter(!(grepl("GGTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGA", pBC_Seq))) %>% 
+  sample_n(3*(length(Top_U6_Promoters_Alt_Target_F$U6_Promoter_Seq)))
+
+##Replicate the set of sequences 3 times for each barcode and add labels 
+
+Top_U6_Promoters_Alt_Target_F_BC1 <- Top_U6_Promoters_Alt_Target_F
+Top_U6_Promoters_Alt_Target_F_BC1$BC_Number <- "BC_1"
+
+Top_U6_Promoters_Alt_Target_F_BC2 <- Top_U6_Promoters_Alt_Target_F
+Top_U6_Promoters_Alt_Target_F_BC2$BC_Number <- "BC_2"
+
+Top_U6_Promoters_Alt_Target_F_BC3 <- Top_U6_Promoters_Alt_Target_F
+Top_U6_Promoters_Alt_Target_F_BC3$BC_Number <- "BC_3"
+
+Top_U6_Promoters_Alt_Target_F <- rbind(Top_U6_Promoters_Alt_Target_F_BC1, Top_U6_Promoters_Alt_Target_F_BC2, Top_U6_Promoters_Alt_Target_F_BC3)
+
+Top_U6_Promoters_Alt_Target_F <- Top_U6_Promoters_Alt_Target_F %>% 
+  unite(Seq_Name, Name, Target, BC_Number, remove = FALSE)
+
+##Add the barcodes
+
+Top_U6_Promoters_Alt_Target_F$BC_8N <- Top_8N_BCs$pBC_Seq
+
+##Uniting to make full oligo sequence with restriction sites to order
+
+Top_U6_Promoters_Alt_Target_F <- Top_U6_Promoters_Alt_Target_F %>% 
+  unite(U6p_pegRNA_BC, U6_Promoter_Seq, Spacer, Scaffold, Homology_Arm, BC_8N, PBS, Partial_Term, sep = "", remove = FALSE) %>% 
+  unite(Full_RS_U6p_pegRNA_RS_Seq, F_Dial_Out_Primer, Five_Prime_Restriction, U6_Promoter_Seq, Spacer, Scaffold, Homology_Arm, BC_8N, PBS, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, sep = "", remove = FALSE) 
+
+##Make relevant DNA columns upper case
+  Top_U6_Promoters_Alt_Target_F <- Top_U6_Promoters_Alt_Target_F %>% 
+    mutate(U6p_pegRNA_BC = str_to_upper(U6p_pegRNA_BC)) %>% 
+    mutate(Full_RS_U6p_pegRNA_RS_Seq = str_to_upper(Full_RS_U6p_pegRNA_RS_Seq))
+  
+##Calculate promoter and total oligo sequence length
+  
+Top_U6_Promoters_Alt_Target_F <- Top_U6_Promoters_Alt_Target_F %>% 
+  mutate(Pro_Seq_Length = str_length(U6_Promoter_Seq)) %>% 
+  mutate(U6p_pegRNA_BC_Length = str_length(U6p_pegRNA_BC)) %>% 
+  mutate(Full_RS_U6p_pegRNA_RS_Seq_Length = str_length(Full_RS_U6p_pegRNA_RS_Seq)) 
+
+##Reorder and rename columns for consistency
+
+Top_U6_Promoters_Alt_Target_F <- Top_U6_Promoters_Alt_Target_F %>%
+  select(Seq_Name, Pro_Seq_Name = Name, Target, BC_Number, F_Dial_Out_Primer, Five_Prime_Restriction,  Pro_Seq = U6_Promoter_Seq, Spacer, Scaffold, Homology_Arm, pBC_Seq = BC_8N, PBS, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, U6p_pegRNA_BC, U6_Median_Human_Edit_Score, Pro_Seq_Length, U6p_pegRNA_BC_Length, Full_RS_U6p_pegRNA_RS_Seq_Length, Full_RS_U6p_pegRNA_RS_Seq)
+  
+##See how many of the sequences have restriction sites and change them 
+
+Forward_RS_Check <- Top_U6_Promoters_Alt_Target_F %>% 
+  filter((grepl("GGTCTC", U6p_pegRNA_BC))) 
+  
+Reverse_RS_Check <- Top_U6_Promoters_Alt_Target_F %>% 
+  filter((grepl("GAGACC", U6p_pegRNA_BC)))  
+
+##None - we're good! 
+
+##Check relative edit scores
+
+ggplot(Top_U6_Promoters_Alt_Target_F, aes(x = log2(U6_Median_Human_Edit_Score), y = log2(U6_Median_Human_Edit_Score))) + geom_point()
+
+ggplot(Top_U6_Promoters_Alt_Target_F, aes(x = U6_Median_Human_Edit_Score, y = U6_Median_Human_Edit_Score)) + geom_point()
+
+##Add a unique numbering column
+
+Twist_Order_Sheet_U6p_Alt_Target <- Top_U6_Promoters_Alt_Target_F %>% 
+  mutate(ID_Number = row_number())
+
+##Write it as a file by element
+
+write_csv(Twist_Order_Sheet_U6p_Alt_Target, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241230_U6p_Alt_Target_By_Element.csv")
+
+##Write as .csv in Twist order format
+
+Twist_Order_Sheet_U6p_Alt_Target <- Twist_Order_Sheet_U6p_Alt_Target %>% 
+  select(`gene name` = ID_Number, FASTA_Seq = Full_RS_U6p_pegRNA_RS_Seq)
+
+write_csv(Twist_Order_Sheet_U6p_Alt_Target, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241230_U6p_Alt_Target_Twist_Order_Sheet.csv")
+
+
+```
+
+
+
+```{r}
+
+set.seed(4)
+
+##Designing pegRNAs to target the alternate sites
+
+BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/BB_Edit_Scores_Comparison_Table.csv") %>% 
+  filter(BC_Pool == 1)
+
+BB <- BB %>% 
+  rowwise() %>% 
+  mutate(Median_Human_Edit_Score = median(K562:iPSC))
+
+
+##Recreate the HEK targeting constructs for control (only doing standard human RNU6-1p for HEK3 for control)
+
+BB_TOI <- BB 
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- "HEK3"
+BB_TOI$Spacer <- "GGCCCAGACTGAGCACGTGA"
+BB_TOI$Homology_Arm <- "TCTGCCATCA"
+BB_TOI$PBS <- "CGTGCTCAGTCTG"
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_HEK3 <- BB_TOI
+
+##Create the HBB targeting constructs 
+
+BB_TOI <- BB 
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- "HBB"
+BB_TOI$Spacer <- "GCATGGTGCACCTGACTCCTG"
+BB_TOI$Homology_Arm <- "AGACTTCTCCTCAG"
+BB_TOI$PBS <- "GAGTCAGGTGCACCA"
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_HBB <- BB_TOI
+
+##Create the CYLBL targeting constructs
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "CLYBL")
+
+BB_TOI <- BB 
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- pegRNA_TOI$target
+BB_TOI$Spacer <- pegRNA_TOI$spacer
+BB_TOI$Homology_Arm <- pegRNA_TOI$ha
+BB_TOI$PBS <- pegRNA_TOI$pbs
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_CLYBL <- BB_TOI
+
+##Create the FANCF targeting constructs - note the FANCF homology arm was shortened to avoid a BsbI site present in the long Koeppel construct
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "FANCF")
+
+BB_TOI <- BB 
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- pegRNA_TOI$target
+BB_TOI$Spacer <- pegRNA_TOI$spacer
+BB_TOI$Homology_Arm <- "GGAAAAGCGATCCAGGT"
+BB_TOI$PBS <- pegRNA_TOI$pbs
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_FANCF <- BB_TOI
+
+
+##Create the EMX1 targeting constructs
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "EMX1")
+
+BB_TOI <- BB 
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- pegRNA_TOI$target
+BB_TOI$Spacer <- pegRNA_TOI$spacer
+BB_TOI$Homology_Arm <- pegRNA_TOI$ha
+BB_TOI$PBS <- pegRNA_TOI$pbs
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_EMX1 <- BB_TOI
+
+##Bind both together
+
+BB_Alt_Target_F <- rbind(BB_HEK3, BB_HBB, BB_CLYBL, BB_EMX1, BB_FANCF)
+
+##Adding the barcodes 
+
+Top_8N_BCs <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/Pooled_Edit_Scores.csv") %>% 
+  filter(Edit_Score > 0.5) %>% 
+  filter(!(grepl("GGTCTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGACC", pBC_Seq))) %>% 
+  filter(!(grepl("GGTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGA", pBC_Seq))) %>% 
+  filter(!(grepl("CTC", pBC_Seq))) %>%
+  sample_n(3*(length(BB_Alt_Target_F$Backbone_Seq)))
+
+##Replicate the set of sequences 3 times for each barcode and add labels 
+
+BB_Alt_Target_F_BC1 <- BB_Alt_Target_F
+BB_Alt_Target_F_BC1$BC_Number <- "BC_1"
+
+BB_Alt_Target_F_BC2 <- BB_Alt_Target_F
+BB_Alt_Target_F_BC2$BC_Number <- "BC_2"
+
+BB_Alt_Target_F_BC3 <- BB_Alt_Target_F
+BB_Alt_Target_F_BC3$BC_Number <- "BC_3"
+
+BB_Alt_Target_F <- rbind(BB_Alt_Target_F_BC1, BB_Alt_Target_F_BC2, BB_Alt_Target_F_BC3)
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(Seq_Name, Oligo_Number, Target, BC_Number, remove = FALSE)
+
+##Add the barcodes
+
+BB_Alt_Target_F$BC_8N <- Top_8N_BCs$pBC_Seq
+
+##Uniting to make full oligo sequence with restriction sites to order
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(pegRNA_BC, Spacer, Backbone_Seq, Homology_Arm, BC_8N, PBS, Partial_Term, sep = "", remove = FALSE) %>% 
+  unite(RS_pegRNA_RS_Seq, Five_Prime_Restriction, Spacer, Backbone_Seq, Homology_Arm, BC_8N, PBS, Partial_Term, Three_Prime_Restriction, sep = "", remove = FALSE)
+
+##Add a random sequence to all sequences to make them all longer than the 258 cut off then chop em down to be the same length (stuffer sequence of 300bp from c-terminal end of eGFP with not common restriction sites)
+
+BB_Alt_Target_F$Stuffer_GFP_Seq <- "gctacgtccaggagcgcaccatcttcttcaaggacgacggcaactacaagacccgcgccgaggtgaagttcgagggcgacaccctggtgaaccgcatcgagctgaagggcatcgacttcaaggaggacggcaacatcctggggcacaagctggagtacaactacaacagccacaacgtctatatcatggccgacaagcagaagaacggcatcaaggtgaacttcaagatccgccacaacatcgaggacggcagcgtgcagctcgccgaccactaccagcagaacacccccatcggcgacg" 
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  mutate(Stuffer_GFP_Seq = str_to_upper(Stuffer_GFP_Seq))
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(Full_Stuffer_RS_pegRNA8N_RS_Seq, Stuffer_GFP_Seq, RS_pegRNA_RS_Seq, sep = "", remove = FALSE)
+
+##Calculate full seq length and chop down
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_pegRNA8N_RS_Seq))
+
+ggplot(BB_Alt_Target_F, aes(x = Seq_Length)) + 
+  geom_histogram()
+
+##Chop down sequences
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  separate(Full_Stuffer_RS_pegRNA8N_RS_Seq, into = c("Five_Prime_Cutoff", "Full_Stuffer_RS_pegRNA8N_RS_Seq"), sep = -205)
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>%
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_pegRNA8N_RS_Seq)) %>% 
+  select(!Five_Prime_Cutoff)
+
+
+ggplot(BB_Alt_Target_F, aes(x = Seq_Length)) + 
+  geom_histogram() 
+
+
+##Unite to make full final oligo sequences
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(Full_RS_pegRNA_RS_Seq, F_Dial_Out_Primer, Full_Stuffer_RS_pegRNA8N_RS_Seq, R_Dial_Out_Primer, sep = "", remove = FALSE) 
+
+##Make relevant DNA columns upper case
+  BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+    mutate(pegRNA_BC = str_to_upper(pegRNA_BC)) %>% 
+    mutate(Full_RS_pegRNA_RS_Seq = str_to_upper(Full_RS_pegRNA_RS_Seq))
+  
+##Calculate promoter and total oligo sequence length
+  
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  mutate(Scaffold_Length = str_length(Backbone_Seq)) %>% 
+  mutate(pegRNA_BC_Length = str_length(pegRNA_BC)) %>% 
+  mutate(RS_pegRNA_RS_Seq_Length = str_length(RS_pegRNA_RS_Seq)) %>%
+  mutate(Stuffer_RS_pegRNA_BC_RS_Length = str_length(Full_Stuffer_RS_pegRNA8N_RS_Seq)) %>%
+  mutate(Full_RS_pegRNA_RS_Seq_Length = str_length(Full_RS_pegRNA_RS_Seq)) 
+
+
+##Reorder and rename columns for consistency
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>%
+  select(Seq_Name, Oligo_Number, Variant_Type, Target, BC_Number, F_Dial_Out_Primer, Five_Prime_Restriction, Spacer, Scaffold = Backbone_Seq, Homology_Arm, pBC_Seq = BC_8N, PBS, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, pegRNA_BC, Median_Human_Edit_Score, Scaffold_Length, pegRNA_BC_Length, RS_pegRNA_RS_Seq_Length, Stuffer_RS_pegRNA_BC_RS_Length, Full_RS_pegRNA_RS_Seq_Length, Full_RS_pegRNA_RS_Seq)
+  
+##See how many of the sequences have restriction sites and change them 
+
+Forward_RS_Check <- BB_Alt_Target_F %>% 
+  filter((grepl("GGTCTC", pegRNA_BC))) 
+  
+Reverse_RS_Check <- BB_Alt_Target_F %>% 
+  filter((grepl("GAGACC", pegRNA_BC)))  
+
+##Change the name for writing
+
+BB_Alt_Target_FF <- BB_Alt_Target_F
+
+```
+
+
+```{r}
+set.seed(6)
+
+##Make more pegRNA variants with A-U flip included 
+
+##Start with scaffold sequences to mutate 
+
+##A-U flip pegRNA
+
+"GTTTAAGAGCTAGAAATAGCAAGTTTAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+
+
+##Function to generate all SNVs or deletions accross a sequence 
+
+mutate_sequence <- function(string, num = 1, nucleotides = c("A","T","C","G","_")) {
+  l_str <- str_length(string)
+
+  choices <- cross(list(
+    cols = combn(seq_len(l_str), num, simplify = F),
+    muts = cross(rerun(num, nucleotides)) %>% map(unlist)
+  ))
+
+  choice_matrix <- 
+    map_dfr(choices, as_tibble, .id = "rows") %>% 
+    mutate(rows = as.numeric(rows))
+
+  seq_matrix <- str_split(rep(string, max(choice_matrix$rows)), "", simplify = T)
+
+  seq_matrix[as.matrix(choice_matrix[,1:2])] <- str_to_lower(choice_matrix$muts)
+  apply(seq_matrix, 1, paste, collapse = "")
+}
+
+##Specific example
+
+mutate_sequence("ATCG", num = 1)
+
+##First four nucleotides
+
+##First paired R:AR sequence 
+
+First_RAR <- mutate_sequence("TTT", num = 1) %>% 
+  as.data.frame() 
+
+names(First_RAR)[names(First_RAR) == '.'] <- 'RAR_Seq' 
+
+First_RAR <- First_RAR %>% 
+  mutate(RAR_AC_Seq = str_to_upper(RAR_Seq)) %>% 
+  distinct(RAR_AC_Seq, .keep_all = TRUE) %>% 
+  filter(!grepl("_", RAR_AC_Seq))
+  
+First_RAR$RC_RAR_Seq <- sapply(First_RAR$RAR_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##First paired R:AR sequence 
+
+First_RAR <- create.dnabarcodes(3, dist = 0, filter.triplets = FALSE)
+
+First_RAR <- data.frame(matrix(unlist(First_RAR), nrow=length(First_RAR), byrow=TRUE)) 
+
+First_RAR <- First_RAR %>% 
+  dplyr::rename(AC_RAR_Seq = 1)
+
+First_RAR$RC_RAR_Seq <- sapply(First_RAR$AC_RAR_Seq, function(x) as.character(reverseComplement(DNAString(x)))) 
+
+##Mutating just the A after the A-U flip
+
+A_Mut <- mutate_sequence("A", num = 1) %>% 
+  as.data.frame() 
+
+names(A_Mut)[names(A_Mut) == '.'] <- 'RAR_Seq' 
+
+A_Mut <- A_Mut %>% 
+  mutate(RAR_AC_Seq = str_to_upper(RAR_Seq)) %>% 
+  distinct(RAR_AC_Seq, .keep_all = TRUE) %>% 
+  filter(!grepl("_", RAR_AC_Seq))
+
+A_Mut$RC_RAR_Seq <- sapply(A_Mut$RAR_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+##Second paired R:AR sequence 
+
+Second_RAR <- mutate_sequence("ACTT", num = 1) %>% 
+  as.data.frame() 
+
+names(Second_RAR)[names(Second_RAR) == '.'] <- 'RAR_Seq' 
+
+Second_RAR <- Second_RAR %>% 
+  mutate(RAR_AC_Seq = str_to_upper(RAR_Seq)) %>% 
+  distinct(RAR_AC_Seq, .keep_all = TRUE) %>% 
+  filter(!grepl("_", RAR_AC_Seq))
+  
+Second_RAR$RC_RAR_Seq <- sapply(Second_RAR$RAR_Seq, function(x) as.character(reverseComplement(DNAString(x)))) 
+
+##Second paired R:AR sequence 
+
+Second_RAR <- create.dnabarcodes(4, dist = 0, filter.gc = FALSE, filter.self_complementary = FALSE, filter.triplets = FALSE)
+
+Second_RAR <- data.frame(matrix(unlist(Second_RAR), nrow=length(Second_RAR), byrow=TRUE)) 
+
+Second_RAR <- Second_RAR %>% 
+  dplyr::rename(AC_RAR_Seq = 1)
+
+Second_RAR$RC_RAR_Seq <- sapply(Second_RAR$AC_RAR_Seq, function(x) as.character(reverseComplement(DNAString(x)))) 
+
+
+##Add these to RAR making all variants
+
+
+First_RAR_A_Variants <- First_RAR
+First_RAR_T_Variants <- First_RAR
+First_RAR_C_Variants <- First_RAR
+First_RAR_G_Variants <- First_RAR
+
+First_RAR_A_Variants$First_RAR_Variable_End_A <- "A"
+First_RAR_A_Variants$First_RAR_Variable_End_T <- "T"
+First_RAR_T_Variants$First_RAR_Variable_End_A <- "T"
+First_RAR_T_Variants$First_RAR_Variable_End_T <- "A"
+First_RAR_C_Variants$First_RAR_Variable_End_A <- "C"
+First_RAR_C_Variants$First_RAR_Variable_End_T <- "G"
+First_RAR_G_Variants$First_RAR_Variable_End_A <- "G"
+First_RAR_G_Variants$First_RAR_Variable_End_T <- "C"
+
+First_RAR <- rbind(First_RAR_A_Variants, First_RAR_T_Variants, First_RAR_C_Variants, First_RAR_G_Variants)
+
+##Rename columns
+
+First_RAR <- First_RAR %>% 
+  dplyr::rename(First_RAR_Seq = AC_RAR_Seq, First_RAR_RC_Seq = RC_RAR_Seq)
+
+##Combine them all to make the scaffolds for first R:AR variants
+
+First_RAR$G_Start <- "G"
+First_RAR$First_RAR_Constant_A_U_Flip_A <- "A"
+First_RAR$First_Intervening_Sequence <- "GAGCTAGAAATAGCAAGT"
+First_RAR$First_RAR_A_U_Flip_Constant_RC_T <- "T"
+First_RAR$Second_Intervening_Sequence <- "TAAGGCTAGTCCGTTATCA"
+First_RAR$Second_RAR_Seq <- "ACTT"
+First_RAR$Second_RC_RAR_Seq <- "AAGT"
+First_RAR$Third_Intervening_Sequence <- "GAAA"
+First_RAR$End_Sequence <- "GGGACCGAGTCGGTCC"
+
+First_RAR <- First_RAR %>% 
+  unite(First_Half_Scaffold_Seq, G_Start, First_RAR_Seq, First_RAR_Constant_A_U_Flip_A, First_RAR_Variable_End_A, First_Intervening_Sequence, First_RAR_Variable_End_T, First_RAR_A_U_Flip_Constant_RC_T, First_RAR_RC_Seq, Second_Intervening_Sequence, sep = "", remove = FALSE)
+
+
+
+##Select 10 variants from the second R:AR
+
+Second_RAR_Subset <- Second_RAR %>% 
+  dplyr::rename(Second_RAR_Seq =  AC_RAR_Seq, Second_RAR_RC_Seq = RC_RAR_Seq)
+
+Second_RAR_Subset$Third_Intervening_Sequence <- "GAAA"
+Second_RAR_Subset$End_Sequence <- "GGGACCGAGTCGGTCC"
+
+Second_RAR_Subset <- Second_RAR_Subset %>%
+  unite(Second_Half_Scaffold_Seq, Second_RAR_Seq, Third_Intervening_Sequence, Second_RAR_RC_Seq, End_Sequence, sep = "", remove = FALSE)
+
+##Create all possible pairings of the 10 variants
+
+A_U_Flip_Scaffold_Variants <- cbind(First_RAR, Second_RAR_Subset) %>% 
+  select(First_Half_Scaffold_Seq, Second_Half_Scaffold_Seq) 
+
+
+A_U_Flip_Scaffold_Variants <- A_U_Flip_Scaffold_Variants %>% 
+  expand.grid() 
+
+A_U_Flip_Scaffold_Variants <- A_U_Flip_Scaffold_Variants %>% 
+  unite(Scaffold_Seq, First_Half_Scaffold_Seq, Second_Half_Scaffold_Seq, sep = "", remove = FALSE) 
+
+A_U_Flip_Scaffold_Variants <- A_U_Flip_Scaffold_Variants %>% 
+  sample_frac() %>% 
+  distinct(Scaffold_Seq, .keep_all = TRUE)
+
+##Seperate out the relevant portions
+
+A_U_Flip_Scaffold_Variants_Sep <- A_U_Flip_Scaffold_Variants %>%
+  separate(Scaffold_Seq, into = c("G_Start", "First_RAR_Seq"), sep = 1, remove = FALSE) %>% 
+  separate(First_RAR_Seq, into = c("First_RAR_Seq", "First_Intervening_Seq"), sep = 5) %>%
+  separate(First_Intervening_Seq, into = c("First_Intervening_Seq", "First_RAR_RC_Seq"), sep = 18) %>%
+  separate(First_RAR_RC_Seq, into = c("First_RAR_RC_Seq", "Second_Intervening_Seq"), sep = 5) %>%
+  separate(Second_Intervening_Seq, into = c("Second_Intervening_Seq", "Second_RAR_Seq"), sep = 19) %>%
+  separate(Second_RAR_Seq, into = c("Second_RAR_Seq", "Third_Intervening_Sequence"), sep = 4) %>%
+  separate(Third_Intervening_Sequence, into = c("Third_Intervening_Sequence", "Second_RAR_RC_Seq"), sep = 4) %>% 
+  separate(Second_RAR_RC_Seq, into = c("Second_RAR_RC_Seq", "End_Scaffold_Seq"), sep = 4)
+
+
+##Filter to remove poly Ts
+
+A_U_Flip_Scaffold_Variants_Sep <- A_U_Flip_Scaffold_Variants_Sep %>% 
+  filter(!(grepl("TTTTT", Scaffold_Seq))) %>% 
+  filter(!(grepl("TTTT", Scaffold_Seq)))
+
+##Filter to include the classic A-U flip design
+
+A_U_Flip_Scaffold_Sep <- A_U_Flip_Scaffold_Variants_Sep %>% 
+  filter(Scaffold_Seq %in% c("GTTTAAGAGCTAGAAATAGCAAGTTTAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"))
+
+##Get distinct variants
+
+A_U_Flip_Scaffold_Variants_Sep_2 <- A_U_Flip_Scaffold_Variants_Sep %>% 
+  distinct(First_Half_Scaffold_Seq, .keep_all = TRUE) %>% 
+  distinct(Second_Half_Scaffold_Seq, .keep_all = TRUE) %>% 
+  head(99) 
+
+##Bind together for final set of scaffolds 
+
+A_U_Flip_Scaffold_Variants <- rbind(A_U_Flip_Scaffold_Variants_Sep_2, A_U_Flip_Scaffold_Sep)
+  
+A_U_Flip_Scaffold_Variants <- A_U_Flip_Scaffold_Variants %>% 
+  distinct(First_Half_Scaffold_Seq, .keep_all = TRUE) %>% 
+  distinct(Second_Half_Scaffold_Seq, .keep_all = TRUE) 
+
+A_U_Flip_Scaffold_Variants_Just_Scaffold <- A_U_Flip_Scaffold_Variants %>% 
+  select(Scaffold_Seq) 
+
+##Add a unique numbering column
+
+A_U_Flip_Scaffold_Variants_Just_Scaffold <- A_U_Flip_Scaffold_Variants %>%
+  mutate(ID_Number = row_number()) %>% 
+  dplyr::rename(Backbone_Seq = Scaffold_Seq)
+
+A_U_Flip_Scaffold_Variants_Just_Scaffold$Class <- "A_U_Flip_Variants"
+
+##Recreate the HEK targeting constructs for control (only doing standard human RNU6-1p for HEK3 for control)
+
+BB_TOI <- A_U_Flip_Scaffold_Variants_Just_Scaffold 
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- "HEK3"
+BB_TOI$Spacer <- "GGCCCAGACTGAGCACGTGA"
+BB_TOI$Homology_Arm <- "TCTGCCATCA"
+BB_TOI$PBS <- "CGTGCTCAGTCTG"
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_HEK3 <- BB_TOI
+
+##Create the HBB targeting constructs 
+
+BB_TOI <- A_U_Flip_Scaffold_Variants_Just_Scaffold 
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- "HBB"
+BB_TOI$Spacer <- "GCATGGTGCACCTGACTCCTG"
+BB_TOI$Homology_Arm <- "AGACTTCTCCTCAG"
+BB_TOI$PBS <- "GAGTCAGGTGCACCA"
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_HBB <- BB_TOI
+
+##Create the CYLBL targeting constructs
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "CLYBL")
+
+BB_TOI <- A_U_Flip_Scaffold_Variants_Just_Scaffold  
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- pegRNA_TOI$target
+BB_TOI$Spacer <- pegRNA_TOI$spacer
+BB_TOI$Homology_Arm <- pegRNA_TOI$ha
+BB_TOI$PBS <- pegRNA_TOI$pbs
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_CLYBL <- BB_TOI
+
+##Create the FANCF targeting constructs - note the FANCF homology arm was shortened to avoid a BsbI site present in the long Koeppel construct
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "FANCF")
+
+BB_TOI <- A_U_Flip_Scaffold_Variants_Just_Scaffold  
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- pegRNA_TOI$target
+BB_TOI$Spacer <- pegRNA_TOI$spacer
+BB_TOI$Homology_Arm <- "GGAAAAGCGATCCAGGT"
+BB_TOI$PBS <- pegRNA_TOI$pbs
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_FANCF <- BB_TOI
+
+
+##Create the EMX1 targeting constructs
+
+pegRNA_TOI <- Koeppel_pegRNAs %>% 
+  filter(target == "EMX1")
+
+BB_TOI <- A_U_Flip_Scaffold_Variants_Just_Scaffold  
+
+BB_TOI$F_Dial_Out_Primer <- "GACGGGGAATTAACC"
+BB_TOI$Five_Prime_Restriction <- "TAGTGAGGTCTCGCACC"
+BB_TOI$Target <- pegRNA_TOI$target
+BB_TOI$Spacer <- pegRNA_TOI$spacer
+BB_TOI$Homology_Arm <- pegRNA_TOI$ha
+BB_TOI$PBS <- pegRNA_TOI$pbs
+BB_TOI$Partial_Term <- "TTTT"
+BB_TOI$Three_Prime_Restriction <- "TGAGACCTCCCTA"
+BB_TOI$R_Dial_Out_Primer <- "GCTTACGGGCAACAT"
+
+BB_EMX1 <- BB_TOI
+
+##Bind both together
+
+BB_Alt_Target_F <- rbind(BB_HEK3, BB_HBB, BB_CLYBL, BB_EMX1, BB_FANCF)
+
+##Adding the barcodes 
+
+Top_8N_BCs <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/Pooled_Edit_Scores.csv") %>% 
+  filter(Edit_Score > 0.5) %>% 
+  filter(!pBC_Seq %in% BB_Alt_Target_FF$pBC_Seq) %>% 
+  filter(!(grepl("GGTCTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGACC", pBC_Seq))) %>% 
+  filter(!(grepl("GGTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGA", pBC_Seq))) %>% 
+  filter(!(grepl("CTC", pBC_Seq))) %>%
+  sample_n(3*(length(BB_Alt_Target_F$Backbone_Seq)))
+
+##Replicate the set of sequences 3 times for each barcode and add labels 
+
+BB_Alt_Target_F_BC1 <- BB_Alt_Target_F
+BB_Alt_Target_F_BC1$BC_Number <- "BC_1"
+
+BB_Alt_Target_F_BC2 <- BB_Alt_Target_F
+BB_Alt_Target_F_BC2$BC_Number <- "BC_2"
+
+BB_Alt_Target_F_BC3 <- BB_Alt_Target_F
+BB_Alt_Target_F_BC3$BC_Number <- "BC_3"
+
+BB_Alt_Target_F <- rbind(BB_Alt_Target_F_BC1, BB_Alt_Target_F_BC2, BB_Alt_Target_F_BC3)
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(Seq_Name, ID_Number, Class, Target, BC_Number, remove = FALSE)
+
+##Add the barcodes
+
+BB_Alt_Target_F$BC_8N <- Top_8N_BCs$pBC_Seq
+
+##Uniting to make full oligo sequence with restriction sites to order
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(pegRNA_BC, Spacer, Backbone_Seq, Homology_Arm, BC_8N, PBS, Partial_Term, sep = "", remove = FALSE) %>% 
+  unite(RS_pegRNA_RS_Seq, Five_Prime_Restriction, Spacer, Backbone_Seq, Homology_Arm, BC_8N, PBS, Partial_Term, Three_Prime_Restriction, sep = "", remove = FALSE)
+
+##Add a random sequence to all sequences then chop em down to be the same length (stuffer sequence of 300bp from c-terminal end of eGFP with no common restriction sites)
+
+BB_Alt_Target_F$Stuffer_GFP_Seq <- "gctacgtccaggagcgcaccatcttcttcaaggacgacggcaactacaagacccgcgccgaggtgaagttcgagggcgacaccctggtgaaccgcatcgagctgaagggcatcgacttcaaggaggacggcaacatcctggggcacaagctggagtacaactacaacagccacaacgtctatatcatggccgacaagcagaagaacggcatcaaggtgaacttcaagatccgccacaacatcgaggacggcagcgtgcagctcgccgaccactaccagcagaacacccccatcggcgacg" 
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  mutate(Stuffer_GFP_Seq = str_to_upper(Stuffer_GFP_Seq))
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(Full_Stuffer_RS_pegRNA8N_RS_Seq, Stuffer_GFP_Seq, RS_pegRNA_RS_Seq, sep = "", remove = FALSE)
+
+##Calculate full seq length and chop down
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_pegRNA8N_RS_Seq))
+
+ggplot(BB_Alt_Target_F, aes(x = Seq_Length)) + 
+  geom_histogram()
+
+##Chop down sequences
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  separate(Full_Stuffer_RS_pegRNA8N_RS_Seq, into = c("Five_Prime_Cutoff", "Full_Stuffer_RS_pegRNA8N_RS_Seq"), sep = -205)
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>%
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_pegRNA8N_RS_Seq)) %>% 
+  select(!Five_Prime_Cutoff)
+
+
+ggplot(BB_Alt_Target_F, aes(x = Seq_Length)) + 
+  geom_histogram() 
+
+
+##Unite to make full final oligo sequences
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  unite(Full_RS_pegRNA_RS_Seq, F_Dial_Out_Primer, Full_Stuffer_RS_pegRNA8N_RS_Seq, R_Dial_Out_Primer, sep = "", remove = FALSE) 
+
+##Make relevant DNA columns upper case
+  BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+    mutate(pegRNA_BC = str_to_upper(pegRNA_BC)) %>% 
+    mutate(Full_RS_pegRNA_RS_Seq = str_to_upper(Full_RS_pegRNA_RS_Seq))
+  
+##Calculate promoter and total oligo sequence length
+  
+BB_Alt_Target_F <- BB_Alt_Target_F %>% 
+  mutate(Scaffold_Length = str_length(Backbone_Seq)) %>% 
+  mutate(pegRNA_BC_Length = str_length(pegRNA_BC)) %>% 
+  mutate(RS_pegRNA_RS_Seq_Length = str_length(RS_pegRNA_RS_Seq)) %>%
+  mutate(Stuffer_RS_pegRNA_BC_RS_Length = str_length(Full_Stuffer_RS_pegRNA8N_RS_Seq)) %>%
+  mutate(Full_RS_pegRNA_RS_Seq_Length = str_length(Full_RS_pegRNA_RS_Seq)) 
+
+
+##Reorder and rename columns for consistency
+
+BB_Alt_Target_F <- BB_Alt_Target_F %>%
+  select(Seq_Name, Oligo_Number = ID_Number, Variant_Type = Class, Target, BC_Number, F_Dial_Out_Primer, Five_Prime_Restriction, Spacer, Scaffold = Backbone_Seq, Homology_Arm, pBC_Seq = BC_8N, PBS, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, pegRNA_BC, Scaffold_Length, pegRNA_BC_Length, RS_pegRNA_RS_Seq_Length, Stuffer_RS_pegRNA_BC_RS_Length, Full_RS_pegRNA_RS_Seq_Length, Full_RS_pegRNA_RS_Seq)
+  
+##See how many of the sequences have restriction sites and change them 
+
+Forward_RS_Check <- BB_Alt_Target_F %>% 
+  filter((grepl("GGTCTC", pegRNA_BC))) 
+  
+Reverse_RS_Check <- BB_Alt_Target_F %>% 
+  filter((grepl("GAGACC", pegRNA_BC)))  
+
+
+```
+
+```{r}
+##Combine both sets of backbones
+
+A_U_Flip_BB_Variants <- BB_Alt_Target_F 
+  
+BB_Alt_Target_FF <- BB_Alt_Target_FF %>% 
+  select(!Median_Human_Edit_Score)
+
+Final_Div_Backbone_Order <- rbind(A_U_Flip_BB_Variants, BB_Alt_Target_FF) 
+
+Final_Div_Backbone_Order <- Final_Div_Backbone_Order %>% 
+  mutate(Order_ID_Number = row_number()) %>% 
+  distinct(Full_RS_pegRNA_RS_Seq, .keep_all = TRUE)
+
+##Do one more check for restriction sites, there should be 6 in the forward orientation only, all for HBB because the spacer makes a restriction sites with backbones __ and __ so filtering these 6 out. 
+
+##See how many of the sequences have restriction sites and change them 
+
+Forward_RS_Check <- Final_Div_Backbone_Order %>% 
+  filter((grepl("GGTCTC", pegRNA_BC))) 
+  
+Reverse_RS_Check <- Final_Div_Backbone_Order %>% 
+  filter((grepl("GAGACC", pegRNA_BC)))  
+
+Final_Div_Backbone_Order <- Final_Div_Backbone_Order %>%
+  filter(!Seq_Name %in% Forward_RS_Check$Seq_Name)
+
+##Write the BB data as a file by element
+
+write_csv(Final_Div_Backbone_Order, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241231_Div_Scaffold_Alt_Target_By_Element.csv")
+
+##Write it in twist format for the order
+
+Twist_Format_Final_Div_Backbone_Order <- Final_Div_Backbone_Order %>% 
+  select(name = Seq_Name, sequence = Full_RS_pegRNA_RS_Seq)
+
+write_csv(Twist_Format_Final_Div_Backbone_Order, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241231_Div_Scaffold_Alt_Target_Twist_Order_Sheet.csv")
+
+length(unique(Twist_Format_Final_Div_Backbone_Order$sequence))
+
+length(unique(Final_Div_Backbone_Order$Scaffold))
+
+```
+
+
+```{r}
+
+##Making CRISPRi U6 promoter and scaffold variant constructs with essential gene (AARS) spacer from Repogle et al. 2022 eLife table S1: https://elifesciences.org/articles/81856#content)
+
+##Add a unique numbering column
+
+U6p_CRISPRi_Spacer <- Top_U6_Promoters_Alt_Target_F %>%
+  mutate(ID_Number = row_number()) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(!Spacer:PBS)
+
+U6p_CRISPRi_Spacer$Spacer <- "GCGGCGACCCTAGGAGAGGT"
+U6p_CRISPRi_Spacer$Scaffold <- "gtttAagagctagaaatagcaagttTaaataaggctagtccgttatcaacttgaaaaagtggcaccgagtcggtgc"
+
+##Get Top 10 scaffold variants and 10 with a broad range of activity levels
+
+##Isolate top 10 BBs 
+
+##First select the median standard oligo-BC pair and the 6 that performed better across standard. 
+
+BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/BB_Edit_Scores_Comparison_Table.csv") 
+
+Standard_BB <- BB %>% 
+  filter(Oligo_Number == 3) 
+
+Above_Standard_BBs <- BB %>% 
+  filter(Above_Standard == "TRUE") 
+
+Standard_And_Above <- rbind(Standard_BB, Above_Standard_BBs)
+
+Standard_And_Above <- Standard_And_Above %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  filter(BC_Pool == 2)
+
+##Then select 3 more with the highest BC2 edit score from the set within 5x of standard in all contexts
+
+Top_BBs <- BB %>% 
+  filter(Within_5x_Standard == "TRUE") %>% 
+  filter(!Above_Standard == "TRUE") %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  arrange(-BB_BC2_Median_Human_Edit_Score) %>% 
+  head(3)
+
+##Select 10 more with a broad range of activity levels that are consistent across cell types and barcodes 
+
+Additional_BBs <- BB %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  filter(Oligo_Number %in% c("221", "239", "260", "244", "291", "289", "44", "76", "133", "20")) 
+  
+  
+##Combine the sets to get the top 10 and arrange by median edit score
+
+Top_BBs <- rbind(Standard_And_Above, Top_BBs, Additional_BBs)
+
+Top_BBs <- Top_BBs %>% 
+  select(Oligo_Number, Full_Seq, Backbone_Seq, BB_BC2_Median_Human_Edit_Score) 
+
+##Remove restriction sites from full BB sequences
+
+Top_BBs <- Top_BBs %>% 
+  separate(Full_Seq, into = c("5_Restriction", "Rest"), sep = 17) %>% 
+  separate(Rest, into = c("Full_pegRNA_Seq", "3_Restriction"), sep = -12) %>% 
+  select(!`5_Restriction` & !`3_Restriction`) %>% 
+  arrange(BB_BC2_Median_Human_Edit_Score)
+
+##Take the standard human U6 promoter, and pair it with different backbones
+
+Standard_U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1") %>% 
+  select(!Scaffold)
+
+Top_BBs$Pro_Seq_Name <- "Human_Weissman_RNU6-1"
+
+Top_BBs <- Top_BBs %>% 
+  left_join(Standard_U6p_CRISPRi_Spacer, by = "Pro_Seq_Name")
+ 
+Top_BBs <- Top_BBs %>% 
+  dplyr::rename(Scaffold = Backbone_Seq, Scaffold_Seq_number = Oligo_Number) %>% select(!Full_pegRNA_Seq)
+
+##Add the relevant columns to U6p_Spacer and join 
+
+Standard_BB <- Standard_BB %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC))
+
+U6p_CRISPRi_Spacer$Scaffold_Seq_number <- Standard_BB$Oligo_Number 
+U6p_CRISPRi_Spacer$Scaffold <- Standard_BB$Backbone_Seq
+U6p_CRISPRi_Spacer$BB_BC2_Median_Human_Edit_Score <- Standard_BB$BB_BC2_Median_Human_Edit_Score
+
+##Bind both for the full set of 40 
+
+U6p_CRISPRi_Spacer <- rbind(U6p_CRISPRi_Spacer, Top_BBs)
+
+##Uniting to make full oligo sequence with restriction sites to order
+
+U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>% 
+  unite(U6p_gRNA, Pro_Seq, Spacer, Scaffold, Partial_Term, sep = "", remove = FALSE) %>% 
+  unite(Full_RS_U6p_gRNA_RS_Seq, F_Dial_Out_Primer, Five_Prime_Restriction, Pro_Seq, Spacer, Scaffold, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, sep = "", remove = FALSE) 
+
+##Make relevant DNA columns upper case
+  U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>%  
+    mutate(U6p_gRNA_Seq = str_to_upper(U6p_gRNA)) %>% 
+    mutate(Full_RS_U6p_gRNA_RS_Seq = str_to_upper(Full_RS_U6p_gRNA_RS_Seq)) %>% mutate(Full_RS_U6p_gRNA_RS_Seq_Length = str_length(Full_RS_U6p_gRNA_RS_Seq)) %>% 
+    mutate(U6p_gRNA_Seq_Length = str_length(U6p_gRNA_Seq))
+
+##Remove irrelevant columns and calculate length
+  
+  U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>%
+    select(Pro_Seq_Name, Scaffold_Seq_number, U6_Median_Human_Edit_Score, BB_BC2_Median_Human_Edit_Score, F_Dial_Out_Primer, Five_Prime_Restriction, Pro_Seq, Spacer, Scaffold, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, U6p_gRNA_Seq_Length, Full_RS_U6p_gRNA_RS_Seq_Length, U6p_gRNA_Seq, Full_RS_U6p_gRNA_RS_Seq) 
+  
+##Check for restriction sites
+  
+Forward_RS_Check <- U6p_CRISPRi_Spacer %>% 
+  filter((grepl("GGTCTC", U6p_gRNA_Seq))) 
+  
+Reverse_RS_Check <- U6p_CRISPRi_Spacer %>% 
+  filter((grepl("GAGACC", U6p_gRNA_Seq)))
+    
+    
+##Write it as a file by element
+  
+U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>% 
+  mutate(ID_Number = row_number())
+
+write_csv(U6p_CRISPRi_Spacer, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241230_U6p_BB_CRISPRi_AARS_Spacer_By_Element.csv")
+
+##Write as .csv in Twist order format
+
+U6p_CRISPRi_Spacer_Twist_Order <- U6p_CRISPRi_Spacer %>% 
+  select(`gene name` = ID_Number, FASTA_Seq = Full_RS_U6p_gRNA_RS_Seq)
+
+write_csv(U6p_CRISPRi_Spacer_Twist_Order, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241230_U6p_BB_CRISPRi_AARS_Spacer_Twist_Order_Sheet.csv")
+
+
+```
+
+
+
+```{r}
+
+##Making U6 promoters with B2M CRISPRi spacer from Horlbeck et al., 2016 eLife
+
+##Add a unique numbering column
+
+U6p_CRISPRi_Spacer <- Top_U6_Promoters_Alt_Target_F %>%
+  mutate(ID_Number = row_number()) %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  select(!Spacer:PBS)
+
+U6p_CRISPRi_Spacer$Spacer <- "GGCGAGCACAGCTAAGGCCA"
+U6p_CRISPRi_Spacer$Scaffold <- "gtttAagagctagaaatagcaagttTaaataaggctagtccgttatcaacttgaaaaagtggcaccgagtcggtgc"
+
+##Get Top 10 scaffold variants and 10 with a broad range of activity levels
+
+##Isolate top 10 BBs 
+
+##First select the median standard oligo-BC pair and the 6 that performed better across standard. 
+
+BB <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/BB_Edit_Scores_Comparison_Table.csv") 
+
+Standard_BB <- BB %>% 
+  filter(Oligo_Number == 3) 
+
+Above_Standard_BBs <- BB %>% 
+  filter(Above_Standard == "TRUE") 
+
+Standard_And_Above <- rbind(Standard_BB, Above_Standard_BBs)
+
+Standard_And_Above <- Standard_And_Above %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  filter(BC_Pool == 2)
+
+##Then select 3 more with the highest BC2 edit score from the set within 5x of standard in all contexts
+
+Top_BBs <- BB %>% 
+  filter(Within_5x_Standard == "TRUE") %>% 
+  filter(!Above_Standard == "TRUE") %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  arrange(-BB_BC2_Median_Human_Edit_Score) %>% 
+  head(3)
+
+##Select 10 more with a broad range of activity levels that are consistent across cell types and barcodes 
+
+Additional_BBs <- BB %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC)) %>% 
+  filter(Oligo_Number %in% c("221", "239", "260", "244", "291", "289", "44", "76", "133", "20")) 
+  
+  
+##Combine the sets to get the top 10 and arrange by median edit score
+
+Top_BBs <- rbind(Standard_And_Above, Top_BBs, Additional_BBs)
+
+Top_BBs <- Top_BBs %>% 
+  select(Oligo_Number, Full_Seq, Backbone_Seq, BB_BC2_Median_Human_Edit_Score) 
+
+##Remove restriction sites from full BB sequences
+
+Top_BBs <- Top_BBs %>% 
+  separate(Full_Seq, into = c("5_Restriction", "Rest"), sep = 17) %>% 
+  separate(Rest, into = c("Full_pegRNA_Seq", "3_Restriction"), sep = -12) %>% 
+  select(!`5_Restriction` & !`3_Restriction`) %>% 
+  arrange(BB_BC2_Median_Human_Edit_Score)
+
+##Take the standard human U6 promoter, and pair it with different backbones
+
+Standard_U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1") %>% 
+  select(!Scaffold)
+
+Top_BBs$Pro_Seq_Name <- "Human_Weissman_RNU6-1"
+
+Top_BBs <- Top_BBs %>% 
+  left_join(Standard_U6p_CRISPRi_Spacer, by = "Pro_Seq_Name")
+ 
+Top_BBs <- Top_BBs %>% 
+  dplyr::rename(Scaffold = Backbone_Seq, Scaffold_Seq_number = Oligo_Number) %>% select(!Full_pegRNA_Seq)
+
+##Add the relevant columns to U6p_Spacer and join 
+
+Standard_BB <- Standard_BB %>% 
+  filter(BC_Pool == 2) %>% 
+  rowwise() %>% 
+  mutate(BB_BC2_Median_Human_Edit_Score = median(K562:iPSC))
+
+U6p_CRISPRi_Spacer$Scaffold_Seq_number <- Standard_BB$Oligo_Number 
+U6p_CRISPRi_Spacer$Scaffold <- Standard_BB$Backbone_Seq
+U6p_CRISPRi_Spacer$BB_BC2_Median_Human_Edit_Score <- Standard_BB$BB_BC2_Median_Human_Edit_Score
+
+##Bind both for the full set of 40 
+
+U6p_CRISPRi_Spacer <- rbind(U6p_CRISPRi_Spacer, Top_BBs)
+
+##Uniting to make full oligo sequence with restriction sites to order
+
+U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>% 
+  unite(U6p_gRNA, Pro_Seq, Spacer, Scaffold, Partial_Term, sep = "", remove = FALSE) %>% 
+  unite(Full_RS_U6p_gRNA_RS_Seq, F_Dial_Out_Primer, Five_Prime_Restriction, Pro_Seq, Spacer, Scaffold, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, sep = "", remove = FALSE) 
+
+##Make relevant DNA columns upper case
+  U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>%  
+    mutate(U6p_gRNA_Seq = str_to_upper(U6p_gRNA)) %>% 
+    mutate(Full_RS_U6p_gRNA_RS_Seq = str_to_upper(Full_RS_U6p_gRNA_RS_Seq)) %>% mutate(Full_RS_U6p_gRNA_RS_Seq_Length = str_length(Full_RS_U6p_gRNA_RS_Seq)) %>% 
+    mutate(U6p_gRNA_Seq_Length = str_length(U6p_gRNA_Seq))
+
+##Remove irrelevant columns and calculate length
+  
+  U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>%
+    select(Pro_Seq_Name, Scaffold_Seq_number, U6_Median_Human_Edit_Score, BB_BC2_Median_Human_Edit_Score, F_Dial_Out_Primer, Five_Prime_Restriction, Pro_Seq, Spacer, Scaffold, Partial_Term, Three_Prime_Restriction, R_Dial_Out_Primer, U6p_gRNA_Seq_Length, Full_RS_U6p_gRNA_RS_Seq_Length, U6p_gRNA_Seq, Full_RS_U6p_gRNA_RS_Seq) 
+  
+##Check for restriction sites
+  
+Forward_RS_Check <- U6p_CRISPRi_Spacer %>% 
+  filter((grepl("GGTCTC", U6p_gRNA_Seq))) 
+  
+Reverse_RS_Check <- U6p_CRISPRi_Spacer %>% 
+  filter((grepl("GAGACC", U6p_gRNA_Seq)))
+    
+    
+##Write it as a file by element
+  
+U6p_CRISPRi_Spacer <- U6p_CRISPRi_Spacer %>% 
+  mutate(ID_Number = row_number())
+
+write_csv(U6p_CRISPRi_Spacer, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241230_U6p_BB_CRISPRi_B2M_Spacer_By_Element.csv")
+
+##Write as .csv in Twist order format
+
+U6p_CRISPRi_Spacer_Twist_Order <- U6p_CRISPRi_Spacer %>% 
+  select(`gene name` = ID_Number, FASTA_Seq = Full_RS_U6p_gRNA_RS_Seq)
+
+write_csv(U6p_CRISPRi_Spacer_Twist_Order, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/241230_U6p_BB_CRISPRi_B2M_Spacer_Twist_Order_Sheet.csv")
+
+
+```
+
+
+
+```{r}
+
+set.seed(3)
+
+##Select a sampling of 100 promoters better than standard, and 100 with a broad range of activity levels in the Zoonomia screen
+
+Zoonomia_PolIII_Pro <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/Pol_III_Pro_Edit_Scores_Class.csv")
+
+Zoo_100_Better_Than_Standard_Sample <- Zoonomia_PolIII_Pro %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  arrange(-Log2_Fold_Change_Relative_To_hRNU61p) %>% 
+  head(100)
+
+##Then a sample with a broad range of activity levels
+
+Zoo_Broad_Range <- Zoonomia_PolIII_Pro %>% 
+  distinct(Pro_Seq, .keep_all = TRUE) %>% 
+  filter(!Pro_Seq %in% Zoo_100_Better_Than_Standard_Sample$Pro_Seq) %>% 
+  sample_n(100) 
+
+##Get the right ones from the data, filter for unique pBCs to remove transfection replicates, and select relevant columns
+
+Better <- Zoonomia_PolIII_Pro %>% 
+  filter(Pro_Seq %in% Zoo_100_Better_Than_Standard_Sample$Pro_Seq) 
+
+Broad <- Zoonomia_PolIII_Pro %>% 
+  filter(Pro_Seq %in% Zoo_Broad_Range$Pro_Seq) 
+
+Better_And_Broad_Range <- rbind(Better, Broad) %>% 
+  distinct(pBC_Seq, .keep_all = TRUE)
+
+##Filter to remove one duplicate sequence from a saturation deletion of neighbouring nucleotides 
+
+Better_And_Broad_Range <- Better_And_Broad_Range %>% 
+  filter(!grepl(">7SK_176A>Del_BC", Seq_Name))
+
+Zoo_Better_And_Broad_Range_F <- Better_And_Broad_Range %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq)
+
+##Add the restriction sites, HEK3 spacer, etc. 
+
+##Add restriction sites, pegRNAs, barcodes 
+
+Zoo_Better_And_Broad_Range_F$Five_Prime_BsaI_Restriction <- "TAGTGAGGTCTCGGTGC"
+Zoo_Better_And_Broad_Range_F$Spacer <- "GGCCCAGACTGAGCACGTGA"
+Zoo_Better_And_Broad_Range_F$Scaffold <- "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Zoo_Better_And_Broad_Range_F$RTT <- "TCTGCCATCA"
+Zoo_Better_And_Broad_Range_F$PBS <- "CGTGCTCAGTCTG"
+Zoo_Better_And_Broad_Range_F$Terminator_And_Three_Prime_BsaI_Restriction <- "TTTTTGAGACCTCCCTA"
+
+```
+
+```{r}
+
+set.seed(1)
+
+##Creating saturation mutagenesis library of full length hRNU6-1p
+
+##Create saturation mutagenesis of H1 and 7SK promoters 
+
+##Function to generate all SNVs or deletions accross a sequence 
+
+mutate_sequence <- function(string, num = 1, nucleotides = c("A","T","C","G","_")) {
+  l_str <- str_length(string)
+
+  choices <- cross(list(
+    cols = combn(seq_len(l_str), num, simplify = F),
+    muts = cross(rerun(num, nucleotides)) %>% map(unlist)
+  ))
+
+  choice_matrix <- 
+    map_dfr(choices, as_tibble, .id = "rows") %>% 
+    mutate(rows = as.numeric(rows))
+
+  seq_matrix <- str_split(rep(string, max(choice_matrix$rows)), "", simplify = T)
+
+  seq_matrix[as.matrix(choice_matrix[,1:2])] <- str_to_lower(choice_matrix$muts)
+  apply(seq_matrix, 1, paste, collapse = "")
+}
+
+##Specific example
+
+mutate_sequence("ATCG", num = 1) 
+
+##Saturation mutagenesis of the full length U6p_pegRNA cassette 
+
+U6p_PegRNA_Saturation_Seqs <- mutate_sequence("gagggcctatttcccatgattccttcatatttgcatatacgatacaaggctgttagagagataattagaattaatttgactgtaaacacaaagatattagtacaaaatacgtgacgtagaaagtaataatttcttgggtagtttgcagttttaaaattatgttttaaaatggactatcatatgcttaccgtaacttgaaagtatttcgatttcttggctttatatatcttgtggaaaggacgaaacaccGGCCCAGACTGAGCACGTGAGTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCCTCTGCCATCAGGGGGGGGCGTGCTCAGTCTG", num = 1) %>% 
+  as.data.frame()
+
+names(U6p_PegRNA_Saturation_Seqs)[names(U6p_PegRNA_Saturation_Seqs) == '.'] <- 'Sequence'
+
+##Change all strings to uppercase and select only unique sequences (i.e. filter out WT replicates)
+
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>% 
+  mutate(Pro_Seq = str_to_upper(Sequence))
+
+##Add a column indicating variant position 
+
+U6p_PegRNA_Saturation_Seqs$Variant_Position <- rep(1:str_length(U6p_PegRNA_Saturation_Seqs$Pro_Seq), times = 5)
+
+U6p_PegRNA_Standard_Nucleotide <- tibble(x = c("gagggcctatttcccatgattccttcatatttgcatatacgatacaaggctgttagagagataattagaattaatttgactgtaaacacaaagatattagtacaaaatacgtgacgtagaaagtaataatttcttgggtagtttgcagttttaaaattatgttttaaaatggactatcatatgcttaccgtaacttgaaagtatttcgatttcttggctttatatatcttgtggaaaggacgaaacaccGGCCCAGACTGAGCACGTGAGTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCCTCTGCCATCANNNNNNNNCGTGCTCAGTCTG")) %>% 
+  mutate(x = str_to_upper(x)) %>% 
+  separate_longer_position(x, width = 1)
+
+U6p_PegRNA_Saturation_Seqs$Standard_Nucleotide <- rep(U6p_PegRNA_Standard_Nucleotide$x, times = 5)
+
+U6p_PegRNA_Saturation_Seqs$Variant_Nucleotide <- rep(c("A", "T", "C", "G", "Del"), each = str_length(U6p_PegRNA_Saturation_Seqs$Pro_Seq))
+
+U6p_PegRNA_Saturation_Seqs$FASTA_Arrow <- ">"
+U6p_PegRNA_Saturation_Seqs$Variant_Arrow <- ">"
+U6p_PegRNA_Saturation_Seqs$Promoter_Name <- "hRNU6_1p_pegRNA_Saturation"
+
+U6p_PegRNA_Saturation_Seqs <- U6p_PegRNA_Saturation_Seqs %>% 
+  unite(Seq_Name_1, FASTA_Arrow, Promoter_Name, sep = "") %>% 
+  unite(Seq_Name_2, Seq_Name_1, Variant_Position, remove = FALSE) %>% 
+  unite(Seq_Name, Seq_Name_2, Standard_Nucleotide, Variant_Arrow, Variant_Nucleotide, sep = "")
+
+##Separate out the spacers, scaffolds, RTT, and PBS by position
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>% 
+  dplyr::rename(Full_Seq = Pro_Seq) %>% 
+  separate(Full_Seq, into = c("Pro_Seq", "Spacer"), sep = 249, remove = FALSE) %>% 
+  separate(Spacer, into = c("Spacer", "Scaffold"), sep = 20) %>% 
+  separate(Scaffold, into = c("Scaffold", "RTT"), sep = 76) %>% 
+  separate(RTT, into = c("RTT", "8N_iBC"), sep = 10) %>%
+  separate(`8N_iBC`, into = c("8N_iBC", "PBS"), sep = 8)
+
+##Filter to remove variants in the iBC 
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>% 
+  dplyr::filter(!Variant_Position %in% (356:363))
+
+
+##Filter for only distinct sequences
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>%
+  distinct(Full_Seq, .keep_all = TRUE) %>% 
+  mutate(Pro_Seq = str_replace(Pro_Seq, "_", "")) %>% 
+  mutate(Spacer = str_replace(Spacer, "_", "")) %>%
+  mutate(Scaffold = str_replace(Scaffold, "_", "")) %>%
+  mutate(RTT = str_replace(RTT, "_", "")) %>%
+  mutate(PBS = str_replace(PBS, "_", "")) %>%
+  select(Seq_Name, Full_Seq:PBS) %>% 
+  select(!`8N_iBC`)
+
+##Add restrcition sites 
+
+U6p_PegRNA_Saturation_Seqs$Five_Prime_BsaI_Restriction <- "TAGTGAGGTCTCGGTGC"
+U6p_PegRNA_Saturation_Seqs$Terminator_And_Three_Prime_BsaI_Restriction <- "TTTTTGAGACCTCCCTA"
+
+
+##Get the U6 promoters for pairing with 3 8N iBCs
+
+Pol3_Pro <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/U6_Edit_Scores_Comparison_Table.csv") %>%
+  select(Seq_Name = Name, Pro_Seq = U6_Promoter_Seq) 
+
+##Calculate sequence length and plot
+
+Pol3_Pro <- Pol3_Pro %>% 
+  mutate(Seq_Length = str_length(Pro_Seq))
+
+ggplot(Pol3_Pro, aes(x = Seq_Length)) + 
+  geom_histogram()
+
+##Filter for all promoters greater than 282bp and chop them down, plot
+
+Long_Pol3_Pro <- Pol3_Pro %>% 
+  filter(Seq_Length > 259) 
+
+Short_Pol3_Pro <- Pol3_Pro %>% 
+  filter(Seq_Length <= 259)
+
+Long_Pol3_Pro <- Long_Pol3_Pro %>% 
+  separate(Pro_Seq, into = c("Five_Prime_Cutoff", "Pro_Seq"), sep = -259) %>% 
+  mutate(Seq_Length = str_length(Pro_Seq)) %>% 
+  select(!Five_Prime_Cutoff)
+
+Chopped_Pol3_Pro <- rbind(Long_Pol3_Pro, Short_Pol3_Pro)
+
+ggplot(Chopped_Pol3_Pro, aes(x = Seq_Length)) + 
+  geom_histogram() 
+
+
+##See how many of the promoters have restriction sites and change them 
+
+Forward_RS_Check <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GGTCTC", Pro_Seq))) 
+  
+Reverse_RS_Check <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GAGACC", Pro_Seq))) 
+
+
+Chopped_Pol3_Pro <- Chopped_Pol3_Pro %>% 
+  mutate(Pro_Seq = str_replace_all(Pro_Seq, "GGTCTC", "GGTTTC")) %>% 
+  mutate(Pro_Seq = str_replace_all(Pro_Seq, "GAGACC", "GAGGCC"))
+
+Forward_RS_Check_After_Correction <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GGTCTC", Pro_Seq))) 
+  
+Forward_RS_Check_After_Correction <- Chopped_Pol3_Pro %>% 
+  filter((grepl("GAGACC", Pro_Seq))) 
+
+##Add restriction sites, pegRNAs, barcodes 
+
+Chopped_Pol3_Pro$Five_Prime_BsaI_Restriction <- "TAGTGAGGTCTCGGTGC"
+Chopped_Pol3_Pro$Spacer <- "GGCCCAGACTGAGCACGTGA"
+Chopped_Pol3_Pro$pegRNA_BB <- "GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCC"
+Chopped_Pol3_Pro$RTT <- "TCTGCCATCA"
+Chopped_Pol3_Pro$PBS <- "CGTGCTCAGTCTG"
+Chopped_Pol3_Pro$Terminator_And_Three_Prime_BsaI_Restriction <- "TTTTTGAGACCTCCCTA"
+
+
+##Get the two sets of pol III pros that need 8N iBCS, combine them and pair them with BCs, making sure to not use the iBCs already paired with the zoonomia top 100 and broad range subsets selected. 
+
+Chopped_Pol3_Pro <- Chopped_Pol3_Pro %>% 
+  select(!Seq_Length) %>% 
+  dplyr::rename(Scaffold = pegRNA_BB)
+
+U6p_PegRNA_Saturation_Seqs <- U6p_PegRNA_Saturation_Seqs %>% 
+  select(!Full_Seq)
+
+Chopped_Pol3_Pro <- rbind(Chopped_Pol3_Pro, U6p_PegRNA_Saturation_Seqs)
+
+##Select best barcodes from edit scores in K562
+
+Top_8N_BCs <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/Pooled_Edit_Scores.csv") %>% 
+  filter(Edit_Score > 0.5) %>% 
+  filter(!pBC_Seq %in% Zoo_Better_And_Broad_Range_F$pBC_Seq) %>% 
+  filter(!(grepl("GGTCTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGACC", pBC_Seq))) %>% 
+  filter(!(grepl("GGTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGA", pBC_Seq))) %>% 
+  sample_n(3*(length(Chopped_Pol3_Pro$Pro_Seq)))
+
+##Replicate the set of sequences 3 times for each barcode and add labels 
+
+Chopped_Pol3_Pro_BC1 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC1$BC_Number <- "BC_1"
+
+Chopped_Pol3_Pro_BC2 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC2$BC_Number <- "BC_2"
+
+Chopped_Pol3_Pro_BC3 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC3$BC_Number <- "BC_3"
+
+Chopped_Pol3_Pro_BCs <- rbind(Chopped_Pol3_Pro_BC1, Chopped_Pol3_Pro_BC2, Chopped_Pol3_Pro_BC3)
+
+Chopped_Pol3_Pro_BCs <- Chopped_Pol3_Pro_BCs %>% 
+  unite(Seq_Name, Seq_Name, BC_Number)
+
+##Add the barcodes
+
+Chopped_Pol3_Pro_BCs$pBC_Seq <- Top_8N_BCs$pBC_Seq
+
+##Then bind with top 100 and broad range zoonomia subsets 
+
+Chopped_Pol3_Pro_BCs <- rbind(Chopped_Pol3_Pro_BCs, Zoo_Better_And_Broad_Range_F)
+
+
+##Reorder columns and join the functional sequence 
+
+RS_U6p_pegRNA8N_RS <- Chopped_Pol3_Pro_BCs %>% 
+  select(Seq_Name, Five_Prime_BsaI_Restriction, Pro_Seq, Spacer, Scaffold, RTT, pBC_Seq, PBS, Terminator_And_Three_Prime_BsaI_Restriction) %>% 
+  unite(RS_U6p_pegRNA8N_RS, Five_Prime_BsaI_Restriction, Pro_Seq, Spacer, Scaffold, RTT, pBC_Seq, PBS, Terminator_And_Three_Prime_BsaI_Restriction, sep= "", remove = FALSE)
+
+
+##Add a random sequence to all sequences to make them all longer than the 258 cut off then chop em down to be the same length (stuffer sequence of 300bp from c-terminal end of eGFP with not common restriction sites)
+
+RS_U6p_pegRNA8N_RS$Stuffer_GFP_Seq <- "gctacgtccaggagcgcaccatcttcttcaaggacgacggcaactacaagacccgcgccgaggtgaagttcgagggcgacaccctggtgaaccgcatcgagctgaagggcatcgacttcaaggaggacggcaacatcctggggcacaagctggagtacaactacaacagccacaacgtctatatcatggccgacaagcagaagaacggcatcaaggtgaacttcaagatccgccacaacatcgaggacggcagcgtgcagctcgccgaccactaccagcagaacacccccatcggcgacg" 
+
+RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  mutate(Stuffer_GFP_Seq = str_to_upper(Stuffer_GFP_Seq))
+
+RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  unite(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq, Stuffer_GFP_Seq, RS_U6p_pegRNA8N_RS, sep = "", remove = FALSE)
+
+##Calculate full seq length and chop down
+
+RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq))
+
+ggplot(RS_U6p_pegRNA8N_RS, aes(x = Seq_Length)) + 
+  geom_histogram()
+
+##Filter for all promoters greater than 282bp and chop them down, plot
+
+Long_RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  filter(Seq_Length > 420) 
+
+Short_RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  filter(Seq_Length <= 420)
+
+Long_RS_U6p_pegRNA8N_RS <- Long_RS_U6p_pegRNA8N_RS %>% 
+  separate(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq, into = c("Five_Prime_Cutoff", "Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq"), sep = -420) %>% 
+  mutate(Seq_Length = str_length(Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq)) %>% 
+  select(!Five_Prime_Cutoff)
+
+Chopped_RS_U6p_pegRNA8N_RS <- rbind(Long_RS_U6p_pegRNA8N_RS, Short_RS_U6p_pegRNA8N_RS)
+
+ggplot(Chopped_RS_U6p_pegRNA8N_RS, aes(x = Seq_Length)) + 
+  geom_histogram() 
+
+
+##Add PCR handles 
+
+Chopped_RS_U6p_pegRNA8N_RS$PCR_Handle_15_F <- "GACGGGGAATTAACC"
+Chopped_RS_U6p_pegRNA8N_RS$PCR_Handle_15_R <- "GCTTACGGGCAACAT"
+
+##Create full oligo sequence
+
+Chopped_RS_U6p_pegRNA8N_RS <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  unite(Full_Oligo_Seq, PCR_Handle_15_F, Full_Stuffer_RS_U6p_pegRNA8N_RS_Seq, PCR_Handle_15_R, sep = "", remove = FALSE) %>% 
+  mutate(Pro_Seq_Length = str_length(Pro_Seq)) %>% 
+  mutate(RS_U6p_pegRNA8N_RS_Seq_Length = str_length(RS_U6p_pegRNA8N_RS)) %>%
+  mutate(Full_Oligo_Seq_Length = str_length(Full_Oligo_Seq)) 
+
+
+##Make sure there are no remaining restriction sites 
+
+Chopped_RS_U6p_pegRNA8N_RS <- Chopped_RS_U6p_pegRNA8N_RS %>%
+  unite(U6p_pegRNA8N, Pro_Seq, Spacer, Scaffold, RTT, pBC_Seq, PBS, Terminator_And_Three_Prime_BsaI_Restriction, sep= "", remove = FALSE) %>% 
+  separate(U6p_pegRNA8N, into = c("U6p_pegRNA8N", "Three_Prime_BsaI"), sep = -12) %>% 
+  select(!Three_Prime_BsaI)
+
+Forward_RS_Check <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  filter((grepl("GGTCTC", U6p_pegRNA8N))) 
+  
+Reverse_RS_Check <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  filter((grepl("GAGACC", U6p_pegRNA8N))) 
+
+
+##Create the final oligo sequence table
+
+Final_PolIII_Oligos <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  select(Seq_Name, Full_Oligo_Seq:RS_U6p_pegRNA8N_RS, PCR_Handle_15_F, Five_Prime_BsaI_Restriction:Terminator_And_Three_Prime_BsaI_Restriction, PCR_Handle_15_R, Pro_Seq_Length:Full_Oligo_Seq_Length)
+
+Final_PolIII_Oligos$Oligo_ID <- seq(1:length(Final_PolIII_Oligos$Seq_Name)) 
+
+Final_PolIII_Oligos <- Final_PolIII_Oligos %>% 
+  select(Oligo_ID, Seq_Name, Full_Oligo_Seq:RS_U6p_pegRNA8N_RS, PCR_Handle_15_F, Five_Prime_BsaI_Restriction:Terminator_And_Three_Prime_BsaI_Restriction, PCR_Handle_15_R, Pro_Seq_Length:Full_Oligo_Seq_Length)
+
+#write_csv(Final_PolIII_Oligos, "/Users/troymcdiarmid/Documents/U6_pro_series/eBlock_order_spreadsheets/TAM_Final_Pol3_Promoter_450bp_Twist_Oligos_240416.csv")
+
+write_csv(Final_PolIII_Oligos, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/250109_Pol3_Promoter_Full_Length_Saturation_and_Zoonomia_Validation_450bp_Twist_Oligos_By_Element.csv")
+
+##Make twist order sheet input
+
+Twist_MGF_Order_Sheet_Input <- Final_PolIII_Oligos %>% 
+  select(Name = Seq_Name, Fragment_Sequence = Full_Oligo_Seq)
+
+write_csv(Twist_MGF_Order_Sheet_Input, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/250109_Pol3_Promoter_Full_Length_Saturation_and_Zoonomia_Validation_450bp_Twist_Oligos_MGF_Fragment_Ordersheet_Input.csv")
+
+```
+
+```{r}
+##Alternative saturation of the minRNU6-1p-pegRNA with 3x 8N iBCS
+
+set.seed(1)
+
+##Creating saturation mutagenesis library of full length hRNU6-1p
+
+##Create saturation mutagenesis of H1 and 7SK promoters 
+
+##Function to generate all SNVs or deletions accross a sequence 
+
+mutate_sequence <- function(string, num = 1, nucleotides = c("A","T","C","G","_")) {
+  l_str <- str_length(string)
+
+  choices <- cross(list(
+    cols = combn(seq_len(l_str), num, simplify = F),
+    muts = cross(rerun(num, nucleotides)) %>% map(unlist)
+  ))
+
+  choice_matrix <- 
+    map_dfr(choices, as_tibble, .id = "rows") %>% 
+    mutate(rows = as.numeric(rows))
+
+  seq_matrix <- str_split(rep(string, max(choice_matrix$rows)), "", simplify = T)
+
+  seq_matrix[as.matrix(choice_matrix[,1:2])] <- str_to_lower(choice_matrix$muts)
+  apply(seq_matrix, 1, paste, collapse = "")
+}
+
+##Specific example
+
+mutate_sequence("ATCG", num = 1) 
+
+##Saturation mutagenesis of the full length U6p_pegRNA cassette 
+
+U6p_PegRNA_Saturation_Seqs <- mutate_sequence("GAGGGCCTATTTCCCATGATTCCTTCATATTTGCATATACGATAGCTTACCGTAACTTGAAAGTATTTCGATTTCTTGGCTTTATATATCTTGTGGAAAGGACGAAACACCGGCCCAGACTGAGCACGTGAGTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCCTCTGCCATCAGGTGCCGTGCTCAGTCTG", num = 1) %>% 
+  as.data.frame()
+
+names(U6p_PegRNA_Saturation_Seqs)[names(U6p_PegRNA_Saturation_Seqs) == '.'] <- 'Sequence'
+
+##Change all strings to uppercase and select only unique sequences (i.e. filter out WT replicates)
+
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>% 
+  mutate(Pro_Seq = str_to_upper(Sequence))
+
+##Add a column indicating variant position 
+
+U6p_PegRNA_Saturation_Seqs$Variant_Position <- rep(1:str_length(U6p_PegRNA_Saturation_Seqs$Pro_Seq), times = 5)
+
+U6p_PegRNA_Standard_Nucleotide <- tibble(x = c("GAGGGCCTATTTCCCATGATTCCTTCATATTTGCATATACGATAGCTTACCGTAACTTGAAAGTATTTCGATTTCTTGGCTTTATATATCTTGTGGAAAGGACGAAACACCGGCCCAGACTGAGCACGTGAGTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGGACCGAGTCGGTCCTCTGCCATCAGGTGCCGTGCTCAGTCTG")) %>% 
+  mutate(x = str_to_upper(x)) %>% 
+  separate_longer_position(x, width = 1)
+
+U6p_PegRNA_Saturation_Seqs$Standard_Nucleotide <- rep(U6p_PegRNA_Standard_Nucleotide$x, times = 5)
+
+U6p_PegRNA_Saturation_Seqs$Variant_Nucleotide <- rep(c("A", "T", "C", "G", "Del"), each = str_length(U6p_PegRNA_Saturation_Seqs$Pro_Seq))
+
+U6p_PegRNA_Saturation_Seqs$FASTA_Arrow <- ">"
+U6p_PegRNA_Saturation_Seqs$Variant_Arrow <- ">"
+U6p_PegRNA_Saturation_Seqs$Promoter_Name <- "minhRNU6_1p_pegRNA_Saturation"
+
+U6p_PegRNA_Saturation_Seqs <- U6p_PegRNA_Saturation_Seqs %>% 
+  unite(Seq_Name_1, FASTA_Arrow, Promoter_Name, sep = "") %>% 
+  unite(Seq_Name_2, Seq_Name_1, Variant_Position, remove = FALSE) %>% 
+  unite(Seq_Name, Seq_Name_2, Standard_Nucleotide, Variant_Arrow, Variant_Nucleotide, sep = "")
+
+##Separate out the spacers, scaffolds, RTT, and PBS by position
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>% 
+  dplyr::rename(Full_Seq = Pro_Seq) %>% 
+  separate(Full_Seq, into = c("Pro_Seq", "Spacer"), sep = 111, remove = FALSE) %>% 
+  separate(Spacer, into = c("Spacer", "Scaffold"), sep = 20) %>% 
+  separate(Scaffold, into = c("Scaffold", "RTT"), sep = 76) %>% 
+  separate(RTT, into = c("RTT", "5N_iBC"), sep = 10) %>%
+  separate(`5N_iBC`, into = c("5N_iBC", "PBS"), sep = 5)
+
+##Filter to remove variants in the iBC 
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>% 
+  dplyr::filter(!Variant_Position %in% (218:222))
+
+
+##Filter for only distinct sequences
+
+U6p_PegRNA_Saturation_Seqs <-  U6p_PegRNA_Saturation_Seqs %>%
+  distinct(Full_Seq, .keep_all = TRUE) %>% 
+  mutate(Pro_Seq = str_replace(Pro_Seq, "_", "")) %>% 
+  mutate(Spacer = str_replace(Spacer, "_", "")) %>%
+  mutate(Scaffold = str_replace(Scaffold, "_", "")) %>%
+  mutate(RTT = str_replace(RTT, "_", "")) %>%
+  mutate(PBS = str_replace(PBS, "_", "")) %>%
+  select(Seq_Name, Full_Seq:PBS) %>% 
+  select(!`5N_iBC`)
+
+##Add restrcition sites 
+
+U6p_PegRNA_Saturation_Seqs$Five_Prime_BsaI_Restriction <- "TTGTAGTGAGGTCTCGGTGC"
+U6p_PegRNA_Saturation_Seqs$Terminator_And_Three_Prime_BsaI_Restriction <- "TTTTTGAGACCTCCCTAGTC"
+
+##Rename variant sequences to chopped pol III pro for input to code below. 
+Chopped_Pol3_Pro <- U6p_PegRNA_Saturation_Seqs
+
+
+##Select best barcodes from edit scores in K562
+
+Top_8N_BCs <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/20240415_synHEK3_8N_K562_SC1_3/Pooled_Edit_Scores.csv") %>% 
+  filter(Edit_Score > 0.5) %>% 
+  filter(!(grepl("GGTCTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGACC", pBC_Seq))) %>% 
+  filter(!(grepl("GGTC", pBC_Seq))) %>%
+  filter(!(grepl("GAGA", pBC_Seq))) %>% 
+  sample_n(3*(length(Chopped_Pol3_Pro$Pro_Seq)))
+
+##Replicate the set of sequences 3 times for each barcode and add labels 
+
+Chopped_Pol3_Pro_BC1 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC1$BC_Number <- "BC_1"
+
+Chopped_Pol3_Pro_BC2 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC2$BC_Number <- "BC_2"
+
+Chopped_Pol3_Pro_BC3 <- Chopped_Pol3_Pro
+Chopped_Pol3_Pro_BC3$BC_Number <- "BC_3"
+
+Chopped_Pol3_Pro_BCs <- rbind(Chopped_Pol3_Pro_BC1, Chopped_Pol3_Pro_BC2, Chopped_Pol3_Pro_BC3)
+
+Chopped_Pol3_Pro_BCs <- Chopped_Pol3_Pro_BCs %>% 
+  unite(Seq_Name, Seq_Name, BC_Number)
+
+##Add the barcodes
+
+Chopped_Pol3_Pro_BCs$pBC_Seq <- Top_8N_BCs$pBC_Seq
+
+##Reorder columns and join the functional sequence 
+
+RS_U6p_pegRNA8N_RS <- Chopped_Pol3_Pro_BCs %>% 
+  select(Seq_Name, Five_Prime_BsaI_Restriction, Pro_Seq, Spacer, Scaffold, RTT, pBC_Seq, PBS, Terminator_And_Three_Prime_BsaI_Restriction) %>% 
+  unite(Full_Oligo_Seq, Five_Prime_BsaI_Restriction, Pro_Seq, Spacer, Scaffold, RTT, pBC_Seq, PBS, Terminator_And_Three_Prime_BsaI_Restriction, sep= "", remove = FALSE)
+
+
+
+##Calculate length of oligo sequences
+
+Chopped_RS_U6p_pegRNA8N_RS <- RS_U6p_pegRNA8N_RS %>% 
+  mutate(Pro_Seq_Length = str_length(Pro_Seq)) %>% 
+  mutate(Full_Oligo_Seq_Length = str_length(Full_Oligo_Seq)) 
+
+
+##Make sure there are no remaining restriction sites 
+
+Chopped_RS_U6p_pegRNA8N_RS <- Chopped_RS_U6p_pegRNA8N_RS %>%
+  unite(U6p_pegRNA8N, Pro_Seq, Spacer, Scaffold, RTT, pBC_Seq, PBS, Terminator_And_Three_Prime_BsaI_Restriction, sep= "", remove = FALSE) %>% 
+  separate(U6p_pegRNA8N, into = c("U6p_pegRNA8N", "Three_Prime_BsaI"), sep = -12) %>% 
+  select(!Three_Prime_BsaI)
+
+Forward_RS_Check <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  filter((grepl("GGTCTC", U6p_pegRNA8N))) 
+  
+Reverse_RS_Check <- Chopped_RS_U6p_pegRNA8N_RS %>% 
+  filter((grepl("GAGACC", U6p_pegRNA8N))) 
+
+
+##Create the final oligo sequence table
+
+Final_PolIII_Oligos <- Chopped_RS_U6p_pegRNA8N_RS 
+
+Final_PolIII_Oligos$Oligo_ID <- seq(1:length(Final_PolIII_Oligos$Seq_Name)) 
+
+Final_PolIII_Oligos <- Final_PolIII_Oligos %>% 
+  select(Oligo_ID, Seq_Name, Full_Oligo_Seq:Full_Oligo_Seq_Length)
+
+#write_csv(Final_PolIII_Oligos, "/Users/troymcdiarmid/Documents/U6_pro_series/eBlock_order_spreadsheets/TAM_Final_Pol3_Promoter_450bp_Twist_Oligos_240416.csv")
+
+write_csv(Final_PolIII_Oligos, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/250110_minRNU61p_Saturation_3x8NiBC_Twist_Oligos_By_Element.csv")
+
+##Make twist order sheet input
+
+Final_PolIII_Oligos_Twist_Order <- Final_PolIII_Oligos %>% 
+  select(name = Seq_Name, sequence = Full_Oligo_Seq)
+
+write_csv(Final_PolIII_Oligos_Twist_Order, "/Users/troymcdiarmid/Documents/U6_pro_series/U6_promoters_by_element/Revision_Oligo_Design/250110_minRNU61p_Saturation_3x8NiBC_Twist_Order_Sheet.csv")
+
+
+```
+

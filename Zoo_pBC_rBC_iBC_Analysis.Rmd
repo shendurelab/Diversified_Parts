@@ -1,0 +1,600 @@
+---
+title: "pBC_rBC_iBC_Analysis"
+author: "Troy McDiarmid"
+date: "2025-04-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library("DNABarcodes")
+library("Biostrings")
+library(ggridges)
+
+```
+
+
+```{r}
+##Calculating abundance for R1 for pBC in the first round
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Merged_8N_pBC_iBCsynHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+pBC_Counts_Parsed <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+pBC_Counts_Parsed$RC_pBC_Seq <- sapply(pBC_Counts_Parsed$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+```
+
+
+```{r}
+##Doing the same for the second round of sequencing 
+
+##Calculating abundance for R1 for pBC 
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Merged_8N_pBC_iBCsynHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+pBC_Counts_Parsed_2 <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+pBC_Counts_Parsed_2$RC_pBC_Seq <- sapply(pBC_Counts_Parsed_2$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+```
+
+```{r}
+##Doing the same for the third round of sequencing 
+
+##Calculating abundance for R1 for pBC in the first round
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Merged_8N_pBC_iBCsynHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+pBC_Counts_Parsed_3 <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+pBC_Counts_Parsed_3$RC_pBC_Seq <- sapply(pBC_Counts_Parsed_3$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+```
+
+
+```{r}
+##Also read in the synHEK3 iBC counts for round 1 of sequencing
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250420_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Merged_8N_rBC_iBCHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+synHEK3_iBC_Counts_Parsed <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+synHEK3_iBC_Counts_Parsed$RC_pBC_Seq <- sapply(synHEK3_iBC_Counts_Parsed$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+
+```
+
+
+```{r}
+##Read in the synHEK3 iBC counts for round 2 of sequencing
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250430_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Merged_8N_rBC_iBCHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+synHEK3_iBC_Counts_Parsed_2 <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+synHEK3_iBC_Counts_Parsed_2$RC_pBC_Seq <- sapply(synHEK3_iBC_Counts_Parsed_2$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+
+
+```
+
+
+```{r}
+##Read in the synHEK3 iBC counts for round 3 of sequencing
+
+pBC_Counts <- read_tsv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Merged_8N_rBC_iBCHEK3_BC_Counts.txt", col_names = c("pBC_Counts")) 
+
+pBC_Counts$pBC_Counts <- gsub(':     ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':    ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':   ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(':  ', ':', pBC_Counts$pBC_Counts)
+pBC_Counts$pBC_Counts <- gsub(': ', ':', pBC_Counts$pBC_Counts)
+
+HEK3_pBC_Counts <- pBC_Counts
+
+##Parse the counts
+
+synHEK3_iBC_Counts_Parsed_3 <- pBC_Counts %>% 
+  separate(pBC_Counts, into = c("Meta_Data", "pBC_Read_Count"), sep = ":") %>% 
+  separate(pBC_Read_Count, into = c("pBC_Read_Count", "pBC_Seq"), sep = " ") %>% 
+  separate(Meta_Data, into = c("Garbage", "Library"), sep = "/") %>% 
+  separate(Library, into = c("Library", "Metadata"), sep = "_S") %>% 
+  select(Library, Metadata, pBC_Read_Count, pBC_Seq) %>% 
+  separate(Library, into = c("Library", "Replicate"), sep = "_Rep_") %>% 
+  type_convert()
+
+
+##Reverse compliment the R2 to get the PBC seq 
+
+synHEK3_iBC_Counts_Parsed_3$RC_pBC_Seq <- sapply(synHEK3_iBC_Counts_Parsed_3$pBC_Seq, function(x) as.character(reverseComplement(DNAString(x))))
+
+```
+
+
+```{r}
+##Combine all three rounds of sequencing data into one file, sum the reads and unique the rows 
+
+pBC_Counts_Parsed_F <- rbind(pBC_Counts_Parsed, pBC_Counts_Parsed_2, pBC_Counts_Parsed_3)
+
+pBC_Counts_Parsed_F <- pBC_Counts_Parsed_F %>% 
+  group_by(Library, Replicate, pBC_Seq) %>% 
+  mutate(pBC_Read_Count = sum(pBC_Read_Count)) %>% 
+  unite("Libary_pBC_Seq_Rep", c("Library", "pBC_Seq", "Replicate"), remove = FALSE) %>% 
+  distinct(Libary_pBC_Seq_Rep, .keep_all = TRUE) %>% 
+  select(!Libary_pBC_Seq_Rep)
+
+pBC_Counts_Parsed <- pBC_Counts_Parsed_F %>% 
+  ungroup()
+
+
+synHEK3_iBC_Counts_Parsed_F <- rbind(synHEK3_iBC_Counts_Parsed, synHEK3_iBC_Counts_Parsed_2, synHEK3_iBC_Counts_Parsed_3)
+
+synHEK3_iBC_Counts_Parsed_F <- synHEK3_iBC_Counts_Parsed_F %>% 
+  group_by(Library, Replicate, pBC_Seq) %>% 
+  mutate(pBC_Read_Count = sum(pBC_Read_Count)) %>% 
+  unite("Libary_pBC_Seq_Rep", c("Library", "pBC_Seq", "Replicate"), remove = FALSE) %>% 
+  distinct(Libary_pBC_Seq_Rep, .keep_all = TRUE) %>% 
+  select(!Libary_pBC_Seq_Rep)
+
+synHEK3_iBC_Counts_Parsed <- synHEK3_iBC_Counts_Parsed_F %>% 
+  ungroup()
+
+```
+
+
+
+```{r}
+##Separate out into the relrvant libraries and combine
+
+EightN_pBC_Counts_Parsed <- pBC_Counts_Parsed %>% 
+  filter(grepl("pBC", Library)) %>% 
+  select(!RC_pBC_Seq) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+EightN_synHEK3iBC_Counts_Parsed <- pBC_Counts_Parsed %>% 
+  filter(grepl("iBC_synHEK3", Library)) %>% 
+  dplyr::rename(iBCsynHEK3_Seq = RC_pBC_Seq, iBCsynHEK3_Read_Count = pBC_Read_Count) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+EightN_rBC_Counts_Parsed <- synHEK3_iBC_Counts_Parsed %>% 
+  filter(grepl("rBC", Library)) %>%
+  mutate(pBC_Seq = RC_pBC_Seq) %>% 
+  dplyr::rename(rBC_Seq = RC_pBC_Seq, rBC_Read_Count = pBC_Read_Count) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+EightN_iBC_Counts_Parsed <- synHEK3_iBC_Counts_Parsed %>% 
+  filter(grepl("iBC_HEK3", Library)) %>% 
+  mutate(iBC_Seq = pBC_Seq) %>% 
+  select(!pBC_Seq) %>% 
+  dplyr::rename(pBC_Seq = RC_pBC_Seq, iBCHEK3_Read_Count = pBC_Read_Count) %>% 
+  unite("pBC_Seq_Rep", c("pBC_Seq", "Replicate"), remove = FALSE)
+
+
+##Join them all together
+
+EightN_Counts_Parsed <- EightN_pBC_Counts_Parsed %>% 
+  left_join(EightN_rBC_Counts_Parsed, by = "pBC_Seq_Rep")
+
+EightN_Counts_Parsed <- EightN_Counts_Parsed %>% 
+  left_join(EightN_iBC_Counts_Parsed, by = "pBC_Seq_Rep")
+
+EightN_Counts_Parsed <- EightN_Counts_Parsed %>% 
+  left_join(EightN_synHEK3iBC_Counts_Parsed, by = "pBC_Seq_Rep")
+
+EightN_Counts_Parsed <- EightN_Counts_Parsed %>%
+  select(Library = Library.x, Replicate = Replicate.x, pBC_Seq = pBC_Seq.x, rBC_Seq, iBC_Seq, pBC_Read_Count, rBC_Read_Count, iBCHEK3_Read_Count, iBCsynHEK3_Read_Count) %>% 
+  type_convert()
+
+```
+
+
+```{r}
+##Convert NAs to zeros 
+
+pBC_Counts_Parsed_Calc <- EightN_Counts_Parsed %>% 
+  mutate(pBC_Read_Count = replace_na(pBC_Read_Count, 0)) %>% 
+  mutate(rBC_Read_Count = replace_na(rBC_Read_Count, 0)) %>% 
+  mutate(iBCHEK3_Read_Count = replace_na(iBCHEK3_Read_Count, 0)) %>% 
+  mutate(iBCsynHEK3_Read_Count = replace_na(iBCsynHEK3_Read_Count, 0))
+
+
+##Calculate pBC, rBC, iBC frequency 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  type_convert() %>% 
+  group_by(Replicate) %>% 
+  mutate(New_pBC_Freq = (pBC_Read_Count/(sum(pBC_Read_Count)))*100) %>% 
+  mutate(rBC_Freq = (rBC_Read_Count/(sum(rBC_Read_Count)))*100) %>% 
+  mutate(iBCHEK3_Freq = (iBCHEK3_Read_Count/(sum(iBCHEK3_Read_Count)))*100) %>%
+  mutate(iBCsynHEK3_Freq = (iBCsynHEK3_Read_Count/(sum(iBCsynHEK3_Read_Count)))*100) %>% 
+  ungroup()
+
+##Read in the original data for the deeply sequenced pBC read counts
+
+Pol_III_Pro_Edit_Scores_Class <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig6_Final_Figure_Datasets/Pol_III_Pro_Edit_Scores_Class.csv") %>% 
+  select(Seq_Name, Pro_Seq, pBC_Seq, pBC_Freq, Normalized_8N_Edit_Score, Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score = Grand_Mean_BC_Normalized_Edit_Score) %>% 
+  distinct(pBC_Seq, .keep_all = TRUE)
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  left_join(Pol_III_Pro_Edit_Scores_Class, by = "pBC_Seq") %>% 
+  drop_na(Seq_Name)
+
+##Calculate the transcription and edit scores 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  mutate(Transcription_Score = rBC_Freq/pBC_Freq) %>% 
+  mutate(HEK3_Edit_Score = iBCHEK3_Freq/pBC_Freq) %>% 
+  mutate(synHEK3_Edit_Score = iBCsynHEK3_Freq/pBC_Freq)
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_Transcription_Score = mean(Transcription_Score)) %>% 
+  mutate(Mean_HEK3_Edit_Score = mean(HEK3_Edit_Score)) %>% 
+  mutate(Mean_synHEK3_Edit_Score = mean(synHEK3_Edit_Score)) %>% 
+  ungroup() 
+
+##Calculate normalized edit scores 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  mutate(BC_Normalized_synHEK3_Edit_Score = synHEK3_Edit_Score/Normalized_8N_Edit_Score) %>% 
+  mutate(BC_Normalized_HEK3_Edit_Score = HEK3_Edit_Score/Normalized_8N_Edit_Score)
+  
+##Calculate mean normalized edit scores 
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  group_by(pBC_Seq) %>% 
+  mutate(Mean_BC_Normalized_HEK3_Edit_Score = mean(BC_Normalized_HEK3_Edit_Score)) %>% 
+  mutate(Mean_BC_Normalized_synHEK3_Edit_Score = mean(BC_Normalized_synHEK3_Edit_Score)) %>% 
+  ungroup() 
+
+##Calculate grand mean BC normalized edit scores and transcription scores
+
+pBC_Counts_Parsed_Calc <- pBC_Counts_Parsed_Calc %>% 
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_Transcription_Score = mean(Mean_Transcription_Score)) %>% 
+  mutate(Grand_Mean_BC_Normalized_synHEK3_Edit_Score = mean(BC_Normalized_synHEK3_Edit_Score)) %>% 
+  ungroup()
+
+
+##Rename DF and write to csv
+
+EightN_pBC_rBC_iBC_Data <- pBC_Counts_Parsed_Calc 
+
+
+write_csv(EightN_pBC_rBC_iBC_Data, "/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Zoo_pBC_rBC_iBC_Data.csv") 
+
+
+```
+
+
+
+
+```{r}
+##Read in data 
+
+EightN_pBC_rBC_iBC_Data <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Data/250510_pBCrBCiBC_AltTarget_Data/Zoo_pBCrBCiBC_Counts/Zoo_pBC_rBC_iBC_Data.csv") %>% 
+  filter(Grand_Mean_BC_Normalized_synHEK3_Edit_Score > 0)
+
+
+##Plot frequency correlations
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(iBCHEK3_Freq), y = log2(rBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(iBCHEK3_Freq), y = log2(pBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(iBCsynHEK3_Freq), y = log2(pBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(pBC_Freq), y = log2(rBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(iBCsynHEK3_Freq), y = log2(rBC_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(iBCsynHEK3_Freq), y = log2(iBCHEK3_Freq))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(EightN_pBC_rBC_iBC_Data$pBC_Freq, EightN_pBC_rBC_iBC_Data$rBC_Freq)
+cor.test(EightN_pBC_rBC_iBC_Data$pBC_Freq, EightN_pBC_rBC_iBC_Data$iBCsynHEK3_Freq)
+cor.test(EightN_pBC_rBC_iBC_Data$pBC_Freq, EightN_pBC_rBC_iBC_Data$iBCHEK3_Freq)
+cor.test(EightN_pBC_rBC_iBC_Data$rBC_Freq, EightN_pBC_rBC_iBC_Data$iBCsynHEK3_Freq)
+cor.test(EightN_pBC_rBC_iBC_Data$rBC_Freq, EightN_pBC_rBC_iBC_Data$iBCHEK3_Freq)
+cor.test(EightN_pBC_rBC_iBC_Data$iBCHEK3_Freq, EightN_pBC_rBC_iBC_Data$iBCsynHEK3_Freq)
+
+
+
+
+##Plot correlation between edit scores for new data and old data
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(Grand_Mean_BC_Normalized_synHEK3_Edit_Score), y = log2(Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(EightN_pBC_rBC_iBC_Data$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, EightN_pBC_rBC_iBC_Data$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score)
+cor.test(log2(EightN_pBC_rBC_iBC_Data$Grand_Mean_BC_Normalized_synHEK3_Edit_Score), log2(EightN_pBC_rBC_iBC_Data$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score))
+cor.test(EightN_pBC_rBC_iBC_Data$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, EightN_pBC_rBC_iBC_Data$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score, method = "spearman")
+
+
+##Plot transcription and edit score correlations for new data 
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(Grand_Mean_BC_Normalized_synHEK3_Edit_Score), y = log2(Grand_Mean_Transcription_Score))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(EightN_pBC_rBC_iBC_Data$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, EightN_pBC_rBC_iBC_Data$Grand_Mean_Transcription_Score)
+cor.test(log2(EightN_pBC_rBC_iBC_Data$Grand_Mean_BC_Normalized_synHEK3_Edit_Score), log2(EightN_pBC_rBC_iBC_Data$Grand_Mean_Transcription_Score))
+cor.test(EightN_pBC_rBC_iBC_Data$Grand_Mean_BC_Normalized_synHEK3_Edit_Score, EightN_pBC_rBC_iBC_Data$Grand_Mean_Transcription_Score, method = "spearman")
+
+##Plot transcription and edit score correlations for primary screen data 
+
+ggplot(EightN_pBC_rBC_iBC_Data, aes(x = log2(Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score), y = log2(Grand_Mean_Transcription_Score))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(log2(EightN_pBC_rBC_iBC_Data$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score), log2(EightN_pBC_rBC_iBC_Data$Grand_Mean_Transcription_Score))
+cor.test(log2(EightN_pBC_rBC_iBC_Data$Primary_Screen_Grand_Mean_BC_Normalized_Edit_Score), log2(EightN_pBC_rBC_iBC_Data$Grand_Mean_Transcription_Score), method = "spearman") 
+
+
+```
+
+
+```{r}
+##Calculate correlation between replicates 
+
+Pol_III_Pro_Edit_Scores <- EightN_pBC_rBC_iBC_Data 
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(pBC_Seq, Replicate_1_Transcription_Score = Transcription_Score, Replicate_1_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_1_synHEK3_Edit_Score = synHEK3_Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_Transcription_Score = Transcription_Score, Replicate_2_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_2_synHEK3_Edit_Score = synHEK3_Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_Transcription_Score = Transcription_Score, Replicate_3_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_3_synHEK3_Edit_Score = synHEK3_Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_Transcription_Score = Transcription_Score, Replicate_4_HEK3_Edit_Score = HEK3_Edit_Score, Replicate_4_synHEK3_Edit_Score = synHEK3_Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(pBC_Seq, Replicate_1_Transcription_Score, Replicate_2_Transcription_Score, Replicate_3_Transcription_Score, Replicate_4_Transcription_Score, Replicate_1_HEK3_Edit_Score, Replicate_2_HEK3_Edit_Score, Replicate_3_HEK3_Edit_Score, Replicate_4_HEK3_Edit_Score, Replicate_1_synHEK3_Edit_Score, Replicate_2_synHEK3_Edit_Score, Replicate_3_synHEK3_Edit_Score, Replicate_4_synHEK3_Edit_Score)
+
+##Plot correlation in transcription scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_Transcription_Score), y = log2(Replicate_2_Transcription_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_Transcription_Score), y = log2(Replicate_3_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_Transcription_Score), y = log2(Replicate_4_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_Transcription_Score), y = log2(Replicate_3_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_Transcription_Score), y = log2(Replicate_4_Transcription_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_Transcription_Score), y = log2(Replicate_4_Transcription_Score))) +
+  geom_point()
+
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_Transcription_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_Transcription_Score))
+
+##Plot correlation in HEK3 edit scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_HEK3_Edit_Score), y = log2(Replicate_2_HEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_HEK3_Edit_Score), y = log2(Replicate_3_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_HEK3_Edit_Score), y = log2(Replicate_4_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_HEK3_Edit_Score), y = log2(Replicate_3_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_HEK3_Edit_Score), y = log2(Replicate_4_HEK3_Edit_Score))) +
+  geom_point()
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_HEK3_Edit_Score), y = log2(Replicate_4_HEK3_Edit_Score))) +
+  geom_point()
+
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_HEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_HEK3_Edit_Score))
+
+
+##Plot correlation in synHEK3 edit scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_synHEK3_Edit_Score), y = log2(Replicate_2_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_synHEK3_Edit_Score), y = log2(Replicate_3_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_synHEK3_Edit_Score), y = log2(Replicate_4_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_synHEK3_Edit_Score), y = log2(Replicate_3_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_2_synHEK3_Edit_Score), y = log2(Replicate_4_synHEK3_Edit_Score))) +
+  geom_point() 
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_3_synHEK3_Edit_Score), y = log2(Replicate_4_synHEK3_Edit_Score))) +
+  geom_point() 
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score)
+
+
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score))
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_3_synHEK3_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_4_synHEK3_Edit_Score))
+
+```
+
+
+```{r}
+##Correlate grand mean transcription and raw edit scores 
+
+EightN_pBC_rBC_iBC_Data_2 <- EightN_pBC_rBC_iBC_Data %>% 
+  group_by(Pro_Seq) %>% 
+  mutate(Grand_Mean_synHEK3_Edit_Score = mean(synHEK3_Edit_Score)) %>% 
+  ungroup()
+
+ggplot(EightN_pBC_rBC_iBC_Data_2, aes(x = log2(Grand_Mean_synHEK3_Edit_Score), y = log2(Grand_Mean_Transcription_Score))) +
+  geom_point() +  
+  theme_classic() 
+
+cor.test(EightN_pBC_rBC_iBC_Data_2$Grand_Mean_synHEK3_Edit_Score, EightN_pBC_rBC_iBC_Data_2$Grand_Mean_Transcription_Score)
+cor.test(log2(EightN_pBC_rBC_iBC_Data_2$Grand_Mean_synHEK3_Edit_Score), log2(EightN_pBC_rBC_iBC_Data_2$Grand_Mean_Transcription_Score))
+cor.test(EightN_pBC_rBC_iBC_Data_2$Grand_Mean_synHEK3_Edit_Score, EightN_pBC_rBC_iBC_Data_2$Grand_Mean_Transcription_Score, method = "spearman")
+
+
+```
+
+
+
+
