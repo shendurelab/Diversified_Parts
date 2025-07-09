@@ -1,0 +1,540 @@
+---
+title: "Fig_1_Viz"
+author: "Troy McDiarmid"
+date: "2024-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(reshape)
+```
+
+
+```{r}
+##Edit efficinecy plot 
+
+Edit_Efficiency <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/Alt_Target_Edit_Efficiency.csv") %>% 
+  filter(grepl("AllU6", Library))
+
+ggplot(Edit_Efficiency, aes(x = Library, y = Percent_5N_Insertion_Reads, fill = Library)) +
+  theme_classic() +
+  scale_fill_manual(values=c("#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.5, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0, height = 0.05) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(0,12.5), breaks = c(0,2.5,5,7.5,10,12.5)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("AllU6_AltTarget_Edit_Efficiency.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+
+```{r}
+
+##Reading in data 
+
+U6_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/AllU6AltTarget_Edit_Scores.csv") 
+
+##Add colour labels
+
+hRNU61_Promoter <- U6_Promoters %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- U6_Promoters %>% 
+  filter(grepl("Syn", Pro_Seq_Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- U6_Promoters %>% 
+  filter(!grepl("Syn", Pro_Seq_Name)) %>% 
+  filter(!Pro_Seq_Name == "Human_Weissman_RNU6-1")
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+U6_Promoters <- rbind(DivU6_Promoters, SynU6_Promoters, hRNU61_Promoter)
+
+##Filter for synHEK3 target to correlate with primary results 
+
+synHEK3_U6_Promoters <- U6_Promoters %>% 
+  filter(Target == "HEK3")
+
+##Reorder factors for plotting 
+
+synHEK3_U6_Promoters$Promoter_Lib <- factor(synHEK3_U6_Promoters$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+
+
+##Correlation plot of edit scores 
+
+ggplot(synHEK3_U6_Promoters, aes(x = log2(Grand_Mean_Edit_Score), y = log2(U6_Median_Human_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("AllU6_AltT_Primary_Val_Corr_HEK293T.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+cor.test(synHEK3_U6_Promoters$U6_Median_Human_Edit_Score, synHEK3_U6_Promoters$Grand_Mean_Edit_Score)
+cor.test(log2(synHEK3_U6_Promoters$U6_Median_Human_Edit_Score), log2(synHEK3_U6_Promoters$Grand_Mean_Edit_Score)) 
+cor.test(log2(synHEK3_U6_Promoters$U6_Median_Human_Edit_Score), log2(synHEK3_U6_Promoters$Grand_Mean_Edit_Score), method = "spearman")
+
+##Correlating between synHEK3 and CLYBL
+
+##Read in data 
+
+AllU6_AltTarget_Cross_Loci_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/AllU6_AltTarget_Cross_Loci_Edit_Scores.csv") 
+
+##Add colour labels
+
+hRNU61_Promoter <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(grepl("Syn", Pro_Seq_Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(!grepl("Syn", Pro_Seq_Name)) %>% 
+  filter(!Pro_Seq_Name == "Human_Weissman_RNU6-1")
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+AllU6_AltTarget_Cross_Loci_Edit_Scores <- rbind(DivU6_Promoters, SynU6_Promoters, hRNU61_Promoter)
+
+##Reorder factors for plotting 
+
+AllU6_AltTarget_Cross_Loci_Edit_Scores$Promoter_Lib <- factor(AllU6_AltTarget_Cross_Loci_Edit_Scores$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+
+##Correlation plot of edit scores 
+
+ggplot(AllU6_AltTarget_Cross_Loci_Edit_Scores, aes(x = log2(synHEK3_Edit_Score), y = log2(CLYBL_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("AllU6_AltT_synHEK3_CLYBL_Corr_HEK293T.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+cor.test(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score, AllU6_AltTarget_Cross_Loci_Edit_Scores$CLYBL_Edit_Score)
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$CLYBL_Edit_Score)) 
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$CLYBL_Edit_Score), method = "spearman")
+
+```
+
+
+```{r}
+##Replicate coreelation expample for synHEK3 
+
+##Calculate correlation between replicates 
+
+Pol_III_Pro_Edit_Scores <- synHEK3_U6_Promoters 
+
+##How correlated are the replicates
+
+Replicate_1_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 1) %>% 
+  select(Seq_Name, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_2_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 2) %>% 
+  select(pBC_Seq, Replicate_2_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_3_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 3) %>% 
+  select(pBC_Seq, Replicate_3_BC_Normalized_Edit_Score = Edit_Score)
+Replicate_4_Edit_Scores <- Pol_III_Pro_Edit_Scores %>% 
+  filter(Replicate == 4) %>% 
+  select(pBC_Seq, Replicate_4_BC_Normalized_Edit_Score = Edit_Score)
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Replicate_1_Edit_Scores %>% 
+  left_join(Replicate_2_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_3_Edit_Scores, by = "pBC_Seq")
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  left_join(Replicate_4_Edit_Scores, by = "pBC_Seq") %>% 
+  select(Seq_Name, pBC_Seq, Replicate_1_BC_Normalized_Edit_Score, Replicate_2_BC_Normalized_Edit_Score, Replicate_3_BC_Normalized_Edit_Score, Replicate_4_BC_Normalized_Edit_Score)
+
+
+##Add colour labels
+
+hRNU61_Promoter <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(grepl("Human_Weissman_RNU6-1", Seq_Name))
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(grepl("Syn", Seq_Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- Pol_III_Pro_Edit_Scores_By_Replicate %>% 
+  filter(!grepl("Syn", Seq_Name)) %>% 
+  filter(!grepl("Human_Weissman_RNU6-1", Seq_Name))
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+Pol_III_Pro_Edit_Scores_By_Replicate <- rbind(DivU6_Promoters, SynU6_Promoters, hRNU61_Promoter)
+
+##Reorder factors for plotting 
+
+Pol_III_Pro_Edit_Scores_By_Replicate$Promoter_Lib <- factor(Pol_III_Pro_Edit_Scores_By_Replicate$Promoter_Lib, levels = c("Synthetic", "Diverse", "hRNU61"))
+
+##Correlation plot of edit scores 
+
+ggplot(Pol_III_Pro_Edit_Scores_By_Replicate, aes(x = log2(Replicate_1_BC_Normalized_Edit_Score), y = log2(Replicate_2_BC_Normalized_Edit_Score), colour = Promoter_Lib, size = Promoter_Lib)) +
+  geom_point() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "black")) +
+  scale_size_manual(values=c(4, 4, 6)) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-9,4), breaks = c(-8,-4,0,4)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(-9,4), breaks = c(-8,-4,0,4)) +
+  theme_classic() +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39), plot.margin = margin(0, 15, 0, 20)) 
+  ggsave("AllU6_AltT_Rep1_Rep2_Corr_HEK293T.jpeg", width = 9, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score)
+cor.test(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score, Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score, method = "spearman")
+cor.test(log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_1_BC_Normalized_Edit_Score), log2(Pol_III_Pro_Edit_Scores_By_Replicate$Replicate_2_BC_Normalized_Edit_Score))
+
+
+
+```
+
+
+```{r}
+##Cross loci correlation matrix 
+
+AllU6_AltTarget_Cross_Loci_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/AllU6_AltTarget_Cross_Loci_Edit_Scores.csv") 
+
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$HBB_Edit_Score))
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$FANCF_Edit_Score))
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$CLYBL_Edit_Score))
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$EMX1_Edit_Score))
+
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$HBB_Edit_Score), method = "spearman")
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$FANCF_Edit_Score), method = "spearman")
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$CLYBL_Edit_Score), method = "spearman")
+cor.test(log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$synHEK3_Edit_Score), log2(AllU6_AltTarget_Cross_Loci_Edit_Scores$EMX1_Edit_Score), method = "spearman")
+
+##Select the relevant columns
+
+Replicate_Edit_Scores_U6_Matrix <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  select(-1, -2) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(log2(Replicate_Edit_Scores_U6_Matrix), use="pairwise.complete.obs")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Pearson_Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  filter(Replicate_X == "synHEK3_Edit_Score")
+
+##Do the same for spearman
+
+Replicate_Edit_Scores_U6_Matrix <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  select(-1, -2) 
+
+##Convert to matrix and correlate
+
+Replicate_Edit_Scores_U6_Matrix <- as.matrix(Replicate_Edit_Scores_U6_Matrix)
+
+Replicate_Edit_Scores_U6_Corr_Matrix <- cor(log2(Replicate_Edit_Scores_U6_Matrix), use="pairwise.complete.obs", method = "spearman")
+
+##Pivoting data longer for plotting
+
+Replicate_Edit_Scores_U6_Corr_DF <- melt(Replicate_Edit_Scores_U6_Corr_Matrix) 
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  separate(X1, into = c("Replicate_X", "Garbage"), sep = "_N") %>% 
+  separate(X2, into = c("Replicate_Y", "Garbagee"), sep = "_N") %>% 
+  select(-Garbage, !Garbagee)
+
+Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  select(Replicate_X, Replicate_Y, Corr = value) %>% 
+  mutate(Corr = round(Corr, digits = 2))
+
+Spearman_Replicate_Edit_Scores_U6_Corr_DF <- Replicate_Edit_Scores_U6_Corr_DF %>% 
+  filter(Replicate_X == "synHEK3_Edit_Score")
+
+##Add labels and combine for plotting
+
+Spearman_Replicate_Edit_Scores_U6_Corr_DF$Method <- "Spearman"
+Pearson_Replicate_Edit_Scores_U6_Corr_DF$Method <- "Pearson"
+
+Replicate_Edit_Scores_U6_Corr_DF <- rbind(Spearman_Replicate_Edit_Scores_U6_Corr_DF, Pearson_Replicate_Edit_Scores_U6_Corr_DF) %>% 
+  filter(!Replicate_Y == "synHEK3_Edit_Score")
+
+ggplot(Replicate_Edit_Scores_U6_Corr_DF, aes(fill=Method, x=Corr, y=Replicate_Y)) + 
+  geom_bar(position = position_dodge(width=0.5), stat="identity", width = 0.4) +
+  theme_classic() +
+  scale_fill_manual(values=c("black","#999999")) +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.01), limits = c(0,1), breaks = c(0,0.25,0.50,0.75,1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.y = element_blank())
+  ggsave("AllU6_AltTarget_synHEK3_Alt_Target_Corr.jpeg", width = 8, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+```
+
+```{r}
+##Plotting promoters that outperformed the standard across primary screens, and validations across loci
+
+##First finding the top promoters
+
+AllU6_AltTarget_Cross_Loci_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/AllU6_AltTarget_Cross_Loci_Edit_Scores.csv") 
+
+Human_RNU61p_Cross_Loci_Scores <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1")
+
+Platypus_Cross_Loci_Scores <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(Pro_Seq_Name == "Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249")
+
+Top_Promoters <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(synHEK3_Edit_Score > Human_RNU61p_Cross_Loci_Scores$synHEK3_Edit_Score) %>% 
+  filter(HBB_Edit_Score > Human_RNU61p_Cross_Loci_Scores$HBB_Edit_Score) %>%
+  filter(EMX1_Edit_Score > Human_RNU61p_Cross_Loci_Scores$EMX1_Edit_Score) %>%
+  filter(CLYBL_Edit_Score > Human_RNU61p_Cross_Loci_Scores$CLYBL_Edit_Score) %>% 
+  filter(FANCF_Edit_Score > Human_RNU61p_Cross_Loci_Scores$FANCF_Edit_Score) 
+
+Top_Promoters <- rbind(Top_Promoters, Platypus_Cross_Loci_Scores)
+
+##Then reading in data with replicates and labeling them 
+
+AllU6_AltTarget_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/AllU6AltTarget_Edit_Scores.csv") 
+
+##Calculate mean edit score per rep 
+
+AllU6_AltTarget_Edit_Scores <- AllU6_AltTarget_Edit_Scores %>% 
+  group_by(Pro_Seq_Name, Replicate, Target) %>% 
+  mutate(Mean_Edit_Score_Per_Replicate = mean(Edit_Score)) %>% 
+  ungroup()
+
+##Add colour label 
+
+hRNU61_Promoter <- AllU6_AltTarget_Edit_Scores %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1")
+hRNU61_Promoter$Promoter_Lib <- "hRNU61"
+
+SynU6_Promoters <- AllU6_AltTarget_Edit_Scores %>% 
+  filter(grepl("Syn", Pro_Seq_Name))
+SynU6_Promoters$Promoter_Lib <- "Synthetic"
+
+DivU6_Promoters <- AllU6_AltTarget_Edit_Scores %>% 
+  filter(!grepl("Syn", Pro_Seq_Name)) %>% 
+  filter(!Pro_Seq_Name == "Human_Weissman_RNU6-1") %>% 
+  filter(!Pro_Seq_Name %in% Top_Promoters$Pro_Seq_Name) 
+DivU6_Promoters$Promoter_Lib <- "Diverse"
+
+Top_Promoters <- AllU6_AltTarget_Edit_Scores %>% 
+  filter(Pro_Seq_Name %in% Top_Promoters$Pro_Seq_Name)
+Top_Promoters$Promoter_Lib <- "Top"
+
+AllU6_AltTarget_Edit_Scores <- rbind(DivU6_Promoters, SynU6_Promoters, Top_Promoters, hRNU61_Promoter)
+
+##Reorder factors for plotting 
+
+AllU6_AltTarget_Edit_Scores$Promoter_Lib <- factor(AllU6_AltTarget_Edit_Scores$Promoter_Lib, levels = c("Synthetic", "Diverse", "Top", "hRNU61"))
+
+synHEK3_AllU6_AltTarget_Edit_Scores <- AllU6_AltTarget_Edit_Scores %>% 
+  filter(Target == "HEK3")
+
+ggplot(synHEK3_AllU6_AltTarget_Edit_Scores, aes(x = reorder(Pro_Seq_Name, Grand_Mean_Edit_Score), y = Mean_Edit_Score_Per_Replicate, colour = Promoter_Lib, size = Promoter_Lib)) +
+  theme_classic() +
+  scale_color_manual(values=c("#D2D5D5", "#56B4E9", "#56B4E9", "black")) +
+  geom_hline(yintercept=4.725501144, linetype='dashed', col = '#999999', size = 1.5) +
+  scale_size_manual(values=c(10,10,10,10)) +
+  geom_point() +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1), limits = c(0,10)) +
+  theme(axis.line = element_line(colour = 'black', size = 1.0)) +
+  theme(axis.ticks = element_line(colour = "black", size = 1.0)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  theme(axis.ticks.x = element_blank()) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("AllU6_AltTarget_synHEK3_Edit_Scores_Dot.jpeg", width = 38, height = 5, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+##Plotting promoters that outperformed the standard across primary screens, and validations across loci
+
+AllU6_AltTarget_Cross_Loci_Edit_Scores <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/AllU6_AltTarget_Cross_Loci_Edit_Scores.csv") 
+
+Human_RNU61p_Cross_Loci_Scores <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(Pro_Seq_Name == "Human_Weissman_RNU6-1")
+
+Platypus_Cross_Loci_Scores <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(Pro_Seq_Name == "Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249")
+
+Top_Promoters <- AllU6_AltTarget_Cross_Loci_Edit_Scores %>% 
+  filter(synHEK3_Edit_Score > Human_RNU61p_Cross_Loci_Scores$synHEK3_Edit_Score) %>% 
+  filter(HBB_Edit_Score > Human_RNU61p_Cross_Loci_Scores$HBB_Edit_Score) %>%
+  filter(EMX1_Edit_Score > Human_RNU61p_Cross_Loci_Scores$EMX1_Edit_Score) %>%
+  filter(CLYBL_Edit_Score > Human_RNU61p_Cross_Loci_Scores$CLYBL_Edit_Score) %>% 
+  filter(FANCF_Edit_Score > Human_RNU61p_Cross_Loci_Scores$FANCF_Edit_Score) %>% 
+  filter(!Pro_Seq_Name == "Chelydra_serpentina_RNU6-2_ENSCSRG00000002895")
+
+Human_And_Top_Promoters <- rbind(Human_RNU61p_Cross_Loci_Scores, Top_Promoters, Platypus_Cross_Loci_Scores)
+
+Human_And_Top_Promoters <- read_csv("/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/Fig5_Final_Figure_Datasets/AllU6AltTarget_Edit_Scores.csv") %>% 
+  filter(Pro_Seq_Name %in% Human_And_Top_Promoters$Pro_Seq_Name) 
+
+##Calculate mean edit score per replicate
+
+Human_And_Top_Promoters <- Human_And_Top_Promoters %>% 
+  group_by(Pro_Seq_Name, Replicate, Target) %>% 
+  mutate(Mean_Edit_Score_Per_Replicate = mean(Edit_Score)) %>% 
+  ungroup()
+
+Human_And_Top_Promoters$Pro_Seq_Name <- factor(Human_And_Top_Promoters$Pro_Seq_Name, levels = c("Human_Weissman_RNU6-1", ">U6__Giraffa_tippelskirchi__LVKQ01S008640.1:139024-139253()_BC_3", "Ornithorhynchus_anatinus_RNu6-2_ENSOANG00000045249", ">RNU6_7__fullTreeAnc5_20240405.fa__fullTreeAnc5refChr25893:5-307()_RC_BC_1", ">7SK__fullTreeAnc55__fullTreeAnc55refChr9856:2250-2505()_BC_1"))
+
+##Plot each locus
+
+synHEK3_Human_And_Top_Promoters <-  Human_And_Top_Promoters %>% 
+  filter(Target == "HEK3")
+  
+
+ggplot(synHEK3_Human_And_Top_Promoters, aes(x = Pro_Seq_Name, y = log2(Mean_Edit_Score_Per_Replicate), fill = Pro_Seq_Name)) +
+  theme_classic() +
+  scale_fill_manual(values=c("black", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("AllU6_AltTarget_Top_Promoter_synHEK3_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+EMX1_Human_And_Top_Promoters <-  Human_And_Top_Promoters %>% 
+  filter(Target == "EMX1")
+  
+
+ggplot(EMX1_Human_And_Top_Promoters, aes(x = Pro_Seq_Name, y = log2(Mean_Edit_Score_Per_Replicate), fill = Pro_Seq_Name)) +
+  theme_classic() +
+  scale_fill_manual(values=c("black", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("EMX1_AltTarget_Top_Promoter_synHEK3_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+  
+FANCF_Human_And_Top_Promoters <-  Human_And_Top_Promoters %>% 
+  filter(Target == "FANCF")
+  
+
+ggplot(FANCF_Human_And_Top_Promoters, aes(x = Pro_Seq_Name, y = log2(Mean_Edit_Score_Per_Replicate), fill = Pro_Seq_Name)) +
+  theme_classic() +
+  scale_fill_manual(values=c("black", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("FANCF_AltTarget_Top_Promoter_synHEK3_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+  
+HBB_Human_And_Top_Promoters <-  Human_And_Top_Promoters %>% 
+  filter(Target == "HBB")
+  
+
+ggplot(HBB_Human_And_Top_Promoters, aes(x = Pro_Seq_Name, y = log2(Mean_Edit_Score_Per_Replicate), fill = Pro_Seq_Name)) +
+  theme_classic() +
+  scale_fill_manual(values=c("black", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("HBB_AltTarget_Top_Promoter_synHEK3_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+  
+
+CLYBL_Human_And_Top_Promoters <-  Human_And_Top_Promoters %>% 
+  filter(Target == "CLYBL")
+  
+
+ggplot(CLYBL_Human_And_Top_Promoters, aes(x = Pro_Seq_Name, y = log2(Mean_Edit_Score_Per_Replicate), fill = Pro_Seq_Name)) +
+  theme_classic() +
+  scale_fill_manual(values=c("black", "#56B4E9", "#56B4E9", "#56B4E9", "#56B4E9")) +
+  geom_boxplot(colour = "black", width = 0.75, lwd =0.7, outlier.shape = NA) +
+  geom_jitter(size = 4, colour = "black", width = 0, height = 0) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.1)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.ticks.length=unit(.2, "cm")) +
+  labs(title = "", x = "", y = "") +
+  theme(legend.position = "none") +
+  theme(text = element_text(family="Arial", colour = "black", size = 39)) +
+  theme(axis.text.x = element_blank())
+  ggsave("CLYBL_AltTarget_Top_Promoter_synHEK3_Edit_Scores.jpeg", width = 7, height = 7, path = "/Users/troymcdiarmid/Documents/U6_pro_series/Figs/Pub_Figs/")
+
+
+
+```
+
+
+
+
+
