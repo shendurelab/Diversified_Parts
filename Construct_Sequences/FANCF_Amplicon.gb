@@ -1,4 +1,4 @@
-LOCUS       HEK3_locus_amplicon      322 bp ds-DNA     linear       25-MAY-2025
+LOCUS       FANCF_Amplicon           322 bp ds-DNA     linear       02-JUL-2025
 DEFINITION  .
 FEATURES             Location/Qualifiers
      misc_feature    1..29
@@ -18,34 +18,38 @@ FEATURES             Location/Qualifiers
                      /label="Read1"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     primer          73..102
-                     /label="HEK3_Genomic_Target_PCR1_F"
-                     /note="sequence: GCGTCAGATGTGTATAAGAGACAGGCAAGTAAGcatgcatttgtaggcttgatg"
+     misc_feature    73..92
+                     /label="FANCF_F_Davis"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    73..254
-                     /label="Amplicon (HEK3)"
-                     /ApEinfo_revcolor="#85dae9"
-                     /ApEinfo_fwdcolor="#85dae9"
-     misc_feature    146..165
-                     /label="HEK3_Spacer"
+     primer          73..92
+                     /label="FANCF_NGS_F"
+                     /note="sequence: GCGTCAGATGTGTATAAGAGACAGCATTGCAGAGAGGCGTATCA"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    complement(150..162)
-                     /label="PBS"
+     misc_feature    173..192
+                     /label="FANCF_Spacer"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    163..172
-                     /label="10bp_RTT"
+     misc_feature    complement(177..189)
+                     /label="FANCF_PBS"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    166..168
-                     /label="PAM"
+     misc_feature    190..206
+                     /label="FANCF_Homology_Arm"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     primer          complement(230..264)
-                     /label="HEK3_Genomic_Target_PCR1_R"
-                     /note="sequence: GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCTGGTGCAGGAGCTGCACATACTAGCC"
+     misc_feature    190..223
+                     /label="Koppel_FANCF_Homology_Arm"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(237..254)
+                     /label="FANCF_R_Davis"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(237..254)
+                     /label="FANCF_NGS_R"
+                     /note="sequence: GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCTGGGGTCCCAGGTGCTGAC"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
      primer          complement(255..322)
@@ -67,9 +71,9 @@ FEATURES             Location/Qualifiers
                      /ApEinfo_fwdcolor="#c6c9d1"
 ORIGIN
         1 AATGATACGG CGACCACCGA GATCTACACN NNNNNNNNNT CGTCGGCAGC GTCAGATGTG
-       61 TATAAGAGAC AGGCAAGTAA Gcatgcattt gtaggcttga tgCTTTTTTT CTGCTTCTCC
-      121 AGCCCTGGCC TGGGTCAATC CTTGGGGCCC AGACTGAGCA CGTGATGGCA GAGGAAAGGA
-      181 AGCCCTGCTT CCTCCAGAGG GCGTCGCAGG ACAGCTTTTC CTAGACAGGG GCTAGTATGT
-      241 GCAGCTCCTG CACCAGATCG GAAGAGCACA CGTCTGAACT CCAGTCACNN NNNNNNNNAT
+       61 TATAAGAGAC AGCATTGCAG AGAGGCGTAT CATTTCGCGG ATGTTCCAAT CAGTACGCAG
+      121 AGAGTCGCCG TCTCCAAGGT GAAAGCGGAA GTAGGGCCTT CGCGCACCTC ATGGAATCCC
+      181 TTCTGCAGCA CCTGGATCGC TTTTCCGAGC TTCTGGCGGT CTCAAGCACT ACCTACGTCA
+      241 GCACCTGGGA CCCCAGATCG GAAGAGCACA CGTCTGAACT CCAGTCACNN NNNNNNNNAT
       301 CTCGTATGCC GTCTTCTGCT TG
 //

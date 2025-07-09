@@ -1,4 +1,4 @@
-LOCUS       10_Unit_Diversified_Re 15774 bp ds-DNA     circular     27-AUG-2024
+LOCUS       10_Unit_Diversified_Re 15774 bp ds-DNA     circular     27-NOV-2024
 DEFINITION  .
 KEYWORDS    "creator:SnapGene License" "marker:KanR, KanR"
 FEATURES             Location/Qualifiers
@@ -16,15 +16,15 @@ FEATURES             Location/Qualifiers
                      /ApEinfo_fwdcolor="#75c6a9"
                      /note="label: Upstream scaffold"
      misc_feature    288..300
-                     /label="13 bp Terminal Repeat (TR)"
-                     /ApEinfo_revcolor="#85dae9"
-                     /ApEinfo_fwdcolor="#85dae9"
-                     /note="label: 13 bp Terminal Repeat (TR)"
-     misc_feature    288..300
                      /label="13 bp terminal repeat (TR)"
                      /ApEinfo_revcolor="#cd0532"
                      /ApEinfo_fwdcolor="#cd0532"
                      /note="label: 13 bp terminal repeat (TR)"
+     misc_feature    288..300
+                     /label="13 bp Terminal Repeat (TR)"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+                     /note="label: 13 bp Terminal Repeat (TR)"
      misc_feature    288..350
                      /label="5'PB Terminal Repeat"
                      /ApEinfo_revcolor="#0080ff"
@@ -241,15 +241,15 @@ FEATURES             Location/Qualifiers
                      /ApEinfo_fwdcolor="#85dae9"
                      /note="label: 3' PB Terminal Repeat"
      misc_feature    6998..7010
-                     /label="13 bp Terminal Repeat (TR)"
-                     /ApEinfo_revcolor="#85dae9"
-                     /ApEinfo_fwdcolor="#85dae9"
-                     /note="label: 13 bp Terminal Repeat (TR)"
-     misc_feature    6998..7010
                      /label="13 bp terminal repeat (TR)"
                      /ApEinfo_revcolor="#cd0532"
                      /ApEinfo_fwdcolor="#cd0532"
                      /note="label: 13 bp terminal repeat (TR)"
+     misc_feature    6998..7010
+                     /label="13 bp Terminal Repeat (TR)"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+                     /note="label: 13 bp Terminal Repeat (TR)"
      misc_feature    7011..7070
                      /label="Downstream scaffold"
                      /ApEinfo_revcolor="#75c6a9"

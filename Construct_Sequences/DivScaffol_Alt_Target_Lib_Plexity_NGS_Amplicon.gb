@@ -1,0 +1,104 @@
+LOCUS       DivScaffol_Alt_Target_Li 398 bp ds-DNA     linear       02-JUL-2025
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    1..29
+                     /label="P5"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          1..72
+                     /label="Seq_Adapter_Dual_Index_PCR2_F"
+                     /note="sequence: AATGATACGGCGACCACCGAGATCTACACNNNNNNNNNNTCGTCGGCAGCGTCAGATGTGTATAAGAGACAG"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    30..39
+                     /label="Index_1"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    40..72
+                     /label="Read1"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          88..117
+                     /label="pegRNA_Plasmid_Library_PCR1_F"
+                     /note="sequence: GCGTCAGATGTGTATAAGAGACAGNNNNNNNNNNNNNNNggctttatatatcttgtggaaaggacgaaa"
+                     /ApEinfo_revcolor="#b4abac"
+                     /ApEinfo_fwdcolor="#b4abac"
+     misc_feature    88..121
+                     /label="Human_RNU6-1_Promoter"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    91..99
+                     /label="TATA_Box"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(100..121)
+                     /label="Div_pegRNA_BB_R_2"
+                     /note="sequence: TAGGGAGGTCTCGggtgtttcgtcctttccacaag"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(102..121)
+                     /label="Div_pegRNA_Backbone_Linearization_R"
+                     /note="sequence: TAGGGAGGTCTCGGCACggtgtttcgtcctttccaca"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    122..141
+                     /label="HEK3_Spacer"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    142..217
+                     /label="pegRNA_Backbone"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          173..193
+                     /label="U6_Plasmid_Library_PCR1_F"
+                     /note="sequence: GCGTCAGATGTGTATAAGAGACAGAGGCTAGTCCGTTATCAACTT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    218..227
+                     /label="10bp_RTT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(228..235)
+                     /label="8N_BC"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(236..248)
+                     /label="PBS"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          256..275
+                     /label="Div_pegRNA_Backbone_Linearization_F"
+                     /note="sequence: tagggaggtctcgtttttttctcagagggcacaatcctat"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(313..330)
+                     /label="Universal_Plasmid_Library_PCR1_pBC_R"
+                     /note="sequence: GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCTccatacgccgaactgaac"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(331..398)
+                     /label="Seq_Adapter_Dual_Index_PCR2_R"
+                     /note="sequence: CAAGCAGAAGACGGCATACGAGATNNNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(331..364)
+                     /label="TruSeq_R2"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(365..374)
+                     /label="Index_2"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(375..398)
+                     /label="P7"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+ORIGIN
+        1 AATGATACGG CGACCACCGA GATCTACACN NNNNNNNNNT CGTCGGCAGC GTCAGATGTG
+       61 TATAAGAGAC AGNNNNNNNN NNNNNNNggc tttatatatc ttgtggaaag gacgaaacac
+      121 cGGCCCAGAC TGAGCACGTG AGTTTTAGAG CTAGAAATAG CAAGTTAAAA TAAGGCTAGT
+      181 CCGTTATCAA CTTGAAAAAG TGGGACCGAG TCGGTCCTCT GCCATCANNN NNNNNCGTGC
+      241 TCAGTCTGTT TTtttctcag agggcacaat cctattccgc gctatccgac aatctccaag
+      301 acattaggtg gagttcagtt cggcgtatgg AGATCGGAAG AGCACACGTC TGAACTCCAG
+      361 TCACNNNNNN NNNNATCTCG TATGCCGTCT TCTGCTTG
+//

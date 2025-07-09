@@ -1,0 +1,64 @@
+LOCUS       pBC_XL_5N_HEK3_Lib_Plexi 319 bp ds-DNA     linear       02-JUL-2025
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    1..29
+                     /label="P5"
+                     /ApEinfo_revcolor="#84b0dc"
+                     /ApEinfo_fwdcolor="#84b0dc"
+     misc_feature    30..39
+                     /label="Indx1"
+                     /ApEinfo_revcolor="#9eafd2"
+                     /ApEinfo_fwdcolor="#9eafd2"
+     misc_feature    40..72
+                     /label="Read1"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    40..94
+                     /label="XL247"
+                     /ApEinfo_revcolor="#c7b0e3"
+                     /ApEinfo_fwdcolor="#c7b0e3"
+     misc_feature    complement(110..122)
+                     /label="PBS"
+                     /ApEinfo_revcolor="#b1ff67"
+                     /ApEinfo_fwdcolor="#b1ff67"
+     misc_feature    complement(126..135)
+                     /label="template"
+                     /ApEinfo_revcolor="#f8d3a9"
+                     /ApEinfo_fwdcolor="#f8d3a9"
+     misc_RNA        complement(136..211)
+                     /label="gRNA scaffold"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+                     /note="note: guide RNA scaffold for the Streptococcus pyogenes CRISPR/Cas9 system"
+     misc_feature    complement(137..137)
+                     /label="G"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(149..149)
+                     /label="C"
+                     /ApEinfo_revcolor="#f8d3a9"
+                     /ApEinfo_fwdcolor="#f8d3a9"
+     misc_feature    complement(231..285)
+                     /label="XL248"
+                     /ApEinfo_revcolor="#b1ff67"
+                     /ApEinfo_fwdcolor="#b1ff67"
+     misc_feature    complement(252..285)
+                     /label="Read2"
+                     /ApEinfo_revcolor="#f8d3a9"
+                     /ApEinfo_fwdcolor="#f8d3a9"
+     misc_feature    complement(286..295)
+                     /label="Indx2"
+                     /ApEinfo_revcolor="#84b0dc"
+                     /ApEinfo_fwdcolor="#84b0dc"
+     misc_feature    complement(296..319)
+                     /label="P7"
+                     /ApEinfo_revcolor="#faac61"
+                     /ApEinfo_fwdcolor="#faac61"
+ORIGIN
+        1 AATGATACGG CGACCACCGA GATCTACACN NNNNNNNNNT CGTCGGCAGC GTCAGATGTG
+       61 TATAAGAGAC AGgtagagag gtacctcgag cggcccaagc ttaaaaaaaC AGACTGAGCA
+      121 CGCTTTGATG GCAGAGGACC GACTCGGTCC CACTTTTTCA AGTTGATAAC GGACTAGCCT
+      181 TATTTTAACT TGCTATTTCT AGCTCTAAAA CTCACGTGCT CAGTCTGGGC Cggtgtttcg
+      241 tcctttccac aAGATCGGAA GAGCACACGT CTGAACTCCA GTCACNNNNN NNNNNATCTC
+      301 GTATGCCGTC TTCTGCTTG
+//

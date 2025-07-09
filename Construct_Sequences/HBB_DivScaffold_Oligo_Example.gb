@@ -1,0 +1,67 @@
+LOCUS       HBB_DivScaffold_Oligo_Ex 235 bp ds-DNA     linear       02-JUL-2025
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     primer          1..15
+                     /label="PCR_Handle_15_F"
+                     /note="sequence: GACGGGGAATTAACC"
+                     /ApEinfo_revcolor="#b7e6d7"
+                     /ApEinfo_fwdcolor="#b7e6d7"
+     misc_feature    16..52
+                     /label="Variable_Stuffer_To_235"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    53..69
+                     /label="5_prime_BsaI_restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     misc_feature    70..90
+                     /label="HBB_Spacer"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    91..166
+                     /label="pegRNA_Backbone"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    92..96
+                     /label="5N_repeat_replacement_variable_region_1"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(115..119)
+                     /label="5N_antirepeat_replacement_variable_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    139..142
+                     /label="4N_repeat_replacement_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(147..150)
+                     /label="4n_antirepeat_replacement_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    167..180
+                     /label="HBB_Homology_Arm"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    complement(189..203)
+                     /label="HBB_PBS"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    204..208
+                     /label="Partial_Terminator"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    208..220
+                     /label="3_prime_BsaI_Restriction"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     primer          complement(221..235)
+                     /label="PCR_Handle_15_R"
+                     /note="sequence: ATGTTGCCCGTAAGC"
+                     /ApEinfo_revcolor="#c7b0e3"
+                     /ApEinfo_fwdcolor="#c7b0e3"
+ORIGIN
+        1 GACGGGGAAT TAACCgccga ccactaccag cagaacaccc ccatcggcga cgTAGTGAGG
+       61 TCTCGCACCG CATGGTGCAC CTGACTCCTG GTTTTAGAGC TAGAAATAGC AAGTTAAAAT
+      121 AAGGCTAGTC CGTTATCAAC TTGAAAAAGT GGGACCGAGT CGGTCCAGAC TTCTCCTCAG
+      181 NNNNNNNNGA GTCAGGTGCA CCATTTTTGA GACCTCCCTA GCTTACGGGC AACAT
+//

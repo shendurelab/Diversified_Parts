@@ -172,11 +172,11 @@ FEATURES             Location/Qualifiers
                      /ApEinfo_revcolor="#ffef86"
                      /ApEinfo_fwdcolor="#ffef86"
      primer_bind     complement(12301..12317)
-                     /label="M13 rev"
+                     /label="M13 Reverse"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
      primer_bind     complement(12301..12317)
-                     /label="M13 Reverse"
+                     /label="M13 rev"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
      primer_bind     complement(12314..12336)

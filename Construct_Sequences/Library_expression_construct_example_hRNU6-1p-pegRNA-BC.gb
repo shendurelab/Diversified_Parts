@@ -1,4 +1,4 @@
-LOCUS       Library_expression_cons 2416 bp ds-DNA     circular     11-APR-2024
+LOCUS       Library_expression_cons 2416 bp ds-DNA     circular     18-FEB-2025
 DEFINITION  .
 FEATURES             Location/Qualifiers
      misc_feature    5..253
@@ -24,6 +24,11 @@ FEATURES             Location/Qualifiers
                      /ApEinfo_fwdcolor="#b4abac"
      misc_feature    223..231
                      /label="TATA_Box"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     primer          complement(232..253)
+                     /label="Div_pegRNA_BB_R_2"
+                     /note="sequence: TAGGGAGGTCTCGggtgtttcgtcctttccacaag"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
      primer          complement(234..253)

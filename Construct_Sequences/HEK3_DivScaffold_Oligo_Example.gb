@@ -1,4 +1,4 @@
-LOCUS       Zoonomia_PolIII_Pro_U6_O 450 bp ds-DNA     circular     09-JAN-2025
+LOCUS       HEK3_DivScaffold_Oligo_E 235 bp ds-DNA     linear       02-JUL-2025
 DEFINITION  .
 FEATURES             Location/Qualifiers
      primer          1..15
@@ -6,58 +6,62 @@ FEATURES             Location/Qualifiers
                      /note="sequence: GACGGGGAATTAACC"
                      /ApEinfo_revcolor="#b7e6d7"
                      /ApEinfo_fwdcolor="#b7e6d7"
-     misc_feature    16..25
-                     /label="Variable_Stuffer_To_259bp"
+     misc_feature    16..59
+                     /label="Variable_Stuffer_To_235"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    26..42
+     misc_feature    60..76
                      /label="5_prime_BsaI_restriction"
                      /ApEinfo_revcolor="#ffef86"
                      /ApEinfo_fwdcolor="#ffef86"
-     misc_feature    43..291
-                     /label="Human_RNU6-1_Promoter"
-                     /ApEinfo_revcolor="#85dae9"
-                     /ApEinfo_fwdcolor="#85dae9"
-     misc_feature    292..311
+     misc_feature    77..96
                      /label="HEK3_Spacer"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    312..387
+     misc_feature    97..172
                      /label="pegRNA_Backbone"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    388..397
+     misc_feature    98..102
+                     /label="5N_repeat_replacement_variable_region_1"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(121..125)
+                     /label="5N_antirepeat_replacement_variable_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    145..148
+                     /label="4N_repeat_replacement_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(153..156)
+                     /label="4n_antirepeat_replacement_region_2"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    173..182
                      /label="10bp_RTT"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    complement(398..405)
-                     /label="8N_BC"
-                     /ApEinfo_revcolor="#c6c9d1"
-                     /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    complement(406..418)
+     misc_feature    complement(191..203)
                      /label="PBS"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    419..423
+     misc_feature    204..208
                      /label="Partial_Terminator"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    423..435
+     misc_feature    208..220
                      /label="3_prime_BsaI_Restriction"
                      /ApEinfo_revcolor="#ffef86"
                      /ApEinfo_fwdcolor="#ffef86"
-     primer          complement(436..450)
+     primer          complement(221..235)
                      /label="PCR_Handle_15_R"
                      /note="sequence: ATGTTGCCCGTAAGC"
                      /ApEinfo_revcolor="#c7b0e3"
                      /ApEinfo_fwdcolor="#c7b0e3"
 ORIGIN
-        1 GACGGGGAAT TAACCATCGG CGACGTAGTG AGGTCTCGGT GCgagggcct atttcccatg
-       61 attccttcat atttgcatat acgatacaag gctgttagag agataattag aattaatttg
-      121 actgtaaaca caaagatatt agtacaaaat acgtgacgta gaaagtaata atttcttggg
-      181 tagtttgcag ttttaaaatt atgttttaaa atggactatc atatgcttac cgtaacttga
-      241 aagtatttcg atttcttggc tttatatatc ttgtggaaag gacgaaacac cGGCCCAGAC
-      301 TGAGCACGTG AGTTTTAGAG CTAGAAATAG CAAGTTAAAA TAAGGCTAGT CCGTTATCAA
-      361 CTTGAAAAAG TGGGACCGAG TCGGTCCTCT GCCATCANNN NNNNNCGTGC TCAGTCTGTT
-      421 TTTGAGACCT CCCTAGCTTA CGGGCAACAT
+        1 GACGGGGAAT TAACCgcagc tcgccgacca ctaccagcag aacaccccca tcggcgacgT
+       61 AGTGAGGTCT CGCACCGGCC CAGACTGAGC ACGTGAGTTT TAGAGCTAGA AATAGCAAGT
+      121 TAAAATAAGG CTAGTCCGTT ATCAACTTGA AAAAGTGGGA CCGAGTCGGT CCTCTGCCAT
+      181 CANNNNNNNN CGTGCTCAGT CTGTTTTTGA GACCTCCCTA GCTTACGGGC AACAT
 //

@@ -1,4 +1,4 @@
-LOCUS       HEK3_locus_amplicon      322 bp ds-DNA     linear       25-MAY-2025
+LOCUS       CLYBL_Amplicon           382 bp ds-DNA     linear       02-JUL-2025
 DEFINITION  .
 FEATURES             Location/Qualifiers
      misc_feature    1..29
@@ -18,58 +18,51 @@ FEATURES             Location/Qualifiers
                      /label="Read1"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     primer          73..102
-                     /label="HEK3_Genomic_Target_PCR1_F"
-                     /note="sequence: GCGTCAGATGTGTATAAGAGACAGGCAAGTAAGcatgcatttgtaggcttgatg"
+     primer          73..94
+                     /label="CLYBL_NGS_F"
+                     /note="sequence: GCGTCAGATGTGTATAAGAGACAGGGCTTGACTAGGGCTGGATGAT"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    73..254
-                     /label="Amplicon (HEK3)"
-                     /ApEinfo_revcolor="#85dae9"
-                     /ApEinfo_fwdcolor="#85dae9"
-     misc_feature    146..165
-                     /label="HEK3_Spacer"
+     misc_feature    124..143
+                     /label="CLYBL_Spacer"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    complement(150..162)
-                     /label="PBS"
+     misc_feature    complement(128..140)
+                     /label="CLYBL_PBS"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    163..172
-                     /label="10bp_RTT"
+     misc_feature    141..174
+                     /label="CLYBL_Homology_Arm"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    166..168
-                     /label="PAM"
+     primer          complement(293..314)
+                     /label="CLYBL_NGS_R"
+                     /note="sequence: GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCTAGACCCCAGTGATTCATGCCTC"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     primer          complement(230..264)
-                     /label="HEK3_Genomic_Target_PCR1_R"
-                     /note="sequence: GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCTGGTGCAGGAGCTGCACATACTAGCC"
-                     /ApEinfo_revcolor="#c6c9d1"
-                     /ApEinfo_fwdcolor="#c6c9d1"
-     primer          complement(255..322)
+     primer          complement(315..382)
                      /label="Seq_Adapter_Dual_Index_PCR2_R"
                      /note="sequence: CAAGCAGAAGACGGCATACGAGATNNNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    complement(255..288)
+     misc_feature    complement(315..348)
                      /label="TruSeq_R2"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    complement(289..298)
+     misc_feature    complement(349..358)
                      /label="Index_2"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
-     misc_feature    complement(299..322)
+     misc_feature    complement(359..382)
                      /label="P7"
                      /ApEinfo_revcolor="#c6c9d1"
                      /ApEinfo_fwdcolor="#c6c9d1"
 ORIGIN
         1 AATGATACGG CGACCACCGA GATCTACACN NNNNNNNNNT CGTCGGCAGC GTCAGATGTG
-       61 TATAAGAGAC AGGCAAGTAA Gcatgcattt gtaggcttga tgCTTTTTTT CTGCTTCTCC
-      121 AGCCCTGGCC TGGGTCAATC CTTGGGGCCC AGACTGAGCA CGTGATGGCA GAGGAAAGGA
-      181 AGCCCTGCTT CCTCCAGAGG GCGTCGCAGG ACAGCTTTTC CTAGACAGGG GCTAGTATGT
-      241 GCAGCTCCTG CACCAGATCG GAAGAGCACA CGTCTGAACT CCAGTCACNN NNNNNNNNAT
-      301 CTCGTATGCC GTCTTCTGCT TG
+       61 TATAAGAGAC AGGGCTTGAC TAGGGCTGGA TGATCTAAGA TGGCCCTACT GACTTGTCTG
+      121 AATGGTGGTG CAGACTGTCA CTAAGGACCT GTGTCTCCAG TAGGAGAGTC TGGGATCCTA
+      181 AATTAGGTGG CAGAGTTCCA GACGTGCAAG CCTGCATGTG TTCCACTGGC CAAGCCATGT
+      241 GGCCTAGTCC AGAATCAGCG TGGGAGGGGA CTACAGGAGG GTGTGGAGAT GGGAGGCATG
+      301 AATCACTGGG GTCTAGATCG GAAGAGCACA CGTCTGAACT CCAGTCACNN NNNNNNNNAT
+      361 CTCGTATGCC GTCTTCTGCT TG
 //

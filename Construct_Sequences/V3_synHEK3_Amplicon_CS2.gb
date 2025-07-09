@@ -1,0 +1,117 @@
+LOCUS       V3_synHEK3_Amplicon_CS2  318 bp ds-DNA     circular     02-JUL-2025
+DEFINITION  .
+FEATURES             Location/Qualifiers
+     misc_feature    1..24
+                     /label="P7"
+                     /ApEinfo_revcolor="#d59687"
+                     /ApEinfo_fwdcolor="#d59687"
+     primer          1..68
+                     /label="TruSeq P7 from Will/Mine"
+                     /note="sequence: CAAGCAGAAGACGGCATACGAGATNNNNNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"
+                     /ApEinfo_revcolor="#d6b295"
+                     /ApEinfo_fwdcolor="#d6b295"
+     misc_feature    25..34
+                     /label="Indx 2"
+                     /ApEinfo_revcolor="#75c6a9"
+                     /ApEinfo_fwdcolor="#75c6a9"
+     misc_feature    35..68
+                     /label="Illumina R2"
+                     /ApEinfo_revcolor="#d6b295"
+                     /ApEinfo_fwdcolor="#d6b295"
+     misc_feature    69..91
+                     /label="Upstream scaffold"
+                     /ApEinfo_revcolor="#75c6a9"
+                     /ApEinfo_fwdcolor="#75c6a9"
+     misc_feature    75..76
+                     /label="CpG2"
+                     /ApEinfo_revcolor="#ff9ccd"
+                     /ApEinfo_fwdcolor="#ff9ccd"
+     misc_feature    complement(75..91)
+                     /label="sgRNA2 upstream"
+                     /ApEinfo_revcolor="#b7e6d7"
+                     /ApEinfo_fwdcolor="#b7e6d7"
+     misc_feature    92..120
+                     /label="opti T7"
+                     /ApEinfo_revcolor="#f58a5e"
+                     /ApEinfo_fwdcolor="#f58a5e"
+     misc_feature    96..114
+                     /label="T7"
+                     /ApEinfo_revcolor="#ff9ccd"
+                     /ApEinfo_fwdcolor="#ff9ccd"
+     misc_feature    121..207
+                     /label="HEK3 locus 87 bp"
+                     /ApEinfo_revcolor="#b4abac"
+                     /ApEinfo_fwdcolor="#b4abac"
+     misc_feature    complement(131..150)
+                     /label="sgRNA3 upstream"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    complement(137..156)
+                     /label="sgRNA1 upstream"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     misc_feature    151..170
+                     /label="guide"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     misc_feature    155..167
+                     /label="PBS"
+                     /ApEinfo_revcolor="#84b0dc"
+                     /ApEinfo_fwdcolor="#84b0dc"
+     misc_feature    complement(156..175)
+                     /label="sgRNA cas9"
+                     /ApEinfo_revcolor="#84b0dc"
+                     /ApEinfo_fwdcolor="#84b0dc"
+     misc_feature    163..167
+                     /label="Awk script"
+                     /ApEinfo_revcolor="#85dae9"
+                     /ApEinfo_fwdcolor="#85dae9"
+     misc_feature    166..167
+                     /label="CpG4"
+                     /ApEinfo_revcolor="#b1ff67"
+                     /ApEinfo_fwdcolor="#b1ff67"
+     misc_feature    168..172
+                     /label="Awk script"
+                     /ApEinfo_revcolor="#c6c9d1"
+                     /ApEinfo_fwdcolor="#c6c9d1"
+     misc_feature    168..177
+                     /label="template"
+                     /ApEinfo_revcolor="#f58a5e"
+                     /ApEinfo_fwdcolor="#f58a5e"
+     misc_feature    178..246
+                     /label="4nm Ultramer XL292"
+                     /ApEinfo_revcolor="#b4abac"
+                     /ApEinfo_fwdcolor="#b4abac"
+     misc_feature    208..223
+                     /label="BC"
+                     /ApEinfo_revcolor="#b1ff67"
+                     /ApEinfo_fwdcolor="#b1ff67"
+     misc_feature    225..246
+                     /label="capture sequence 2"
+                     /ApEinfo_revcolor="#f58a5e"
+                     /ApEinfo_fwdcolor="#f58a5e"
+     primer          complement(247..318)
+                     /label="Nextera P5 from Will"
+                     /note="sequence: AATGATACGGCGACCACCGAGATCTACACNNNNNNNNNNTCGTCGGCAGCGTCAGATGTGTATAAGAGACAG"
+                     /ApEinfo_revcolor="#b7e6d7"
+                     /ApEinfo_fwdcolor="#b7e6d7"
+     misc_feature    complement(247..279)
+                     /label="Read 1"
+                     /ApEinfo_revcolor="#ffef86"
+                     /ApEinfo_fwdcolor="#ffef86"
+     misc_feature    complement(280..289)
+                     /label="Indx1"
+                     /ApEinfo_revcolor="#84b0dc"
+                     /ApEinfo_fwdcolor="#84b0dc"
+     misc_feature    complement(290..318)
+                     /label="P5"
+                     /ApEinfo_revcolor="#b4abac"
+                     /ApEinfo_fwdcolor="#b4abac"
+ORIGIN
+        1 CAAGCAGAAG ACGGCATACG AGATNNNNNN NNNNGTGACT GGAGTTCAGA CGTGTGCTCT
+       61 TCCGATCTct accccgacca catgaagcag cAATTTAATA CGACTCACTA TAGGGAAATA
+      121 TCTCCAGCCC TGGCCTGGGT CAATCCTTGG GGCCCAGACT GAGCACGTGA TGGCAGAGGA
+      181 AAGGAAGCCC TGCTTCCTCC AGAGGGCNNN NNNNNNNNNN NNNGGCTCAC CTATTAGCGG
+      241 CTAAGGCTGT CTCTTATACA CATCTGACGC TGCCGACGAN NNNNNNNNNG TGTAGATCTC
+      301 GGTGGTCGCC GTATCATT
+//
