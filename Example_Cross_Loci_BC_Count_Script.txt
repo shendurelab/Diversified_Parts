@@ -1,0 +1,33 @@
+zgrep -c '@' *.fastq.gz > FASTQ_Counts.txt
+
+for i in `find . -type f`; do zcat < "$i" | awk '{if(NR%4==2) print $0}' | awk 'match($1, /CATCA([ATCG]{8})(CGTGC.*)/) {print substr($1, RSTART+5,8)}' | sort -k1n | uniq -c | sort -k1nr > $i.BC_Count.txt; done
+
+grep -H '[.]*' $(find . -name '*BC_Count.txt') > Merged_synHEK3_Insertion_BC_Counts.txt
+
+rm *BC_Count.txt
+
+for i in `find . -type f`; do zcat < "$i" | awk '{if(NR%4==2) print $0}' | awk 'match($1, /AAGAA([ATCG]{8})(GAAGG.*)/) {print substr($1, RSTART+5,8)}' | sort -k1n | uniq -c | sort -k1nr > $i.BC_Count.txt; done
+
+grep -H '[.]*' $(find . -name '*BC_Count.txt') > Merged_EMX1_Insertion_BC_Counts.txt
+
+rm *BC_Count.txt
+
+for i in `find . -type f`; do zcat < "$i" | awk '{if(NR%4==2) print $0}' | awk 'match($1, /GACTC([ATCG]{8})(CTGAG.*)/) {print substr($1, RSTART+5,8)}' | sort -k1n | uniq -c | sort -k1nr > $i.BC_Count.txt; done
+
+grep -H '[.]*' $(find . -name '*BC_Count.txt') > Merged_HBB_Insertion_BC_Counts.txt
+
+rm *BC_Count.txt
+
+for i in `find . -type f`; do zcat < "$i" | awk '{if(NR%4==2) print $0}' | awk 'match($1, /GCAGC([ATCG]{8})(ACCTG.*)/) {print substr($1, RSTART+5,8)}' | sort -k1n | uniq -c | sort -k1nr > $i.BC_Count.txt; done
+
+grep -H '[.]*' $(find . -name '*BC_Count.txt') > Merged_FANCF_Insertion_BC_Counts.txt
+
+rm *BC_Count.txt
+
+for i in `find . -type f`; do zcat < "$i" | awk '{if(NR%4==2) print $0}' | awk 'match($1, /TGTCA([ATCG]{8})(CTAAG.*)/) {print substr($1, RSTART+5,8)}' | sort -k1n | uniq -c | sort -k1nr > $i.BC_Count.txt; done
+
+grep -H '[.]*' $(find . -name '*BC_Count.txt') > Merged_CLYBL_Insertion_BC_Counts.txt
+
+rm *BC_Count.txt
+
+
