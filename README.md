@@ -32,8 +32,6 @@ The resulting .txt files of sequence barcode counts are then used to generate th
 
 The visualization scripts labeled "Fig_1_Viz.Rmd", "Fig_2_Viz.Rmd" etc. can then be used to recreate all visualizations in the manuscript. All processed edit score data and associated metadata required to recreate visualizations are provided in the final figure data set folders labeled "Fig1_Final_Figure_Datasets", "Fig2_Final_Figure_Datasets" etc. More formal edit score tables including relevant test sequences for all experiments are also availale in Tables S1-S12 in the manuscript. 
 
-Note that we provide these mostly as a guide to see how we performed the analyses and to serve as an example for your own analyses. Most will require the installation of several tools that these scripts depend on and minor edits (e.g., adjusting local paths, folder structure).
-
 We have also provided example sequence files for constructs used in this project (Pol III promoter and gRNA scaffold oligo sequences, amplicons for next-generation sequencing, etc.) in the "Construct_Sequences" folder of this repository. We also provide some example scripts used to design diversified part libraries and append sequences required for synthesis and cloning. 
 
 
